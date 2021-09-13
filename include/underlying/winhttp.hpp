@@ -3,10 +3,12 @@
 #include <string_view>
 #include <memory>
 #include <cassert>
+#include <iostream>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <winhttp.h>
+#pragma comment(lib, "Winhttp.lib")
 
 namespace chttpp {
 
@@ -42,6 +44,25 @@ namespace chttpp {
       std::exit(errc);
     }
 
+    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1};
+
+    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
+      auto errc = ::GetLastError();
+
+      std::cout << err_msg(errc) << std::endl;
+
+      std::exit(errc);
+    }
+
+    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+
+    if (connect) {
+      auto errc = ::GetLastError();
+
+      std::cout << err_msg(errc) << std::endl;
+
+      std::exit(errc);
+    }
 
 
   }
