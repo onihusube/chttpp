@@ -10,7 +10,7 @@ if cppcompiler == 'msvc'
     options = ['/std:c++latest', '/source-charset:utf-8', '/Zc:__cplusplus']
     dep_libs = []
 elif cppcompiler == 'gcc'
-    options = ['-std=c++2b']
+    options = ['-std=c++2a']
     curl_dep = dependency('libcurl')
     dep_libs = [curl_dep]
 endif
@@ -25,7 +25,7 @@ if not meson.is_subproject()
 boostut_dep = dependency('boost.ut')
 dep_libs += [boostut_dep]
 
-exe = executable('chttpp_test', 'test/chttpp_test.cpp', include_directories : include_dir, extra_files : vs_files, cpp_args : options, dependencies : [boostut_dep])
+exe = executable('chttpp_test', 'test/chttpp_test.cpp', include_directories : include_dir, extra_files : vs_files, cpp_args : options, dependencies : dep_libs)
 test('chttpp test', exe)
 
 else

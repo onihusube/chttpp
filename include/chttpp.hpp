@@ -6,6 +6,8 @@
 
 #else
 
+#include "underlying/libcurl.hpp"
+
 #endif
 
 
