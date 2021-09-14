@@ -8,4 +8,5 @@
 #include <boost/ut.hpp>
 
 int main() {
+  chttpp::test_get("https://example.com");
 }
