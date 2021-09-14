@@ -32,38 +32,37 @@ namespace chttpp {
   }
 
 
-  auto test_get(std::wstring_view url) {
+  auto test_get(std::wstring_view url) -> DWORD {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
     if (session) {
-      auto errc = ::GetLastError();
-
-      std::cout << err_msg(errc) << std::endl;
-
-      std::exit(errc);
+      return ::GetLastError();
     }
 
     ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1};
 
     if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      auto errc = ::GetLastError();
-
-      std::cout << err_msg(errc) << std::endl;
-
-      std::exit(errc);
+      return ::GetLastError();
     }
 
     hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
 
     if (connect) {
-      auto errc = ::GetLastError();
+      return ::GetLastError();
+    }
 
-      std::cout << err_msg(errc) << std::endl;
+    hinet request{ ::WinHttpOpenRequest(connect.get(), L"GET", L"/", nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE | WINHTTP_FLAG_REFRESH) };
 
-      std::exit(errc);
+    if (request) {
+      return ::GetLastError();
+    }
+
+    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0)) {
+      return ::GetLastError();
     }
 
 
+    return 0;
   }
 }
