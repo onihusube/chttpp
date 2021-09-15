@@ -11,6 +11,10 @@
 #pragma comment(lib, "Winhttp.lib")
 
 namespace chttpp {
+  using http_result = detail::basic_result<DWORD>;
+}
+
+namespace chttpp::underlying {
 
   struct hinet_deleter {
     using pointer = HINTERNET;

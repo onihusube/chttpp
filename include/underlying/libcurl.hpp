@@ -12,10 +12,11 @@
 
 #include <curl/curl.h>
 
+#include "common.hpp"
 
 #ifndef CHTTPP_NOT_GLOBAL_INIT_CURL
 
-namespace chttpp::detail::initialize {
+namespace chttpp::underlying::detail::initialize {
 
   inline const auto manage_curl_global_state_implicit_v = [] {
     const auto rc = ::curl_global_init(CURL_GLOBAL_ALL);
@@ -89,6 +90,15 @@ namespace chttpp {
 #endif
 
 namespace chttpp {
+  using http_result = detail::basic_result<::CURLcode>;
+
+  template<>
+  auto http_result::error_to_string() const -> std::string {
+    return std::string{curl_easy_strerror(this->error())};
+  }
+}
+
+namespace chttpp::underlying {
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
 
@@ -110,20 +120,21 @@ namespace chttpp {
     return data_len;
   }
 
-  auto test_get(std::string_view url) {
+  auto test_get(std::string_view url) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
-      return CURLE_FAILED_INIT;
+      return http_result{CURLE_FAILED_INIT, 0};
     }
 
-    std::string buffer{};
-    //std::vector<char> buffer{};
+    //std::string buffer{};
+    std::vector<char> buffer{};
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, write_callback<decltype(buffer)>);
     curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &buffer);
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
 
     if (url.starts_with("https")) {
       //curl_easy_setopt(session.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0 | CURL_SSLVERSION_MAX_TLSv1_3);
@@ -131,15 +142,18 @@ namespace chttpp {
       curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
     }
 
-    CURLcode status = curl_easy_perform(session.get());
+    CURLcode curl_status = curl_easy_perform(session.get());
 
-    if (status != CURLE_OK) {
-      return status;
+    long http_status;
+    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    if (curl_status != CURLE_OK) {
+      return http_result{curl_status, static_cast<std::uint16_t>(http_status)};
     }
 
-    std::cout << buffer << std::endl;
+    //std::cout << buffer << std::endl;
     //std::cout << std::string_view(buffer.data(), buffer.size()) << std::endl;
 
-    return status;
+    return http_result{std::move(buffer), static_cast<std::uint16_t>(http_status)};
   }
 }

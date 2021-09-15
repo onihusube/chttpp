@@ -8,5 +8,12 @@
 #include <boost/ut.hpp>
 
 int main() {
-  //chttpp::test_get("https://example.com");
+  auto result = chttpp::underlying::test_get("https://example.com");
+
+  if (not result) {
+    std::cout << result;
+  };
+
+  std::cout << result.status() << std::endl;
+  std::cout << result.response() << std::endl;
 }
