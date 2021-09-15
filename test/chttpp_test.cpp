@@ -12,6 +12,7 @@ int main() {
 
   if (not result) {
     std::cout << result;
+    return;
   };
 
   std::cout << result.status() << std::endl;

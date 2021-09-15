@@ -81,6 +81,8 @@ namespace chttpp::detail {
     friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {
       if (bool(self) == false) {
         os << self.error_to_string() << '\n';
+      } else {
+        os << "No error, communication completed successfully.\n";
       }
       return os;
     }
