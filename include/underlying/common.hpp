@@ -22,9 +22,9 @@ namespace chttpp::detail {
     std::same_as<CharT, char32_t>;
 
 
-  template<typename Err, typename Byte = char, typename Allocator = std::allocator<Byte>>
+  template<typename Err, typename Allocator = std::allocator<char>>
   class basic_result {
-    std::variant<std::vector<Byte, Allocator>, Err> m_either;
+    std::variant<std::vector<char, Allocator>, Err> m_either;
     const std::uint16_t m_status_code;
 
   public:
@@ -35,12 +35,12 @@ namespace chttpp::detail {
       , m_status_code{code}
     {}
 
-    basic_result(std::vector<Byte, Allocator>&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<std::vector<Byte, Allocator>>)
+    basic_result(std::vector<char, Allocator>&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<std::vector<char, Allocator>>)
       : m_either{std::in_place_index<0>, std::move(data)}
       , m_status_code{code}
     {}
 
-    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<std::vector<Byte, Allocator>, Err>>)
+    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<std::vector<char, Allocator>, Err>>)
       : m_either{std::move(that.m_either)}
       , m_status_code{that.m_status_code}
     {}
@@ -53,27 +53,27 @@ namespace chttpp::detail {
       return m_status_code;
     }
 
-    auto response() const -> std::string_view {
-      const auto &bytes = std::get<0>(m_either);
-      return {data(bytes), size(bytes)};
+    auto response_body() const -> std::string_view {
+      const auto &chars = std::get<0>(m_either);
+      return {data(chars), size(chars)};
     }
 
     template<charcter CharT>
-    auto response() const -> std::basic_string_view<CharT> {
-      const auto &bytes = std::get<0>(m_either);
-      return { reinterpret_cast<const CharT*>(data(bytes)), size(bytes) / sizeof(CharT)};
+    auto response_body() const -> std::basic_string_view<CharT> {
+      const auto &chars = std::get<0>(m_either);
+      return { reinterpret_cast<const CharT*>(data(chars)), size(chars) / sizeof(CharT)};
     }
 
-    auto response_body() const -> std::span<Byte> {
-      const auto &bytes = std::get<0>(m_either);
-      return {data(bytes), size(bytes)};
+    auto response_data() const -> std::span<char> {
+      const auto &chars = std::get<0>(m_either);
+      return {data(chars), size(chars)};
     }
 
     template<typename ElementType>
       requires std::is_trivially_copyable_v<ElementType>  // 制約、これで足りてる？
-    auto response_body() const -> std::span<ElementType> {
-      const auto &bytes = std::get<0>(m_either);
-      return {reinterpret_cast<const ElementType*>(data(bytes)), size(bytes) / sizeof(ElementType)};
+    auto response_data() const -> std::span<ElementType> {
+      const auto &chars = std::get<0>(m_either);
+      return {reinterpret_cast<const ElementType*>(data(chars)), size(chars) / sizeof(ElementType)};
     }
 
     auto error_to_string() const -> std::string;
@@ -89,11 +89,11 @@ namespace chttpp::detail {
 
     // optional/expected的インターフェース
 
-    auto value() -> std::vector<Byte, Allocator>& {
+    auto value() -> std::vector<char, Allocator>& {
       return std::get<0>(m_either);
     }
 
-    auto value() const -> const std::vector<Byte, Allocator>& {
+    auto value() const -> const std::vector<char, Allocator>& {
       return std::get<0>(m_either);
     }
 

@@ -9,6 +9,8 @@
 #include <iterator>
 #include <ranges>
 #include <algorithm>
+#include <stdexcept>
+#include <cstdlib>
 
 #include <curl/curl.h>
 
@@ -98,7 +100,7 @@ namespace chttpp {
   }
 }
 
-namespace chttpp::underlying {
+namespace chttpp::underlying::terse {
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
 
@@ -120,7 +122,7 @@ namespace chttpp::underlying {
     return data_len;
   }
 
-  auto test_get(std::string_view url) -> http_result {
+  auto get_impl(std::string_view url) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -151,9 +153,22 @@ namespace chttpp::underlying {
       return http_result{curl_status, static_cast<std::uint16_t>(http_status)};
     }
 
-    //std::cout << buffer << std::endl;
-    //std::cout << std::string_view(buffer.data(), buffer.size()) << std::endl;
-
     return http_result{std::move(buffer), static_cast<std::uint16_t>(http_status)};
+  }
+
+
+  auto get_impl(std::wstring_view url) -> http_result {
+    const std::size_t estimate_len = url.length() * 2;
+    std::string buffer{};
+    buffer.resize(estimate_len);
+
+    // ロケールの考慮・・・？
+    const std::size_t converted_len = std::wcstombs(buffer.data(), url.data(), estimate_len);
+
+    if (converted_len == static_cast<std::size_t>(-1)) {
+      throw std::invalid_argument{"Failed to convert the URL wchar_t -> char."};
+    }
+
+    return get_impl(std::string_view{buffer.data(), converted_len});
   }
 }

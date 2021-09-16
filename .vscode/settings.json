@@ -57,6 +57,7 @@
         "typeinfo": "cpp",
         "cstring": "cpp",
         "ranges": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "span": "cpp"
     }
 }
