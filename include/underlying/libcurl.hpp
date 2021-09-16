@@ -95,7 +95,7 @@ namespace chttpp {
   using http_result = detail::basic_result<::CURLcode>;
 
   template<>
-  auto http_result::error_to_string() const -> std::string {
+  inline auto http_result::error_to_string() const -> std::string {
     return std::string{curl_easy_strerror(this->error())};
   }
 }
@@ -134,6 +134,7 @@ namespace chttpp::underlying::terse {
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, write_callback<decltype(buffer)>);
     curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &buffer);
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
@@ -163,6 +164,7 @@ namespace chttpp::underlying::terse {
     buffer.resize(estimate_len);
 
     // ロケールの考慮・・・？
+    // 外側でコントロールしてもらう方向で・・・
     const std::size_t converted_len = std::wcstombs(buffer.data(), url.data(), estimate_len);
 
     if (converted_len == static_cast<std::size_t>(-1)) {
