@@ -58,6 +58,10 @@
         "cstring": "cpp",
         "ranges": "cpp",
         "variant": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "condition_variable": "cpp",
+        "semaphore": "cpp",
+        "shared_mutex": "cpp",
+        "stop_token": "cpp"
     }
 }

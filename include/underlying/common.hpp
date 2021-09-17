@@ -7,6 +7,7 @@
 #include <concepts>
 #include <span>
 #include <iostream>
+#include <memory_resource>
 
 namespace chttpp::detail {
 
@@ -22,9 +23,9 @@ namespace chttpp::detail {
     std::same_as<CharT, char32_t>;
 
 
-  template<typename Err, typename Allocator = std::allocator<char>>
+  template<typename Err>
   class basic_result {
-    std::variant<std::vector<char, Allocator>, Err> m_either;
+    std::variant<std::pmr::vector<char>, Err> m_either;
     const std::uint16_t m_status_code;
 
   public:
@@ -35,12 +36,12 @@ namespace chttpp::detail {
       , m_status_code{code}
     {}
 
-    basic_result(std::vector<char, Allocator>&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<std::vector<char, Allocator>>)
+    basic_result(std::pmr::vector<char>&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<std::pmr::vector<char>>)
       : m_either{std::in_place_index<0>, std::move(data)}
       , m_status_code{code}
     {}
 
-    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<std::vector<char, Allocator>, Err>>)
+    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<std::pmr::vector<char>, Err>>)
       : m_either{std::move(that.m_either)}
       , m_status_code{that.m_status_code}
     {}
@@ -49,7 +50,7 @@ namespace chttpp::detail {
       return m_either.index() == 0;
     }
 
-    auto status() const noexcept -> std::uint16_t {
+    auto status_code() const noexcept -> std::uint16_t {
       return m_status_code;
     }
 
@@ -76,7 +77,7 @@ namespace chttpp::detail {
       return {reinterpret_cast<const ElementType*>(data(chars)), size(chars) / sizeof(ElementType)};
     }
 
-    auto error_to_string() const -> std::string;
+    auto error_to_string() const -> std::pmr::string;
 
     friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {
       if (bool(self) == false) {
@@ -89,11 +90,11 @@ namespace chttpp::detail {
 
     // optional/expected的インターフェース
 
-    auto value() -> std::vector<char, Allocator>& {
+    auto value() -> std::pmr::vector<char>& {
       return std::get<0>(m_either);
     }
 
-    auto value() const -> const std::vector<char, Allocator>& {
+    auto value() const -> const std::pmr::vector<char>& {
       return std::get<0>(m_either);
     }
 

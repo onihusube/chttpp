@@ -15,6 +15,6 @@ int main() {
     return -1;
   };
 
-  std::cout << result.status() << std::endl;
+  std::cout << result.status_code() << std::endl;
   std::cout << result.response_body() << std::endl;
 }

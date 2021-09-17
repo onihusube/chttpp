@@ -95,8 +95,8 @@ namespace chttpp {
   using http_result = detail::basic_result<::CURLcode>;
 
   template<>
-  inline auto http_result::error_to_string() const -> std::string {
-    return std::string{curl_easy_strerror(this->error())};
+  inline auto http_result::error_to_string() const -> std::pmr::string {
+    return {curl_easy_strerror(this->error())};
   }
 }
 
@@ -130,7 +130,7 @@ namespace chttpp::underlying::terse {
     }
 
     //std::string buffer{};
-    std::vector<char> buffer{};
+    std::pmr::vector<char> buffer{};
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
