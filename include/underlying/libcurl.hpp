@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <cstdlib>
+#include <unordered_map>
 
 #include <curl/curl.h>
 
@@ -100,23 +101,60 @@ namespace chttpp {
   }
 }
 
+namespace chttpp::detail {
+  /*void parse_response_header(header_t& headers, char *data_ptr, std::size_t data_len) {
+    using namespace std::literals;
+
+    std::string_view header_str{ data_ptr, data_len};
+    
+    std::size_t current_pos = 0;
+    auto hint_iter = headers.end();
+
+    if (header_str.starts_with("HTTP")) {
+      const auto line_end_pos = header_str.find("\r\n", current_pos);
+      hint_iter = headers.emplace_hint(hint_iter, "HTTP Ver"sv, header_str.substr(current_pos, line_end_pos));
+      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
+    }
+
+    while (current_pos < data_len) {
+      const auto colon_pos = header_str.find(':', current_pos);
+      const auto line_end_pos = header_str.find("\r\n", current_pos);
+      // :の次に行くのに+1, :後の空白を飛ばすので+1 = +2
+      hint_iter = headers.emplace_hint(hint_iter, header_str.substr(current_pos, colon_pos), header_str.substr(colon_pos + 2, line_end_pos));
+      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
+    }
+  }*/
+
+  void parse_response_header(header_t& headers, char *data_ptr, std::size_t data_len) {
+    // curlのヘッダコールバックは、行毎=ヘッダ要素毎に呼んでくれる
+
+    using namespace std::literals;
+
+    std::string_view header_str{ data_ptr, data_len};
+
+    if (header_str.starts_with("HTTP")) {
+      const auto line_end_pos = header_str.find("\r\n", 0);
+      headers.emplace("HTTP Ver"sv, header_str.substr(0, line_end_pos));
+    } else {
+      const auto colon_pos = header_str.find(':', 0);
+      //const auto line_end_pos = header_str.find("\r\n", 0);
+      const auto line_end_pos = header_str.length() - 2;
+      // :の次に行くのに+1, :後の空白を飛ばすので+1 = +2
+      headers.emplace(header_str.substr(0, colon_pos), header_str.substr(colon_pos + 2, line_end_pos));
+    }
+  }
+}
+
 namespace chttpp::underlying::terse {
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
 
-  template<std::ranges::sized_range T>
-    requires requires(T& t, std::size_t N, char c) {
-      t.reserve(N);
-      t.push_back(c);
-    }
-  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* buf_ptr) -> std::size_t {
-    auto& buffer = *reinterpret_cast<T*>(buf_ptr);
+  template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
+  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* obj_ptr) -> std::size_t {
+    auto& proc_obj = *reinterpret_cast<T*>(obj_ptr);
     const std::size_t data_len = one * length;
 
-    // vectorを渡しても、stringを渡しても正しく動いて欲しい
-    // が、おそらくmemcpy相当まで最適化されなさそう・・・
-    buffer.reserve(buffer.size() + data_len);
-    std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+    reciever(proc_obj, data_ptr, data_len);
 
     // 返さないと失敗扱い
     return data_len;
@@ -129,15 +167,26 @@ namespace chttpp::underlying::terse {
       return http_result{CURLE_FAILED_INIT, 0};
     }
 
-    //std::string buffer{};
-    std::pmr::vector<char> buffer{};
+    std::pmr::vector<char> body{};
+    chttpp::detail::header_t headers;
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
-    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, write_callback<decltype(buffer)>);
-    curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &buffer);
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
+
+    // レスポンスボディコールバックの指定
+    auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+      buffer.reserve(buffer.size() + data_len);
+      std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+    }>;
+    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+
+    // レスポンスヘッダコールバックの指定
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header>;
+    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
 
     if (url.starts_with("https")) {
       //curl_easy_setopt(session.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0 | CURL_SSLVERSION_MAX_TLSv1_3);
@@ -154,13 +203,13 @@ namespace chttpp::underlying::terse {
       return http_result{curl_status, static_cast<std::uint16_t>(http_status)};
     }
 
-    return http_result{std::move(buffer), static_cast<std::uint16_t>(http_status)};
+    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers)}, static_cast<std::uint16_t>(http_status)};
   }
 
 
   auto get_impl(std::wstring_view url) -> http_result {
     const std::size_t estimate_len = url.length() * 2;
-    std::string buffer{};
+    std::pmr::string buffer{};
     buffer.resize(estimate_len);
 
     // ロケールの考慮・・・？

@@ -8,6 +8,7 @@
 #include <span>
 #include <iostream>
 #include <memory_resource>
+#include <unordered_map>
 
 namespace chttpp::detail {
 
@@ -22,10 +23,16 @@ namespace chttpp::detail {
     std::same_as<CharT, char16_t> or
     std::same_as<CharT, char32_t>;
 
+  using header_t = std::pmr::unordered_map<std::string, std::string>;
+
+  struct http_response {
+    std::pmr::vector<char> body;
+    header_t headers;
+  };
 
   template<typename Err>
   class basic_result {
-    std::variant<std::pmr::vector<char>, Err> m_either;
+    std::variant<http_response, Err> m_either;
     const std::uint16_t m_status_code;
 
   public:
@@ -36,12 +43,12 @@ namespace chttpp::detail {
       , m_status_code{code}
     {}
 
-    basic_result(std::pmr::vector<char>&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<std::pmr::vector<char>>)
+    basic_result(http_response&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<http_response>)
       : m_either{std::in_place_index<0>, std::move(data)}
       , m_status_code{code}
     {}
 
-    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<std::pmr::vector<char>, Err>>)
+    basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<http_response, Err>>)
       : m_either{std::move(that.m_either)}
       , m_status_code{that.m_status_code}
     {}
@@ -55,26 +62,26 @@ namespace chttpp::detail {
     }
 
     auto response_body() const -> std::string_view {
-      const auto &chars = std::get<0>(m_either);
-      return {data(chars), size(chars)};
+      const auto &response = std::get<0>(m_either);
+      return {data(response.body), size(response.body)};
     }
 
     template<charcter CharT>
     auto response_body() const -> std::basic_string_view<CharT> {
-      const auto &chars = std::get<0>(m_either);
-      return { reinterpret_cast<const CharT*>(data(chars)), size(chars) / sizeof(CharT)};
+      const auto &response = std::get<0>(m_either);
+      return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
     }
 
     auto response_data() const -> std::span<char> {
-      const auto &chars = std::get<0>(m_either);
-      return {data(chars), size(chars)};
+      const auto &response = std::get<0>(m_either);
+      return {data(response.body), size(response.body)};
     }
 
     template<typename ElementType>
       requires std::is_trivially_copyable_v<ElementType>  // 制約、これで足りてる？
     auto response_data() const -> std::span<ElementType> {
-      const auto &chars = std::get<0>(m_either);
-      return {reinterpret_cast<const ElementType*>(data(chars)), size(chars) / sizeof(ElementType)};
+      const auto &response = std::get<0>(m_either);
+      return {reinterpret_cast<const ElementType*>(data(response.body)), size(response.body) / sizeof(ElementType)};
     }
 
     auto error_to_string() const -> std::pmr::string;
@@ -90,11 +97,11 @@ namespace chttpp::detail {
 
     // optional/expected的インターフェース
 
-    auto value() -> std::pmr::vector<char>& {
+    auto value() -> http_response& {
       return std::get<0>(m_either);
     }
 
-    auto value() const -> const std::pmr::vector<char>& {
+    auto value() const -> const http_response& {
       return std::get<0>(m_either);
     }
 
