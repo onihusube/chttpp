@@ -43,8 +43,8 @@ namespace chttpp::detail {
       , m_status_code{code}
     {}
 
-    basic_result(http_response&& data, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<http_response>)
-      : m_either{std::in_place_index<0>, std::move(data)}
+    basic_result(http_response&& res, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<http_response>)
+      : m_either{std::in_place_index<0>, std::move(res)}
       , m_status_code{code}
     {}
 
