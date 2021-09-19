@@ -25,6 +25,36 @@ namespace chttpp {
 
 }
 
+namespace chttpp::detail {
+  auto parse_response_header(std::string_view header_str) -> header_t {
+    using namespace std::literals;
+
+    header_t headers;
+    std::size_t current_pos = 0;
+
+    // これは仮定してもいい？
+    if (header_str.starts_with("HTTP")) {
+      const auto line_end_pos = header_str.find("\r\n", current_pos);
+      headers.emplace("HTTP Ver"sv, header_str.substr(current_pos, line_end_pos));
+      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
+    }
+
+    // \0の分と最後にダブルで入ってる\r\nの分
+    const std::size_t total_len = header_str.length() - 1 - 2;
+    while (current_pos < total_len) {
+      const auto colon_pos = header_str.find(':', current_pos);
+      // :の次に行くのに+1, :後の空白を飛ばすので+1 = +2
+      const auto value_begin = colon_pos + 2;
+      const auto line_end_pos = header_str.find("\r\n", current_pos);
+
+      headers.emplace(header_str.substr(current_pos, colon_pos - current_pos), header_str.substr(value_begin, line_end_pos - value_begin));
+      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
+    }
+
+    return headers;
+  }
+}
+
 namespace chttpp::underlying::terse {
 
   struct hinet_deleter {
@@ -69,6 +99,7 @@ namespace chttpp::underlying::terse {
       return { ::GetLastError(), 0 };
     }
 
+    // レスポンスデータの取得
     DWORD data_len{};
     if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
       return { ::GetLastError(), 0 };
@@ -81,14 +112,32 @@ namespace chttpp::underlying::terse {
     if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
       return { ::GetLastError(), 0 };
     }
+    assert(read_len == data_len);
 
+    // ステータスコードの取得
     DWORD status_code{};
     DWORD dowrd_len = sizeof(status_code);
     if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
       return { ::GetLastError(), 0 };
     }
 
-    return { chttpp::detail::http_response{.body = std::move(body), .headers = {}} , static_cast<std::uint16_t>(status_code) };
+    // レスポンスヘッダの取得
+    DWORD header_bytes{};
+    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
+    // 生ヘッダはUTF-16文字列として得られる
+    std::pmr::wstring header_buf;
+    header_buf.resize(header_bytes / sizeof(wchar_t));
+    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
+
+    // ヘッダの変換
+    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), static_cast<int>(header_buf.length()), nullptr, 0, nullptr, nullptr);
+    std::pmr::string converted_header{};
+    converted_header.resize(converted_len);
+    if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), static_cast<int>(header_buf.length()), converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
+      return { ::GetLastError(), 0 };
+    }
+
+    return { chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header(converted_header)} , static_cast<std::uint16_t>(status_code) };
   }
 
   auto get_impl(std::string_view url) -> http_result {
