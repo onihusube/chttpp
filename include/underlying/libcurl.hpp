@@ -125,23 +125,16 @@ namespace chttpp::detail {
     }
   }*/
 
-  void parse_response_header(header_t& headers, char *data_ptr, std::size_t data_len) {
+  void parse_response_header_on_curl(header_t& headers, char *data_ptr, std::size_t data_len) {
     // curlのヘッダコールバックは、行毎=ヘッダ要素毎に呼んでくれる
 
     using namespace std::literals;
 
-    std::string_view header_str{ data_ptr, data_len};
+    // 末尾に\r\nがあれば除いておく
+    const auto ln_pos = std::string_view{ data_ptr, data_len }.rfind("\r\n"sv);
+    std::string_view header_str{ data_ptr, std::min(ln_pos, data_len) };
 
-    if (header_str.starts_with("HTTP")) {
-      const auto line_end_pos = header_str.find("\r\n", 0);
-      headers.emplace("HTTP Ver"sv, header_str.substr(0, line_end_pos));
-    } else {
-      const auto colon_pos = header_str.find(':', 0);
-      //const auto line_end_pos = header_str.find("\r\n", 0);
-      const auto line_end_pos = header_str.length() - 2;
-      // :の次に行くのに+1, :後の空白を飛ばすので+1 = +2
-      headers.emplace(header_str.substr(0, colon_pos), header_str.substr(colon_pos + 2, line_end_pos));
-    }
+    parse_response_header_oneline(headers, header_str);
   }
 }
 
@@ -184,7 +177,7 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
 
     // レスポンスヘッダコールバックの指定
-    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header>;
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
     curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
     curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
 

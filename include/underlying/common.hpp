@@ -10,6 +10,44 @@
 #include <memory_resource>
 #include <unordered_map>
 
+namespace chttpp::inline types{
+
+#ifndef CHTTPP_DO_NOT_CUSTOMIZE_ALLOCATOR
+  // デフォルト : polymorphic_allocatorによるアロケータカスタイマイズ
+  using string_t = std::pmr::string;
+  using wstring_t = std::pmr::wstring;
+  using header_t = std::pmr::unordered_map<string_t, string_t>;
+  template<typename T>
+  using vector_t = std::pmr::vector<T>;
+#else
+  // アロケータカスタイマイズをしない
+  using string_t = std::string;
+  using header_t = std::unordered_map<string_t, string_t>;
+  template<typename T>
+  using vector_t = std::vector<T>;
+#endif
+
+}
+
+namespace chttpp::detail {
+
+  auto parse_response_header_oneline(header_t& headers, std::string_view header_str) {
+    using namespace std::string_view_literals;
+    // \r\nは含まないとする
+
+    if (header_str.starts_with("HTTP")) [[unlikely]] {
+      const auto line_end_pos = header_str.end();
+      headers.emplace("HTTP Ver"sv, std::string_view{ header_str.begin(), line_end_pos });
+      return;
+    }
+
+    const auto colon_pos = header_str.find(':');
+    const auto header_end_pos = header_str.end();
+    const auto heade_value_pos = std::ranges::find_if(header_str.begin() + colon_pos + 1, header_end_pos, [](char c) { return c != ' '; });
+    headers.emplace(header_str.substr(0, colon_pos), std::string_view{ heade_value_pos, header_end_pos });
+  }
+}
+
 namespace chttpp::detail {
 
   using std::ranges::data;
@@ -23,7 +61,6 @@ namespace chttpp::detail {
     std::same_as<CharT, char16_t> or
     std::same_as<CharT, char32_t>;
 
-  using header_t = std::pmr::unordered_map<std::string, std::string>;
 
   struct http_response {
     std::pmr::vector<char> body;
