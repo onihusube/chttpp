@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory_resource>
 #include <unordered_map>
+#include <ranges>
+#include <algorithm>
 
 namespace chttpp::inline types{
 
@@ -22,6 +24,7 @@ namespace chttpp::inline types{
 #else
   // アロケータカスタイマイズをしない
   using string_t = std::string;
+  using wstring_t = std::string;
   using header_t = std::unordered_map<string_t, string_t>;
   template<typename T>
   using vector_t = std::vector<T>;
@@ -63,39 +66,41 @@ namespace chttpp::detail {
 
 
   struct http_response {
-    std::pmr::vector<char> body;
+    vector_t<char> body;
     header_t headers;
+    std::uint16_t status_code;
   };
 
   template<typename Err>
   class basic_result {
     std::variant<http_response, Err> m_either;
-    const std::uint16_t m_status_code;
 
   public:
 
     template<typename T = Err>
-    basic_result(T&& e, std::uint16_t code) noexcept(std::is_nothrow_constructible_v<Err, T>)
+      requires std::constructible_from<Err, T>
+    explicit basic_result(T&& e) noexcept(std::is_nothrow_constructible_v<Err, T>)
       : m_either{std::in_place_index<1>, std::forward<T>(e)}
-      , m_status_code{code}
     {}
 
-    basic_result(http_response&& res, std::uint16_t code) noexcept(std::is_nothrow_move_constructible_v<http_response>)
+    explicit basic_result(http_response&& res) noexcept(std::is_nothrow_move_constructible_v<http_response>)
       : m_either{std::in_place_index<0>, std::move(res)}
-      , m_status_code{code}
     {}
 
     basic_result(basic_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<http_response, Err>>)
       : m_either{std::move(that.m_either)}
-      , m_status_code{that.m_status_code}
     {}
+
+    basic_result(const basic_result& that) =  delete;
+    basic_result &operator=(const basic_result &) = delete;
 
     explicit operator bool() const noexcept {
       return m_either.index() == 0;
     }
 
-    auto status_code() const noexcept -> std::uint16_t {
-      return m_status_code;
+    auto status_code() const -> std::uint16_t {
+      const auto &response = std::get<0>(m_either);
+      return response.status_code;
     }
 
     auto response_body() const -> std::string_view {
@@ -121,7 +126,23 @@ namespace chttpp::detail {
       return {reinterpret_cast<const ElementType*>(data(response.body)), size(response.body) / sizeof(ElementType)};
     }
 
-    auto error_to_string() const -> std::pmr::string;
+    auto response_header() const -> const header_t& {
+      const auto &response = std::get<0>(m_either);
+      return response.headers;
+    }
+
+    auto response_header(std::string_view header_name) const -> std::string_view {
+      const auto &headers = std::get<0>(m_either).headers;
+
+      const auto pos = headers.find(header_name.data());
+      if (pos == headers.end()) {
+        return {};
+      }
+
+      return (*pos).second;
+    }
+
+    auto error_to_string() const -> string_t;
 
     friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {
       if (bool(self) == false) {
@@ -134,12 +155,16 @@ namespace chttpp::detail {
 
     // optional/expected的インターフェース
 
-    auto value() -> http_response& {
+    auto value() & -> http_response& {
       return std::get<0>(m_either);
     }
 
-    auto value() const -> const http_response& {
+    auto value() const & -> const http_response& {
       return std::get<0>(m_either);
+    }
+
+    auto value() && -> http_response&& {
+      return std::get<0>(std::move(m_either));
     }
 
     auto error() const -> Err {
