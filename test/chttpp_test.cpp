@@ -20,17 +20,6 @@ namespace ut = boost::ut;
 #endif
 
 int main() {
-  /*auto result = chttpp::get(L"https://example.com");
-
-  if (not result) {
-    std::cout << result;
-    return -1;
-  };
-
-  //std::cout << result.status_code() << std::endl;
-  //std::cout << result.response_body() << std::endl;
-*/
-
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
