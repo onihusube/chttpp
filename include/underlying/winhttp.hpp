@@ -71,6 +71,14 @@ namespace chttpp::underlying::terse {
       return { ::GetLastError(), 0 };
     }
 
+    {
+      // HTTP2を常に使用する
+      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
+      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
+        return { ::GetLastError(), 0 };
+      }
+    }
+
     ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1};
 
     if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
@@ -83,10 +91,20 @@ namespace chttpp::underlying::terse {
       return { ::GetLastError(), 0 };
     }
 
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"GET", L"/", nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE | WINHTTP_FLAG_REFRESH) };
+    // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
+    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
+    hinet request{ ::WinHttpOpenRequest(connect.get(), L"GET", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
 
     if (not request) {
       return { ::GetLastError(), 0 };
+    }
+
+    {
+      // レスポンスデータを自動で解凍する
+      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
+      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
+        return { ::GetLastError(), 0 };
+      }
     }
 
     if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or

@@ -40,7 +40,7 @@ X-Cache: HIT
 */
 
 int main() {
-  auto result = chttpp::get(L"https://example.com");
+  auto result = chttpp::get(L"http://example.com");
 
   if (not result) {
     std::cout << result;
