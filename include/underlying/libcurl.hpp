@@ -177,20 +177,75 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-
-  auto get_impl(std::wstring_view url) -> http_result {
-    const std::size_t estimate_len = url.length() * 2;
+  auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
+    const std::size_t estimate_len = wstr.length() * 2;
     string_t buffer{};
     buffer.resize(estimate_len);
 
     // ロケールの考慮・・・？
     // 外側でコントロールしてもらう方向で・・・
-    const std::size_t converted_len = std::wcstombs(buffer.data(), url.data(), estimate_len);
+    const std::size_t converted_len = std::wcstombs(buffer.data(), wstr.data(), estimate_len);
 
-    if (converted_len == static_cast<std::size_t>(-1)) {
+    return { std::move(buffer), converted_len };
+  }
+
+  auto get_impl(std::wstring_view url) -> http_result {
+
+    const auto [curl, length] = wchar_to_char(url);
+
+    if (length == static_cast<std::size_t>(-1)) {
       throw std::invalid_argument{"Failed to convert the URL wchar_t -> char."};
     }
 
-    return get_impl(std::string_view{buffer.data(), converted_len});
+    return get_impl(std::string_view{curl.data(), length});
+  }
+
+  auto head_impl(std::string_view url) -> http_result {
+    unique_curl session{curl_easy_init()};
+
+    if (not session) {
+      return http_result{CURLE_FAILED_INIT};
+    }
+
+    header_t headers;
+
+    curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
+    curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
+
+    // レスポンスヘッダコールバックの指定
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
+    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
+
+    if (url.starts_with("https")) {
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+    }
+
+    CURLcode curl_status = curl_easy_perform(session.get());
+
+    if (curl_status != CURLE_OK) {
+      return http_result{curl_status};
+    }
+
+    long http_status;
+    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    return http_result{chttpp::detail::http_response{.body = {}, .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
+
+  }
+
+  auto head_impl(std::wstring_view url) -> http_result {
+
+    const auto [curl, length] = wchar_to_char(url);
+
+    if (length == static_cast<std::size_t>(-1)) {
+      throw std::invalid_argument{"Failed to convert the URL wchar_t -> char."};
+    }
+
+    return head_impl(std::string_view{curl.data(), length});
   }
 }

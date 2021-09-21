@@ -31,8 +31,20 @@ namespace chttpp::detail {
       return chttpp::underlying::terse::get_impl(URL);
     }
   };
+
+  struct terse_head_impl {
+
+    auto operator()(std::string_view URL) const -> http_result {
+      return chttpp::underlying::terse::head_impl(URL);
+    }
+
+    auto operator()(std::wstring_view URL) const -> http_result {
+      return chttpp::underlying::terse::head_impl(URL);
+    }
+  };
 }
 
 namespace chttpp {
-  inline const detail::terse_get_impl get{};
+  inline constexpr detail::terse_get_impl get{};
+  inline constexpr detail::terse_head_impl head{};
 }

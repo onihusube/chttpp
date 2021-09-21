@@ -84,6 +84,14 @@ void underlying_test() {
       !ut::expect(bool(result));
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
+      
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+
+      {
+        const auto httpver = result.response_header("HTTP Ver");
+        ut::expect(httpver == "HTTP/2 200 "sv); // なぜか後ろにスペースが入る
+      }
     }
     {
       auto result = chttpp::get("http://example.com");
@@ -91,6 +99,9 @@ void underlying_test() {
       !ut::expect(bool(result));
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
     }
     {
       auto result = chttpp::get(L"https://example.com");
@@ -98,6 +109,32 @@ void underlying_test() {
       !ut::expect(bool(result));
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+    }
+  };
+
+  "terse_head"_test = [] {
+    {
+      auto result = chttpp::head("https://example.com");
+
+      !ut::expect(bool(result));
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() == 0_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+
+      {
+        const auto httpver = result.response_header("HTTP Ver");
+        ut::expect(httpver == "HTTP/2 200 "sv); // なぜか後ろにスペースが入る
+      }
+      {
+        const auto clen = result.response_header("content-length");
+        ut::expect(clen.length() >= 3_i);
+      }
+
     }
   };
 }

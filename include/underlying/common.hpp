@@ -126,6 +126,22 @@ namespace chttpp::detail {
       return {reinterpret_cast<const ElementType*>(data(response.body)), size(response.body) / sizeof(ElementType)};
     }
 
+    auto response_header() const -> const header_t& {
+      const auto &response = std::get<0>(m_either);
+      return response.headers;
+    }
+
+    auto response_header(std::string_view header_name) const -> std::string_view {
+      const auto &headers = std::get<0>(m_either).headers;
+
+      const auto pos = headers.find(header_name.data());
+      if (pos == headers.end()) {
+        return {};
+      }
+
+      return (*pos).second;
+    }
+
     auto error_to_string() const -> string_t;
 
     friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {
