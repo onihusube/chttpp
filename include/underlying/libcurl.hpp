@@ -125,7 +125,7 @@ namespace chttpp::detail {
     }
   }*/
 
-  void parse_response_header_on_curl(header_t& headers, char *data_ptr, std::size_t data_len) {
+  void parse_response_header_on_curl(header_t& headers, const char *data_ptr, std::size_t data_len) {
     // curlのヘッダコールバックは、行毎=ヘッダ要素毎に呼んでくれる
 
     using namespace std::literals;
@@ -161,7 +161,7 @@ namespace chttpp::underlying::terse {
     }
 
     std::pmr::vector<char> body{};
-    chttpp::detail::header_t headers;
+    header_t headers;
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);

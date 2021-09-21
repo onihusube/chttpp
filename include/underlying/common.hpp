@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory_resource>
 #include <unordered_map>
+#include <ranges>
+#include <algorithm>
 
 namespace chttpp::inline types{
 
