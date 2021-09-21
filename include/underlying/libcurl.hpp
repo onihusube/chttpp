@@ -96,34 +96,12 @@ namespace chttpp {
   using http_result = detail::basic_result<::CURLcode>;
 
   template<>
-  inline auto http_result::error_to_string() const -> std::pmr::string {
+  inline auto http_result::error_to_string() const -> string_t {
     return {curl_easy_strerror(this->error())};
   }
 }
 
 namespace chttpp::detail {
-  /*void parse_response_header(header_t& headers, char *data_ptr, std::size_t data_len) {
-    using namespace std::literals;
-
-    std::string_view header_str{ data_ptr, data_len};
-    
-    std::size_t current_pos = 0;
-    auto hint_iter = headers.end();
-
-    if (header_str.starts_with("HTTP")) {
-      const auto line_end_pos = header_str.find("\r\n", current_pos);
-      hint_iter = headers.emplace_hint(hint_iter, "HTTP Ver"sv, header_str.substr(current_pos, line_end_pos));
-      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
-    }
-
-    while (current_pos < data_len) {
-      const auto colon_pos = header_str.find(':', current_pos);
-      const auto line_end_pos = header_str.find("\r\n", current_pos);
-      // :の次に行くのに+1, :後の空白を飛ばすので+1 = +2
-      hint_iter = headers.emplace_hint(hint_iter, header_str.substr(current_pos, colon_pos), header_str.substr(colon_pos + 2, line_end_pos));
-      current_pos = line_end_pos + 2; // \r\nの次へ行くので+2
-    }
-  }*/
 
   void parse_response_header_on_curl(header_t& headers, const char *data_ptr, std::size_t data_len) {
     // curlのヘッダコールバックは、行毎=ヘッダ要素毎に呼んでくれる
@@ -157,10 +135,10 @@ namespace chttpp::underlying::terse {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
-      return http_result{CURLE_FAILED_INIT, 0};
+      return http_result{CURLE_FAILED_INIT};
     }
 
-    std::pmr::vector<char> body{};
+    vector_t<char> body{};
     header_t headers;
 
     curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
@@ -193,16 +171,16 @@ namespace chttpp::underlying::terse {
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
     if (curl_status != CURLE_OK) {
-      return http_result{curl_status, static_cast<std::uint16_t>(http_status)};
+      return http_result{curl_status};
     }
 
-    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers)}, static_cast<std::uint16_t>(http_status)};
+    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
 
   auto get_impl(std::wstring_view url) -> http_result {
     const std::size_t estimate_len = url.length() * 2;
-    std::pmr::string buffer{};
+    string_t buffer{};
     buffer.resize(estimate_len);
 
     // ロケールの考慮・・・？

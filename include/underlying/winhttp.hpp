@@ -19,8 +19,9 @@ namespace chttpp {
   using http_result = detail::basic_result<DWORD>;
 
   template<>
-  inline auto http_result::error_to_string() const -> std::pmr::string {
+  inline auto http_result::error_to_string() const -> string_t {
     // pmr::stringに対応するために内部実装を直接使用
+    // 割とunknown errorになるので、別の手段を検討した方がよさそう・・・
     return std::_Syserror_map(std::get<1>(this->m_either));
     //return std::system_category().message(std::get<1>(this->m_either));
   }
@@ -100,7 +101,7 @@ namespace chttpp::underlying::terse {
       return { ::GetLastError(), 0 };
     }
 
-    std::pmr::vector<char> body{};
+    vector_t<char> body{};
     body.resize(data_len);
     DWORD read_len{};
 
@@ -120,13 +121,13 @@ namespace chttpp::underlying::terse {
     DWORD header_bytes{};
     ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
     // 生ヘッダはUTF-16文字列として得られる（null終端されている）
-    std::pmr::wstring header_buf;
+    wstring_t header_buf;
     header_buf.resize(header_bytes / sizeof(wchar_t));
     ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
 
     // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
     const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
-    std::pmr::string converted_header{};
+    string_t converted_header{};
     converted_header.resize(converted_len);
     if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
       return { ::GetLastError(), 0 };
@@ -137,7 +138,7 @@ namespace chttpp::underlying::terse {
 
   auto get_impl(std::string_view url) -> http_result {
     const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, url.data(), static_cast<int>(url.length()), nullptr, 0);
-    std::pmr::wstring converted_url{};
+    wstring_t converted_url{};
     converted_url.resize(converted_len);
 
     if (::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, url.data(), static_cast<int>(url.length()), converted_url.data(), static_cast<int>(converted_len)) == 0) {
