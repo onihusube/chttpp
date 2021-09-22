@@ -62,5 +62,25 @@ int main() {
 
   };
 
+  "null_terminated_string_view"_test = [] {
+    using namespace std::string_literals;
+    using chttpp::nt_string_view;
+
+    static_assert(std::is_trivially_copyable_v<nt_string_view>);
+    static_assert(sizeof(nt_string_view) == sizeof(std::string_view));
+
+    nt_string_view str1{"test string"};
+    ut::expect(str1.str_view().size() == 11);
+    ut::expect(str1.str_view() == "test string"sv);
+
+    nt_string_view str2{"test string"sv};
+    ut::expect(str2.str_view().size() == 11);
+    ut::expect(str2.str_view() == "test string"sv);
+
+    nt_string_view str3{"test string"s};
+    ut::expect(str3.str_view().size() == 11);
+    ut::expect(str3.str_view() == "test string"sv);
+  };
+
   underlying_test();
 }

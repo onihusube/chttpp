@@ -12,6 +12,8 @@
 #include <ranges>
 #include <algorithm>
 
+#include "null_terminated_string_view.hpp"
+
 namespace chttpp::inline types{
 
 #ifndef CHTTPP_DO_NOT_CUSTOMIZE_ALLOCATOR
@@ -131,10 +133,10 @@ namespace chttpp::detail {
       return response.headers;
     }
 
-    auto response_header(std::string_view header_name) const -> std::string_view {
+    auto response_header(nt_string_view header_name) const -> std::string_view {
       const auto &headers = std::get<0>(m_either).headers;
 
-      const auto pos = headers.find(header_name.data());
+      const auto pos = headers.find(header_name.c_str());
       if (pos == headers.end()) {
         return {};
       }

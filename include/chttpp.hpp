@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "underlying/common.hpp"
+#include "null_terminated_string_view.hpp"
 
 #ifdef _MSC_VER
 
@@ -23,22 +24,22 @@ namespace chttpp::detail {
 
   struct terse_get_impl {
 
-    auto operator()(std::string_view URL) const -> http_result {
+    auto operator()(nt_string_view URL) const -> http_result {
       return chttpp::underlying::terse::get_impl(URL);
     }
 
-    auto operator()(std::wstring_view URL) const -> http_result {
+    auto operator()(nt_wstring_view URL) const -> http_result {
       return chttpp::underlying::terse::get_impl(URL);
     }
   };
 
   struct terse_head_impl {
 
-    auto operator()(std::string_view URL) const -> http_result {
+    auto operator()(nt_string_view URL) const -> http_result {
       return chttpp::underlying::terse::head_impl(URL);
     }
 
-    auto operator()(std::wstring_view URL) const -> http_result {
+    auto operator()(nt_wstring_view URL) const -> http_result {
       return chttpp::underlying::terse::head_impl(URL);
     }
   };
