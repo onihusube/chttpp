@@ -44,15 +44,15 @@ int main() {
     parse_response_header_oneline(headers, R"(ETag: "3147526947+ident")");
 
     ut::expect(headers.size() == 3);
-    ut::expect(headers.contains("ETag"));
-    ut::expect(headers["ETag"] == R"("3147526947+ident")"sv);
+    ut::expect(headers.contains("etag"));
+    ut::expect(headers["etag"] == R"("3147526947+ident")"sv);
 
     // :の後のスペース有無のテスト
     parse_response_header_oneline(headers, "Age:    515403");
 
     ut::expect(headers.size() == 4);
-    ut::expect(headers.contains("Age"));
-    ut::expect(headers["Age"] == "515403"sv);
+    ut::expect(headers.contains("age"));
+    ut::expect(headers["age"] == "515403"sv);
 
     parse_response_header_oneline(headers, "date:Fri, 17 Sep 2021 08:38:37 GMT");
 
@@ -60,14 +60,27 @@ int main() {
     ut::expect(headers.contains("date"));
     ut::expect(headers["date"] == "Fri, 17 Sep 2021 08:38:37 GMT"sv);
 
+    parse_response_header_oneline(headers, "Content-Length: 1256");
+
+    ut::expect(headers.size() == 6);
+    ut::expect(headers.contains("content-length"));
+    ut::expect(headers["content-length"] == "1256"sv);
+
   };
 
   "null_terminated_string_view"_test = [] {
     using namespace std::string_literals;
     using chttpp::nt_string_view;
 
+    // ほぼstring_viewの性質を受け継ぐ
     static_assert(std::is_trivially_copyable_v<nt_string_view>);
     static_assert(sizeof(nt_string_view) == sizeof(std::string_view));
+    // 右辺値から構築できない
+    static_assert(not std::constructible_from<nt_string_view, std::string>);
+    static_assert(std::constructible_from<nt_string_view, std::string&>);
+
+    static_assert(std::three_way_comparable<nt_string_view>);
+    static_assert(std::equality_comparable<nt_string_view>);
 
     nt_string_view str1{"test string"};
     ut::expect(str1.str_view().size() == 11);
@@ -77,7 +90,8 @@ int main() {
     ut::expect(str2.str_view().size() == 11);
     ut::expect(str2.str_view() == "test string"sv);
 
-    nt_string_view str3{"test string"s};
+    const auto dyn_str = "test string"s;
+    nt_string_view str3{dyn_str};
     ut::expect(str3.str_view().size() == 11);
     ut::expect(str3.str_view() == "test string"sv);
   };

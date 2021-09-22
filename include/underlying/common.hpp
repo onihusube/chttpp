@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <ranges>
 #include <algorithm>
+#include <cctype>
 
 #include "null_terminated_string_view.hpp"
 
@@ -49,7 +50,14 @@ namespace chttpp::detail {
     const auto colon_pos = header_str.find(':');
     const auto header_end_pos = header_str.end();
     const auto heade_value_pos = std::ranges::find_if(header_str.begin() + colon_pos + 1, header_end_pos, [](char c) { return c != ' '; });
-    headers.emplace(header_str.substr(0, colon_pos), std::string_view{ heade_value_pos, header_end_pos });
+
+    // キー文字列は全て小文字になるようにする
+    string_t key_str{header_str.substr(0, colon_pos)};
+    for (auto& c : key_str) {
+      c = std::tolower(static_cast<unsigned char>(c));
+    }
+
+    headers.emplace(std::move(key_str), std::string_view{ heade_value_pos, header_end_pos });
   }
 }
 
@@ -93,7 +101,7 @@ namespace chttpp::detail {
       : m_either{std::move(that.m_either)}
     {}
 
-    basic_result(const basic_result& that) =  delete;
+    basic_result(const basic_result& that) = delete;
     basic_result &operator=(const basic_result &) = delete;
 
     explicit operator bool() const noexcept {
