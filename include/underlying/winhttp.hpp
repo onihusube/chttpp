@@ -120,13 +120,15 @@ namespace chttpp::underlying::terse {
     }
 
     vector_t<char> body{};
-    body.resize(data_len);
-    DWORD read_len{};
+    if (0 < data_len) {
+      body.resize(data_len);
+      DWORD read_len{};
 
-    if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
-      return http_result{ ::GetLastError() };
+      if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
+        return http_result{ ::GetLastError() };
+      }
+      assert(read_len == data_len);
     }
-    assert(read_len == data_len);
 
     // ステータスコードの取得
     DWORD status_code{};

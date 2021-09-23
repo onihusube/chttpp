@@ -16,7 +16,7 @@ elif cppcompiler == 'gcc'
 endif
 
 #VSプロジェクトに編集しうるファイルを追加する
-vs_files = ['include/chttpp.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'test/winhttp_test.hpp']
+vs_files = ['include/chttpp.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp']
 
 
 if not meson.is_subproject()

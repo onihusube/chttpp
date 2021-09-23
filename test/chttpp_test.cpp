@@ -68,6 +68,7 @@ int main() {
 
   };
 
+#ifndef _MSC_VER
   "null_terminated_string_view"_test = [] {
     using namespace std::string_literals;
     using chttpp::nt_string_view;
@@ -95,6 +96,7 @@ int main() {
     ut::expect(str3.str_view().size() == 11);
     ut::expect(str3.str_view() == "test string"sv);
   };
+#endif
 
   underlying_test();
 }

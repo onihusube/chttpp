@@ -58,11 +58,21 @@ namespace chttpp {
       return m_view.data();
     }
 
+    constexpr auto data() const noexcept -> const CharT* {
+      return m_view.data();
+    }
+
     friend constexpr std::strong_ordering operator<=>(const basic_null_terminated_string_view &, const basic_null_terminated_string_view &) = default;
   };
 
+#ifdef _MSC_VER
+  using nt_string_view = std::string_view;
+  using nt_wstring_view = std::wstring_view;
+#else 
   using nt_string_view = basic_null_terminated_string_view<char>;
   using nt_wstring_view = basic_null_terminated_string_view<wchar_t>;
+#endif  
+
 }
 
 /*

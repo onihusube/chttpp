@@ -54,7 +54,7 @@ namespace chttpp::detail {
     // キー文字列は全て小文字になるようにする
     string_t key_str{header_str.substr(0, colon_pos)};
     for (auto& c : key_str) {
-      c = std::tolower(static_cast<unsigned char>(c));
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
     headers.emplace(std::move(key_str), std::string_view{ heade_value_pos, header_end_pos });
@@ -144,7 +144,7 @@ namespace chttpp::detail {
     auto response_header(nt_string_view header_name) const -> std::string_view {
       const auto &headers = std::get<0>(m_either).headers;
 
-      const auto pos = headers.find(header_name.c_str());
+      const auto pos = headers.find(header_name.data());
       if (pos == headers.end()) {
         return {};
       }
