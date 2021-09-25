@@ -43,9 +43,21 @@ namespace chttpp::detail {
       return chttpp::underlying::terse::head_impl(URL);
     }
   };
+
+  struct terse_options_impl {
+
+    /*auto operator()(nt_string_view URL) const -> http_result {
+      return chttpp::underlying::terse::options_impl(URL);
+    }*/
+
+    auto operator()(nt_wstring_view URL) const -> http_result {
+      return chttpp::underlying::terse::options_impl(URL);
+    }
+  };
 }
 
 namespace chttpp {
   inline constexpr detail::terse_get_impl get{};
   inline constexpr detail::terse_head_impl head{};
+  inline constexpr detail::terse_options_impl options{};
 }

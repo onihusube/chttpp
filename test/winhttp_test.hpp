@@ -50,17 +50,17 @@ void underlying_test() {
 
     constexpr std::string_view names[] = {
       "HTTP Ver",
-      "Cache-Control",
-      "Date",
-      "Content-Length",
-      "Content-Type",
-      "Expires",
-      "Last-Modified",
-      "Age",
-      "ETag",
-      "Server",
-      "Vary",
-      "X-Cache",
+      "cache-control",
+      "date",
+      "content-length",
+      "content-type",
+      "expires",
+      "last-modified",
+      "age",
+      "etag",
+      "server",
+      "vary",
+      "x-cache",
     };
 
     for (auto name : names) {
@@ -85,7 +85,7 @@ void underlying_test() {
         ut::expect(httpver == "HTTP/1.1 200 "sv); // なぜか後ろにスペースが入る
       }
       {
-        const auto clen = result.response_header("Content-Type");
+        const auto clen = result.response_header("content-type");
         ut::expect(clen == "text/html; charset=UTF-8"sv);
       }
     }
@@ -127,7 +127,7 @@ void underlying_test() {
         ut::expect(httpver == "HTTP/1.1 200 "sv); // なぜか後ろにスペースが入る
       }
       {
-        const auto clen = result.response_header("Content-Type");
+        const auto clen = result.response_header("content-type");
         ut::expect(clen == "text/html; charset=UTF-8"sv);
       }
 
