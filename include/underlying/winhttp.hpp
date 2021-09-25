@@ -21,9 +21,17 @@ namespace chttpp {
   template<>
   inline auto http_result::error_to_string() const -> string_t {
     // pmr::stringに対応するために内部実装を直接使用
-    // 割とunknown errorになるので、別の手段を検討した方がよさそう・・・
-    return std::_Syserror_map(std::get<1>(this->m_either));
-    //return std::system_category().message(std::get<1>(this->m_either));
+    //return std::system_category().message(HRESULT_FROM_WIN32(std::get<1>(this->m_either)));
+    const auto winec_to_hresult = HRESULT_FROM_WIN32(std::get<1>(this->m_either));
+    const std::_System_error_message _Msg(static_cast<unsigned long>(winec_to_hresult));
+    if (_Msg._Length == 0) {
+      static constexpr char _Unknown_error[] = "unknown error";
+      constexpr size_t _Unknown_error_length = sizeof(_Unknown_error) - 1; // TRANSITION, DevCom-906503
+      return string_t(_Unknown_error, _Unknown_error_length);
+    }
+    else {
+      return string_t(_Msg._Str, _Msg._Length);
+    }
   }
 
 }
