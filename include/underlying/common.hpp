@@ -182,3 +182,21 @@ namespace chttpp::detail {
     }
   };
 }
+
+namespace chttpp::detail::tag {
+  struct get_t {};
+  struct post_t {};
+  struct head_t {};
+  struct options_t {};
+  struct put_t {};
+  struct delete_t {};
+  struct trace_t {};
+  struct patch_t {};
+
+  template<typename Tag>
+  concept has_reqbody_method =
+    std::same_as<Tag, post_t> or
+    std::same_as<Tag, put_t> or
+    std::same_as<Tag, delete_t> or
+    std::same_as<Tag, patch_t>;
+}

@@ -22,42 +22,34 @@
 
 namespace chttpp::detail {
 
-  struct terse_get_impl {
+  template<typename MethodTag>
+  struct terse_req_impl {
 
     auto operator()(nt_string_view URL) const -> http_result {
-      return chttpp::underlying::terse::get_impl(URL);
+      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
     }
 
     auto operator()(nt_wstring_view URL) const -> http_result {
-      return chttpp::underlying::terse::get_impl(URL);
+      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
     }
   };
 
-  struct terse_head_impl {
-
-    auto operator()(nt_string_view URL) const -> http_result {
-      return chttpp::underlying::terse::head_impl(URL);
-    }
-
-    auto operator()(nt_wstring_view URL) const -> http_result {
-      return chttpp::underlying::terse::head_impl(URL);
-    }
-  };
-
-  struct terse_options_impl {
+  template<detail::tag::has_reqbody_method MethodTag>
+  struct terse_req_impl<MethodTag> {
 
     /*auto operator()(nt_string_view URL) const -> http_result {
-      return chttpp::underlying::terse::options_impl(URL);
-    }*/
+      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
+    }
 
     auto operator()(nt_wstring_view URL) const -> http_result {
-      return chttpp::underlying::terse::options_impl(URL);
-    }
+      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
+    }*/
   };
 }
 
 namespace chttpp {
-  inline constexpr detail::terse_get_impl get{};
-  inline constexpr detail::terse_head_impl head{};
-  inline constexpr detail::terse_options_impl options{};
+
+  inline constexpr detail::terse_req_impl<detail::tag::get_t> get{};
+  inline constexpr detail::terse_req_impl<detail::tag::head_t> head{};
+  inline constexpr detail::terse_req_impl<detail::tag::options_t> options{};
 }

@@ -72,7 +72,7 @@ namespace chttpp::underlying::terse {
   using hinet = std::unique_ptr<HINTERNET, hinet_deleter>;
 
 
-  auto get_impl(std::wstring_view url) -> http_result {
+  auto request_impl(std::wstring_view url, detail::tag::get_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -164,27 +164,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto char_to_wchar(std::string_view cstr) -> std::pair<wstring_t, int> {
-    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
-    wstring_t converted_str{};
-    converted_str.resize(converted_len);
-    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), converted_str.data(), static_cast<int>(converted_len));
-
-    return {std::move(converted_str), res };
-  }
-
-  auto get_impl(std::string_view url) -> http_result {
-
-    const auto [converted_url, res] = char_to_wchar(url);
-
-    if (res == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return get_impl(converted_url);
-  }
-
-  auto head_impl(std::wstring_view url) -> http_result {
+  auto request_impl(std::wstring_view url, detail::tag::head_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -259,17 +239,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto head_impl(std::string_view url) -> http_result {
-    const auto [converted_url, res] = char_to_wchar(url);
-
-    if (res == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return head_impl(converted_url);
-  }
-
-  auto options_impl(std::wstring_view url) -> http_result {
+  auto request_impl(std::wstring_view url, detail::tag::options_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -344,5 +314,27 @@ namespace chttpp::underlying::terse {
     }
 
     return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
+  }
+
+
+  auto char_to_wchar(std::string_view cstr) -> std::pair<wstring_t, int> {
+    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
+    wstring_t converted_str{};
+    converted_str.resize(converted_len);
+    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), converted_str.data(), static_cast<int>(converted_len));
+
+    return { std::move(converted_str), res };
+  }
+
+  template<typename MethodTag>
+  auto request_impl(std::string_view url, MethodTag tag) -> http_result {
+
+    const auto [converted_url, res] = char_to_wchar(url);
+
+    if (res == 0) {
+      return http_result{ ::GetLastError() };
+    }
+
+    return request_impl(converted_url, tag);
   }
 }
