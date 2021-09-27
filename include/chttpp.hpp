@@ -52,4 +52,5 @@ namespace chttpp {
   inline constexpr detail::terse_req_impl<detail::tag::get_t> get{};
   inline constexpr detail::terse_req_impl<detail::tag::head_t> head{};
   inline constexpr detail::terse_req_impl<detail::tag::options_t> options{};
+  inline constexpr detail::terse_req_impl<detail::tag::trace_t> trace{};
 }

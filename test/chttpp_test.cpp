@@ -119,5 +119,16 @@ int main() {
 
   };
 
+  "terse_trace"_test = [] {
+    {
+      auto result = chttpp::trace("https://example.com");
+
+      !ut::expect(bool(result));
+      const auto status_code = result.status_code();
+      ut::expect(status_code == 405);
+    }
+
+  };
+
   underlying_test();
 }
