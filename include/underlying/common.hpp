@@ -71,11 +71,11 @@ namespace chttpp::detail {
       // ヘッダ要素が重複している場合、値をカンマ区切りリストによって追記する
       // 詳細 : https://this.aereal.org/entry/2017/12/21/190158
 
-      auto& header_str = (*it).second;
+      auto& header_value = (*it).second;
       // ヘッダ要素を追加する分の領域を拡張
-      header_str.reserve(header_str.length() + std::size_t(std::ranges::distance(header_value_pos, header_end_pos)) + 2);
-      header_str.append(", ");
-      header_str.append(std::string_view{header_value_pos, header_end_pos});
+      header_value.reserve(header_value.length() + std::size_t(std::ranges::distance(header_value_pos, header_end_pos)) + 2);
+      header_value.append(", ");
+      header_value.append(std::string_view{header_value_pos, header_end_pos});
     }
   }
 }

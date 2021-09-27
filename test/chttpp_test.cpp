@@ -105,28 +105,24 @@ int main() {
 #endif
 
   "terse_options"_test = [] {
-    {
-      auto result = chttpp::options(L"https://example.com");
+    auto result = chttpp::options(L"https://example.com");
 
-      !ut::expect(bool(result));
-      const auto status_code = result.status_code();
-      ut::expect(200 <= status_code and status_code < 300);
+    !ut::expect(bool(result));
+    const auto status_code = result.status_code();
+    ut::expect(200 <= status_code and status_code < 300);
 
-      const auto allow = result.response_header("allow");
-      ut::expect(5_ull < allow.size());
-      ut::expect(allow == "OPTIONS, GET, HEAD, POST"sv);
-    }
+    const auto allow = result.response_header("allow");
+    ut::expect(5_ull < allow.size());
+    ut::expect(allow == "OPTIONS, GET, HEAD, POST"sv);
 
   };
 
   "terse_trace"_test = [] {
-    {
-      auto result = chttpp::trace("https://example.com");
+    auto result = chttpp::trace("https://example.com");
 
-      !ut::expect(bool(result));
-      const auto status_code = result.status_code();
-      ut::expect(status_code == 405);
-    }
+    !ut::expect(bool(result));
+    const auto status_code = result.status_code();
+    ut::expect(status_code == 405);
 
   };
 
