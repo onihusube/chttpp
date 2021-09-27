@@ -7,11 +7,21 @@
 #include <concepts>
 #include <span>
 #include <iostream>
-#include <memory_resource>
 #include <unordered_map>
 #include <ranges>
 #include <algorithm>
 #include <cctype>
+
+#if __has_include(<memory_resource>)
+
+#include <memory_resource>
+
+#else
+
+#define CHTTPP_DO_NOT_CUSTOMIZE_ALLOCATOR
+#warning <memory_resource> is not found. Allocator customization will be disabled.
+
+#endif
 
 #include "null_terminated_string_view.hpp"
 
@@ -49,7 +59,7 @@ namespace chttpp::detail {
 
     const auto colon_pos = header_str.find(':');
     const auto header_end_pos = header_str.end();
-    const auto heade_value_pos = std::ranges::find_if(header_str.begin() + colon_pos + 1, header_end_pos, [](char c) { return c != ' '; });
+    const auto header_value_pos = std::ranges::find_if(header_str.begin() + colon_pos + 1, header_end_pos, [](char c) { return c != ' '; });
 
     // キー文字列は全て小文字になるようにする
     string_t key_str{header_str.substr(0, colon_pos)};
@@ -57,7 +67,16 @@ namespace chttpp::detail {
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
-    headers.emplace(std::move(key_str), std::string_view{ heade_value_pos, header_end_pos });
+    if (const auto [it, inserted] = headers.emplace(std::move(key_str), std::string_view{ header_value_pos, header_end_pos }); not inserted) {
+      // ヘッダ要素が重複している場合、値をカンマ区切りリストによって追記する
+      // 詳細 : https://this.aereal.org/entry/2017/12/21/190158
+
+      auto& header_str = (*it).second;
+      // ヘッダ要素を追加する分の領域を拡張
+      header_str.reserve(header_str.length() + std::size_t(std::ranges::distance(header_value_pos, header_end_pos)) + 2);
+      header_str.append(", ");
+      header_str.append(std::string_view{header_value_pos, header_end_pos});
+    }
   }
 }
 

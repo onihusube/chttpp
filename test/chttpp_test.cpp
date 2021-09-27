@@ -66,6 +66,12 @@ int main() {
     ut::expect(headers.contains("content-length"));
     ut::expect(headers["content-length"] == "1256"sv);
 
+    parse_response_header_oneline(headers, "Vary: Accept-Encoding");
+    parse_response_header_oneline(headers, "Vary: User-Agent");
+
+    ut::expect(headers.size() == 7);
+    ut::expect(headers.contains("vary"));
+    ut::expect(headers["vary"] == "Accept-Encoding, User-Agent"sv);
   };
 
 #ifndef _MSC_VER
