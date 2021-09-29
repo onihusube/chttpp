@@ -37,13 +37,17 @@ namespace chttpp::detail {
   template<detail::tag::has_reqbody_method MethodTag>
   struct terse_req_impl<MethodTag> {
 
-    /*auto operator()(nt_string_view URL) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
+    template<typename M>
+      requires std::convertible_to<const M&, std::string_view>
+    auto operator()(nt_string_view URL, const M& mime_type, std::span<const char> body) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, mime_type, body, MethodTag{});
     }
 
-    auto operator()(nt_wstring_view URL) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, MethodTag{});
-    }*/
+    template<typename M>
+      requires std::convertible_to<const M&, std::string_view>
+    auto operator()(nt_wstring_view URL, const M& mime_type, std::span<const char> body) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, mime_type, body, MethodTag{});
+    }
   };
 }
 
@@ -53,4 +57,6 @@ namespace chttpp {
   inline constexpr detail::terse_req_impl<detail::tag::head_t> head{};
   inline constexpr detail::terse_req_impl<detail::tag::options_t> options{};
   inline constexpr detail::terse_req_impl<detail::tag::trace_t> trace{};
+
+  inline constexpr detail::terse_req_impl<detail::tag::post_t> post{};
 }

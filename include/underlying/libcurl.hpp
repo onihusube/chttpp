@@ -119,6 +119,12 @@ namespace chttpp::detail {
 namespace chttpp::underlying::terse {
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
+  using unique_slist = std::unique_ptr<curl_slist, decltype([](curl_slist* p) noexcept { curl_slist_free_all(p); })>;
+
+  inline void unique_slist_append(unique_slist& plist, const char* value) noexcept {
+    auto ptr = plist.release();
+    plist.reset(curl_slist_append(ptr, value));
+  }
 
   template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
   auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* obj_ptr) -> std::size_t {
@@ -300,6 +306,75 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = {}, .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
+  template<typename M>
+  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::post_t) -> http_result {
+    unique_curl session{curl_easy_init()};
+
+    if (not session) {
+      return http_result{CURLE_FAILED_INIT};
+    }
+
+    vector_t<char> body{};
+    header_t headers;
+
+    curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
+    curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
+    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
+    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char*>(req_body.data()));
+
+    unique_slist req_headers{};
+
+    if constexpr (std::convertible_to<const M&, std::string_view>) {
+      constexpr std::string_view name_str = "Content-Type: ";
+      std::string_view mime_str{mime};
+      string_t content_type{};
+      content_type.reserve(name_str.length() + mime_str.length());
+
+      content_type.append(name_str);
+      content_type.append(mime_str);
+
+      unique_slist_append(req_headers, content_type.c_str());
+    } else {
+      static_assert([]{return false;}(), "not implemented");
+    }
+
+    if (req_headers) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
+    }
+
+    // レスポンスボディコールバックの指定
+    auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+      buffer.reserve(buffer.size() + data_len);
+      std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+    }>;
+    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+
+    // レスポンスヘッダコールバックの指定
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
+    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
+
+    if (url.starts_with("https")) {
+      //curl_easy_setopt(session.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0 | CURL_SSLVERSION_MAX_TLSv1_3);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+    }
+
+    CURLcode curl_status = curl_easy_perform(session.get());
+
+    long http_status;
+    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    if (curl_status != CURLE_OK) {
+      return http_result{curl_status};
+    }
+
+    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
+  }
+
 
   auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
     const std::size_t estimate_len = wstr.length() * 2;
@@ -313,8 +388,8 @@ namespace chttpp::underlying::terse {
     return { std::move(buffer), converted_len };
   }
 
-  template<typename MethodTag>
-  auto request_impl(std::wstring_view url, MethodTag tag) -> http_result {
+  template<typename... Args>
+  auto request_impl(std::wstring_view url, Args&&... args) -> http_result {
 
     const auto [curl, length] = wchar_to_char(url);
 
@@ -322,6 +397,6 @@ namespace chttpp::underlying::terse {
       throw std::invalid_argument{"Failed to convert the URL wchar_t -> char."};
     }
 
-    return request_impl(std::string_view{curl.data(), length}, tag);
+    return request_impl(std::string_view{curl.data(), length}, std::forward<Args>(args)...);
   }
 }

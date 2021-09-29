@@ -126,5 +126,12 @@ int main() {
 
   };
 
+  "terse post"_test = [] {
+    auto result = chttpp::post("https://example.com", "text/plain", "field1=value1&field2=value2");
+
+    !ut::expect(bool(result));
+
+  };
+
   underlying_test();
 }
