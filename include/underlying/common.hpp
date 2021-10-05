@@ -149,7 +149,7 @@ namespace chttpp::detail {
     }
 
     template<typename ElementType>
-      requires std::is_trivially_copyable_v<ElementType>  // 制約、これで足りてる？
+      requires std::is_standard_layout_v<ElementType>  // 制約、これで足りてる？
     auto response_data() const -> std::span<ElementType> {
       const auto &response = std::get<0>(m_either);
       return {reinterpret_cast<const ElementType*>(data(response.body)), size(response.body) / sizeof(ElementType)};

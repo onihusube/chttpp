@@ -104,6 +104,52 @@ int main() {
   };
 #endif
 
+  "as_byte_seq"_test = [] {
+    static_assert(chttpp::byte_serializable<std::string>);
+    static_assert(chttpp::byte_serializable<std::string&>);
+    static_assert(chttpp::byte_serializable<std::span<std::byte>>);
+    static_assert(chttpp::byte_serializable<std::span<int>>);
+    static_assert(chttpp::byte_serializable<std::vector<char>>);
+    static_assert(chttpp::byte_serializable<std::vector<int>>);
+
+    {
+      std::string str = "test";
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(str);
+
+      ut::expect(sp.size() == 4_ull);
+    }
+    {
+      std::wstring str = L"test";
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(str);
+
+      ut::expect(sp.size() == (sizeof(wchar_t) * 4));
+    }
+    {
+      std::span<const char> sp = chttpp::cpo::as_byte_seq("test");
+
+      ut::expect(sp.size() == 5_ull);
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(vec);
+
+      ut::expect(sp.size() == 16_ull);
+    }
+    {
+      double d = 3.14;
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(d);
+
+      ut::expect(sp.size() == 8_ull);
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span sp1 = vec;
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(sp1);
+
+      ut::expect(sp.size() == 16_ull);
+    }
+  };
+
   "terse_options"_test = [] {
     auto result = chttpp::options(L"https://example.com");
 
@@ -126,12 +172,12 @@ int main() {
 
   };
 
-  "terse post"_test = [] {
+  /*"terse post"_test = [] {
     auto result = chttpp::post("https://example.com", "text/plain", "field1=value1&field2=value2");
 
     !ut::expect(bool(result));
 
-  };
+  };*/
 
   underlying_test();
 }
