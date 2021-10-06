@@ -21,6 +21,7 @@
 
 
 namespace chttpp {
+
   namespace detail {
 
     template<typename T>
@@ -75,9 +76,8 @@ namespace chttpp {
       /**
       * @brief 4. C-likeな構造体のオブジェクトをそのままシリアライズする
       */
-      template<typename T>
-        requires std::is_standard_layout_v<T> and
-                 (not is_specialization_of_span_v<T>)
+      template<substantial T>
+        requires (not is_specialization_of_span_v<T>)
       [[nodiscard]]
       auto operator()(const T& t) const noexcept -> std::span<const char> {
         return {reinterpret_cast<const char*>(std::addressof(t)), sizeof(t)};
@@ -117,7 +117,7 @@ namespace chttpp {
     /**
     * @brief オブジェクトをバイトシーケンスへ変換する
     * @details as_byte_seq(E);のように呼び出し、Eの示すオブジェクトをバイト列へ変換する
-    * @return std::span<const char>のオブジェクトへ変換可能な型の値
+    * @return std::span<const char>へ変換可能な型の値
     */
     inline constexpr detail::as_byte_seq_impl as_byte_seq{};
 

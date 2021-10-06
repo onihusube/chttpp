@@ -45,6 +45,25 @@ namespace chttpp::inline types{
 
 }
 
+namespace chttpp::inline concepts {
+  template <typename T>
+  concept fundamental_type_with_substance =
+    std::is_scalar_v<T> and
+    not std::is_pointer_v<T> and
+    not std::is_member_object_pointer_v<T> and
+    not std::is_member_function_pointer_v<T> and
+    not std::is_null_pointer_v<T>;
+
+  template <typename T>
+  concept aggregate_with_substance = std::is_aggregate_v<T> and std::is_trivially_copyable_v<T>;
+
+  template <typename T>
+  concept substantial =
+    fundamental_type_with_substance<T> or
+    aggregate_with_substance<T> or
+    std::is_standard_layout_v<T>;
+}
+
 namespace chttpp::detail {
 
   auto parse_response_header_oneline(header_t& headers, std::string_view header_str) {
@@ -127,40 +146,52 @@ namespace chttpp::detail {
       return m_either.index() == 0;
     }
 
+    bool has_response() const noexcept {
+      return m_either.index() == 0;
+    }
+
     auto status_code() const -> std::uint16_t {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
       return response.status_code;
     }
 
     auto response_body() const -> std::string_view {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
     template<charcter CharT>
     auto response_body() const -> std::basic_string_view<CharT> {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
       return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
     }
 
     auto response_data() const -> std::span<char> {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
-    template<typename ElementType>
-      requires std::is_standard_layout_v<ElementType>  // 制約、これで足りてる？
-    auto response_data() const -> std::span<ElementType> {
+    template<substantial ElementType>
+    auto response_data(std::size_t N = std::dynamic_extent) const -> std::span<ElementType> {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
-      return {reinterpret_cast<const ElementType*>(data(response.body)), size(response.body) / sizeof(ElementType)};
+      const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
+
+      return {reinterpret_cast<const ElementType *>(data(response.body)), count};
     }
 
     auto response_header() const -> const header_t& {
+      assert(bool(*this), "You should check for errors first.");
       const auto &response = std::get<0>(m_either);
       return response.headers;
     }
 
     auto response_header(nt_string_view header_name) const -> std::string_view {
+      assert(bool(*this), "You should check for errors first.");
       const auto &headers = std::get<0>(m_either).headers;
 
       const auto pos = headers.find(header_name.data());
@@ -183,6 +214,10 @@ namespace chttpp::detail {
     }
 
     // optional/expected的インターフェース
+
+    bool has_value() const noexcept {
+      return m_either.index() == 0;
+    }
 
     auto value() & -> http_response& {
       return std::get<0>(m_either);
