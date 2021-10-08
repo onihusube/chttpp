@@ -11,6 +11,7 @@
 #include <ranges>
 #include <algorithm>
 #include <cctype>
+#include <cassert>
 
 #if __has_include(<memory_resource>)
 
@@ -151,33 +152,33 @@ namespace chttpp::detail {
     }
 
     auto status_code() const -> std::uint16_t {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return response.status_code;
     }
 
     auto response_body() const -> std::string_view {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
     template<charcter CharT>
     auto response_body() const -> std::basic_string_view<CharT> {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
     }
 
     auto response_data() const -> std::span<char> {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
     template<substantial ElementType>
     auto response_data(std::size_t N = std::dynamic_extent) const -> std::span<ElementType> {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
 
@@ -185,13 +186,13 @@ namespace chttpp::detail {
     }
 
     auto response_header() const -> const header_t& {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return response.headers;
     }
 
     auto response_header(nt_string_view header_name) const -> std::string_view {
-      assert(bool(*this), "You should check for errors first.");
+      assert(bool(*this));
       const auto &headers = std::get<0>(m_either).headers;
 
       const auto pos = headers.find(header_name.data());

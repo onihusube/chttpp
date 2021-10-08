@@ -376,7 +376,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<typename M>
-  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::post_t) -> http_result {
+  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::put_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -393,6 +393,76 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
     curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PUT");
+
+    unique_slist req_headers{};
+
+    if constexpr (std::convertible_to<const M&, std::string_view>) {
+      constexpr std::string_view name_str = "Content-Type: ";
+      std::string_view mime_str{mime};
+      string_t content_type{};
+      content_type.reserve(name_str.length() + mime_str.length());
+
+      content_type.append(name_str);
+      content_type.append(mime_str);
+
+      unique_slist_append(req_headers, content_type.c_str());
+    } else {
+      static_assert([]{return false;}(), "not implemented");
+    }
+
+    if (req_headers) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
+    }
+
+    // レスポンスボディコールバックの指定
+    auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+      buffer.reserve(buffer.size() + data_len);
+      std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+    }>;
+    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+
+    // レスポンスヘッダコールバックの指定
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
+    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
+
+    if (url.starts_with("https")) {
+      //curl_easy_setopt(session.get(), CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0 | CURL_SSLVERSION_MAX_TLSv1_3);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+    }
+
+    CURLcode curl_status = curl_easy_perform(session.get());
+
+    long http_status;
+    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    if (curl_status != CURLE_OK) {
+      return http_result{curl_status};
+    }
+
+    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
+  }
+
+  template<typename M>
+  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::delete_t) -> http_result {
+    unique_curl session{curl_easy_init()};
+
+    if (not session) {
+      return http_result{CURLE_FAILED_INIT};
+    }
+
+    vector_t<char> body{};
+    header_t headers;
+
+    curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
+    curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
+    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
+    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
+    curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
 
     unique_slist req_headers{};
 
