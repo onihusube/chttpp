@@ -19,6 +19,27 @@ namespace ut = boost::ut;
 
 #endif
 
+namespace chttpp_test {
+
+  struct wrap_vec1 {
+    std::vector<int> v1;
+    std::vector<int> v2;
+
+    auto as_byte_seq() const -> std::span<const char> {
+      return { reinterpret_cast<const char*>(this->v1.data()), sizeof(int) * this->v1.size()};
+    }
+  };
+
+  struct wrap_vec2 {
+    std::vector<int> v1;
+    std::vector<int> v2;
+
+    friend auto as_byte_seq(const wrap_vec2& self) -> std::span<const char> {
+      return {reinterpret_cast<const char *>(self.v2.data()), sizeof(int) * self.v2.size()};
+    }
+  };
+};
+
 int main() {
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
@@ -152,6 +173,24 @@ int main() {
       std::vector vec = {1, 2, 3, 4};
       std::span sp1 = vec;
       std::span<const char> sp = chttpp::cpo::as_byte_seq(sp1);
+
+      ut::expect(sp.size() == 16_ull);
+    }
+
+    {
+      using chttpp_test::wrap_vec1;
+
+      wrap_vec1 wv{.v1 = {1, 2, 3, 4}, .v2 = {}};
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(wv);
+
+      ut::expect(sp.size() == 16_ull);
+    }
+
+    {
+      using chttpp_test::wrap_vec2;
+
+      wrap_vec2 wv{ .v1 = {}, .v2 = {1, 2, 3, 4}};
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(wv);
 
       ut::expect(sp.size() == 16_ull);
     }
