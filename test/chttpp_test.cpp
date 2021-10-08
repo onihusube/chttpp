@@ -107,6 +107,7 @@ int main() {
   "as_byte_seq"_test = [] {
     static_assert(chttpp::byte_serializable<std::string>);
     static_assert(chttpp::byte_serializable<std::string&>);
+    static_assert(chttpp::byte_serializable<std::string_view>);
     static_assert(chttpp::byte_serializable<std::span<std::byte>>);
     static_assert(chttpp::byte_serializable<std::span<int>>);
     static_assert(chttpp::byte_serializable<std::vector<char>>);
@@ -123,6 +124,12 @@ int main() {
       std::span<const char> sp = chttpp::cpo::as_byte_seq(str);
 
       ut::expect(sp.size() == (sizeof(wchar_t) * 4));
+    }
+    {
+      std::string_view str = "test";
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(str);
+
+      ut::expect(sp.size() == 4_ull);
     }
     {
       std::span<const char> sp = chttpp::cpo::as_byte_seq("test");

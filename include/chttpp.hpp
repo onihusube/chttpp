@@ -189,4 +189,5 @@ namespace chttpp {
   inline constexpr detail::terse_req_impl<detail::tag::trace_t> trace{};
 
   inline constexpr detail::terse_req_impl<detail::tag::post_t> post{};
+  inline constexpr detail::terse_req_impl<detail::tag::put_t> put{};
 }
