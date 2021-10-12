@@ -33,13 +33,14 @@ namespace chttpp {
     struct as_byte_seq_impl {
 
       /**
-      * @brief 1. span<const char>へ変換可能な型を受ける
-      * @details 右辺値の寿命延長のため、ここではまだ変換しない
+      * @brief 1. contiguous_rangeな範囲をバイト列へ変換する
+      * @details 利用側はこの結果を直接span<const char>を受け取る関数へ渡すことを想定するので右辺値が来ても良い
       */
       template<std::ranges::contiguous_range R>
         requires requires(R& t) {
-            std::ranges::data(t);
-          } and std::ranges::sized_range<R>
+                   std::ranges::data(t);
+                 } and
+                 std::ranges::sized_range<R>
       [[nodiscard]]
       auto operator()(R&& t) const noexcept -> std::span<const char> {
         return {reinterpret_cast<const char*>(std::ranges::data(t)), sizeof(std::ranges::range_value_t<R>) * std::ranges::size(t)};
