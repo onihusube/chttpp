@@ -10,7 +10,7 @@ namespace chttpp::mime_types::inline discrete_types {
   template<std::size_t N, typename>
   struct type_base {
     static constexpr std::size_t Len = N - 1;
-    const std::string_view category_name;
+    const std::string_view name;
   };
 
 #define define_type(name) struct name ## _tag {}; inline constexpr type_base<sizeof(#name), name ## _tag> name = {#name}
@@ -31,32 +31,35 @@ namespace chttpp::mime_types::inline subtypes {
 
   template<std::size_t N>
   class mime_type {
-    char name[N];
+    char m_name[N];
 
   public:
-
+    //const std::string_view name{m_name, N - 1};
+    
+    static constexpr std::size_t Len = N - 1;
+    
     template<typename Type, typename SubType>
-    consteval mime_type(const Type& type, const SubType& subtype) {
+    consteval mime_type(const Type& type, const SubType& subtype, char punct = '/') {
       static_assert((Type::Len + SubType::Len + 1) == N);
 
-      auto [i_end, o_end] = std::ranges::copy_n(std::ranges::begin(type.category_name), Type::Len, name);
-      *o_end = '/';
-      std::ranges::copy_n(std::ranges::begin(subtype.kind_name), SubType::Len, o_end + 1);
+      auto [i_end, o_end] = std::ranges::copy_n(std::ranges::begin(type.name), Type::Len, m_name);
+      *o_end = punct;
+      std::ranges::copy_n(std::ranges::begin(subtype.name), SubType::Len, o_end + 1);
     }
 
     constexpr operator std::string_view() const noexcept {
-      return name;
+      return m_name;
     }
   };
 
   template<typename T, typename S>
-  mime_type(const T&, const S&) -> mime_type<T::Len + 1 + S::Len>;
+  mime_type(const T&, const S&, const char = '/') -> mime_type<T::Len + 1 + S::Len>;
 
 
   template<typename T, std::size_t N>
   struct subtype_base {
     static constexpr std::size_t Len = N;
-    const std::string_view kind_name;
+    const std::string_view name;
 
     friend consteval auto operator/(const T& type, const subtype_base& self) {
       return mime_type{type, self};
@@ -95,7 +98,7 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(png, discrete_types::image);
   define_subtype(webp, discrete_types::image);
   define_subtype(bmp, discrete_types::image);
-  inline constexpr subtype_t<8, discrete_types::image> svg_xml = {"svg+xml"};
+  //inline constexpr subtype_t<8, discrete_types::image> svg_xml = {"svg+xml"};
 
   define_subtype(aac, discrete_types::audio);
   define_subtype(ac3, discrete_types::audio);
@@ -130,6 +133,24 @@ namespace chttpp::mime_types::inline subtypes {
   inline constexpr subtype_t<13, discrete_types::application> octet_stream = {"octet-stream"};
   inline constexpr subtype_t<22, discrete_types::application> x_www_form_urlencoded = {"x-www-form-urlencoded"};
 
-
 #undef define_subtype
+
+  template<std::size_t N, typename T>
+  struct semi_subtype_rhs {
+    
+    static constexpr std::size_t Len = N;
+    const std::string_view name;
+    
+    friend consteval auto operator+(const T& semi_mime, const semi_subtype_rhs& self) {
+      return mime_type{semi_mime, self, '+'};
+    }
+  };
+
+#define define_semi_subtype_lhs(name, ...) struct name ## _tag : subtype_t<sizeof(#name), __VA_ARGS__>{}; inline constexpr name ## _tag name = {#name}
+  
+  define_semi_subtype_lhs(svg, discrete_types::image);
+  
+  //inline constexpr semi_subtype_rhs<4, std::remove_cvref_t<decltype(image/svg)>> xml = {"xml"};
+  
+#undef define_semi_subtype_lhs
 }
