@@ -218,6 +218,37 @@ int main() {
 
   };
 
+  "mime type"_test = [] {
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+
+    {
+      constexpr auto mime = application/x_www_form_urlencoded;
+      ut::expect(mime == "application/x-www-form-urlencoded"sv);
+    }
+    {
+      constexpr auto mime = text/javascript;
+      ut::expect(mime == "text/javascript"sv);
+    }
+    {
+      constexpr auto mime = font/ttf;
+      ut::expect(mime == "font/ttf"sv);
+    }
+    {
+      constexpr auto mime1 = video/ogg;
+      ut::expect(mime1 == "video/ogg"sv);
+      constexpr auto mime2 = audio/ogg;
+      ut::expect(mime2 == "audio/ogg"sv);
+      constexpr auto mime3 = application/ogg;
+      ut::expect(mime3 == "application/ogg"sv);
+    }
+    {
+      constexpr auto mime = video/３gpp;
+      ut::expect(mime == "video/3gpp"sv);
+    }
+
+  };
+
   /*"terse post"_test = [] {
     auto result = chttpp::post("https://example.com", "text/plain", "field1=value1&field2=value2");
 
