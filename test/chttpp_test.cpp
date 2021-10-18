@@ -246,6 +246,10 @@ int main() {
       constexpr auto mime = video/３gpp;
       ut::expect(mime == "video/3gpp"sv);
     }
+    {
+      constexpr auto mime = image/svg+xml;
+      ut::expect(mime == "image/svg+xml"sv);
+    }
 
   };
 
