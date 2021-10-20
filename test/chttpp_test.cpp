@@ -247,8 +247,13 @@ int main() {
       ut::expect(mime == "video/3gpp"sv);
     }
     {
-      constexpr auto mime = image/svg+xml;
-      ut::expect(mime == "image/svg+xml"sv);
+      // xmlは単独でsubtypeになるし、+で結合してsubtypeを完成させる
+      constexpr auto mime1 = image/svg+xml;
+      ut::expect(mime1 == "image/svg+xml"sv);
+      constexpr auto mime2 = text/xml;
+      ut::expect(mime2 == "text/xml"sv);
+      constexpr auto mime3 = application/atom+xml;
+      ut::expect(mime3 == "application/atom+xml"sv);
     }
 
   };
