@@ -37,11 +37,19 @@ namespace chttpp::mime_types::inline discrete_types {
 namespace chttpp::mime_types::inline subtypes {
 
   /**
+   * @brief mime_typeを生成対象毎に別の型とするためのタグ型
+   * @details +で結合するものは左辺にmime_typeを取るため、文字数だけだと対象外のmime_typeオブジェクトと結合してしまう
+   * @details そこで、mime_typeをすべて異なる型とする事で+の候補を制限する
+   */
+  template<typename...>
+  struct mime_tag_t{};
+
+  /**
    * @brief MIME Type（type/subtype）の全体を表す型
    * @tparam N MIME Typeの名前の文字数
    * @details subtypeが+で結合する場合でもその中間値として利用される
    */
-  template<std::size_t N>
+  template<std::size_t N, typename tag = void>
   struct mime_type {
     char name[N];
 
@@ -75,7 +83,7 @@ namespace chttpp::mime_types::inline subtypes {
   };
 
   template<typename T, typename S>
-  mime_type(const T&, const S&, const char = '/') -> mime_type<T::Len + 1 + S::Len>;
+  mime_type(const T&, const S&, const char = '/') -> mime_type<T::Len + 1 + S::Len, mime_tag_t<T, S>>;
 
   /**
    * @brief subtypeの型
@@ -173,7 +181,7 @@ namespace chttpp::mime_types::inline subtypes {
       return mime_type{type, self};
     }
 
-    friend consteval auto operator+(const T &semi_mime, const free_subtype &self)
+    friend consteval auto operator+(const T& semi_mime, const free_subtype& self)
       requires (not std::is_const_v<T>)
     {
       return mime_type{semi_mime, self, '+'};
@@ -191,7 +199,7 @@ namespace chttpp::mime_types::inline subtypes {
       return mime_type{type, self};
     }
 
-    friend consteval auto operator+(const T &semi_mime, const free_subtype &self)
+    friend consteval auto operator+(const T& semi_mime, const free_subtype& self)
       requires (not std::is_const_v<T>)
     {
       return mime_type{semi_mime, self, '+'};
