@@ -255,6 +255,10 @@ int main() {
       constexpr auto mime3 = application/atom+xml;
       ut::expect(mime3 == "application/atom+xml"sv);
     }
+    {
+      constexpr auto mime = application/vnd.apple.installer+xml;
+      ut::expect(mime == "application/vnd.apple.installer+xml"sv);
+    }
 
   };
 

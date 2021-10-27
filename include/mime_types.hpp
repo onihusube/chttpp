@@ -172,6 +172,26 @@ namespace chttpp::mime_types::inline subtypes {
 
 #undef define_subtype
 
+  struct apple_t {
+    subtype_t<sizeof("vnd.apple.installer"), application> installer = {"vnd.apple.installer"};
+  };
+
+  struct wordprocessingml_t{
+    subtype_t<sizeof("vnd.openxmlformats-officedocument.wordprocessingml.document"), application> document = {"vnd.openxmlformats-officedocument.wordprocessingml.document"};
+  };
+
+  struct openxmlformats_officedocument_t {
+    wordprocessingml_t wordprocessingml{};
+  };
+
+  struct vnd_t {
+    apple_t apple{};
+    openxmlformats_officedocument_t openxmlformats_officedocument{};
+  };
+
+  inline constexpr vnd_t vnd{};
+
+
   template<std::size_t N, typename T, typename... Ts>
   struct free_subtype : public free_subtype<N, Ts...> {
 
@@ -215,7 +235,7 @@ namespace chttpp::mime_types::inline subtypes {
   define_semi_subtype_lhs(atom, discrete_types::application);
 
   // xmlは単独でsubtypeになるし、+で結合してsubtypeとなることもある
-  define_semi_subtype_rhs(xml, D(image/svg), D(discrete_types::text), D(application/atom));
+  define_semi_subtype_rhs(xml, D(image/svg), D(discrete_types::text), D(application/atom), D(application/vnd.apple.installer));
 
 #undef D
 #undef define_semi_subtype_rhs
