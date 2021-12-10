@@ -26,20 +26,33 @@
 
 #include "null_terminated_string_view.hpp"
 
-namespace chttpp::inline types{
+namespace chttpp::inline types {
+
+  /**
+   * @brief unorderd_map<std::string, T>のheterogenius lookupでstring_viewを利用するためのハッシュクラス
+   * @details 追加で、等価比較可能な比較関数オブジェクト型をunorderd_mapに指定する必要がある
+   */
+  struct string_hash {
+    using hash_type = std::hash<std::string_view>;
+    using is_transparent = void;
+
+    std::size_t operator()(std::string_view str) const noexcept(noexcept(hash_type{}(str))) {
+      return hash_type{}(str);
+    }
+  };
 
 #ifndef CHTTPP_DO_NOT_CUSTOMIZE_ALLOCATOR
   // デフォルト : polymorphic_allocatorによるアロケータカスタイマイズ
   using string_t = std::pmr::string;
   using wstring_t = std::pmr::wstring;
-  using header_t = std::pmr::unordered_map<string_t, string_t>;
+  using header_t = std::pmr::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::pmr::vector<T>;
 #else
   // アロケータカスタイマイズをしない
   using string_t = std::string;
   using wstring_t = std::string;
-  using header_t = std::unordered_map<string_t, string_t>;
+  using header_t = std::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::vector<T>;
 #endif
@@ -191,11 +204,11 @@ namespace chttpp::detail {
       return response.headers;
     }
 
-    auto response_header(nt_string_view header_name) const -> std::string_view {
+    auto response_header(std::string_view header_name) const -> std::string_view {
       assert(bool(*this));
       const auto &headers = std::get<0>(m_either).headers;
 
-      const auto pos = headers.find(header_name.data());
+      const auto pos = headers.find(header_name);
       if (pos == headers.end()) {
         return {};
       }
