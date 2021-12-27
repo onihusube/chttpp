@@ -1,4 +1,4 @@
-project('chttpp', 'cpp', default_options : ['warning_level=3', 'cpp_debugstl=true'], meson_version : '>=0.55.0')
+project('chttpp', 'cpp', default_options : ['warning_level=3'], meson_version : '>=0.58.0')
 
 #インクルードディレクトリ
 include_dir = include_directories('include')
@@ -7,21 +7,30 @@ include_dir = include_directories('include')
 cppcompiler = meson.get_compiler('cpp').get_argument_syntax()
 
 if cppcompiler == 'msvc'
-    options = ['/std:c++latest', '/source-charset:utf-8', '/Zc:__cplusplus']
     dep_libs = []
+    # VSプロジェクトに編集しうるファイルを追加する
+    vs_files = ['include/chttpp.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp']
 elif cppcompiler == 'gcc'
-    options = ['-std=c++2a']
     curl_dep = dependency('libcurl')
     dep_libs = [curl_dep]
+    vs_files = []
 endif
-
-#VSプロジェクトに編集しうるファイルを追加する
-vs_files = ['include/chttpp.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp']
-
 
 if not meson.is_subproject()
 
-#依存プロジェクト
+# デバッグ用設定
+env = environment()
+env.set('cpp_debugstl', 'true')
+meson.add_devenv(env)
+
+# テストプロジェクト用の設定追加
+if cppcompiler == 'msvc'
+    options = ['/std:c++latest', '/source-charset:utf-8', '/Zc:__cplusplus']
+elif cppcompiler == 'gcc'
+    options = ['-std=c++2a']
+endif
+
+# 依存プロジェクト
 boostut_dep = dependency('boost.ut')
 dep_libs += [boostut_dep]
 
@@ -29,6 +38,13 @@ exe = executable('chttpp_test', 'test/chttpp_test.cpp', include_directories : in
 test('chttpp test', exe)
 
 else
+
+# ライブラリ利用時の設定追加
+if cppcompiler == 'msvc'
+    options = ['/std:c++20', '/source-charset:utf-8']
+elif cppcompiler == 'gcc'
+    options = ['-std=c++2a']
+endif
 
 # subprojectとして構築時は依存オブジェクトの宣言だけしとく
 chttpp_dep = declare_dependency(include_directories : include_directories('include'), cpp_args : options, dependencies : dep_libs)
