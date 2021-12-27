@@ -135,6 +135,7 @@ namespace chttpp::detail {
 
   template<typename Err>
   class basic_result {
+    // exception_ptrも入れ込みたい、そのうち
     std::variant<http_response, Err> m_either;
 
   public:

@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <cassert>
+#include <forward_list>
 
 #define BOOST_UT_DISABLE_MODULE
 #include <boost/ut.hpp>
@@ -193,6 +194,45 @@ int main() {
       std::span<const char> sp = chttpp::cpo::as_byte_seq(wv);
 
       ut::expect(sp.size() == 16_ull);
+    }
+  };
+
+  "load_byte_seq"_test = [] {
+    {
+      int n = 10;
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(n);
+
+      int m = 0;
+      chttpp::cpo::load_byte_seq(m, sp);
+
+      ut::expect(m == n);
+    }
+    {
+      double d = 3.14115;
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(d);
+
+      double d2 = 0;
+      chttpp::cpo::load_byte_seq(d2, sp);
+
+      ut::expect(d2 == d);
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(vec);
+
+      std::vector<int> vec2 = {5, 6, 7, 8};
+      chttpp::cpo::load_byte_seq(vec2, sp);
+
+      ut::expect(vec2 == vec);
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(vec);
+
+      std::forward_list fl = {5, 6, 7, 8};
+      chttpp::cpo::load_byte_seq(fl, sp);
+
+      ut::expect(std::ranges::equal(fl, vec));
     }
   };
 

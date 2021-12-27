@@ -112,6 +112,56 @@ namespace chttpp {
       void operator()(T& t, std::span<const char> bytes) const noexcept(noexcept(load_byte_seq(t, bytes))) {
         load_byte_seq(t, bytes);
       }
+
+      /**
+      * @brief 3. C-likeな構造体のオブジェクト1つをバイト列からロードする
+      */
+      template<substantial T>
+        requires (not is_specialization_of_span_v<T>)
+      void operator()(T& t, std::span<const char> bytes) const {
+        assert(sizeof(T) <= bytes.size());
+        // memcpyによってデシリアライズ
+        std::memcpy(std::addressof(t), bytes.data(), sizeof(T));
+      }
+
+      /**
+      * @brief 4. C-likeな構造体の連続範囲へバイト列からロードする
+      */
+      template<std::ranges::contiguous_range R>
+        requires std::ranges::sized_range<R> and
+                 substantial<std::ranges::range_value_t<R>>
+      void operator()(R& r, std::span<const char> bytes) const {
+        // 要素型
+        using T = std::ranges::range_value_t<R>;
+        // 短い方のサイズに合わせる
+        const std::size_t len = std::min(std::ranges::size(r), bytes.size() / sizeof(T));
+        // memcpyによってデシリアライズ
+        std::memcpy(std::ranges::data(r), bytes.data(), len * sizeof(T));
+      }
+
+      /**
+      * @brief 5. C-likeな構造体の範囲へバイト列からロードする
+      */
+      template<std::ranges::forward_range R>
+        requires substantial<std::ranges::range_value_t<R>>
+      void operator()(R& r, std::span<const char> bytes) const {
+        // 要素型
+        using T = std::ranges::range_value_t<R>;
+
+        // 宛先に確保されている長さ
+        std::size_t dst_len;
+        if constexpr (std::ranges::sized_range<R>) {
+          dst_len = std::ranges::size(r);
+        } else {
+          dst_len = std::ranges::distance(r);
+        }
+
+        // 短い方のサイズに合わせる
+        const std::size_t len = std::min(dst_len, bytes.size() / sizeof(T));
+
+        // 1要素づつコピー
+        std::ranges::copy_n(reinterpret_cast<const T*>(bytes.data()), len, std::ranges::begin(r));
+      }
     };
   }
 
