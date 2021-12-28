@@ -24,13 +24,19 @@ namespace chttpp {
     // 詳細 : https://github.com/microsoft/STL/blob/main/stl/inc/system_error
     //return std::system_category().message(HRESULT_FROM_WIN32(std::get<1>(this->m_either)));
     const auto winec_to_hresult = HRESULT_FROM_WIN32(std::get<1>(this->m_either));
-    const std::_System_error_message _Msg(static_cast<unsigned long>(winec_to_hresult));
-    if (_Msg._Length == 0) {
-      static constexpr char _Unknown_error[] = "unknown error";
-      constexpr size_t _Unknown_error_length = sizeof(_Unknown_error) - 1;
-      return string_t(_Unknown_error, _Unknown_error_length);
+    const std::_System_error_message message(static_cast<unsigned long>(winec_to_hresult));
+    if (message._Length == 0) {
+      static constexpr char unknown_err[] = "unknown error";
+      constexpr size_t unknown_err_length = sizeof(unknown_err) - 1;
+      return string_t(unknown_err, unknown_err_length);
+      /*
+      return string_t{"unknown error"};
+      のようにしないのは、文字列とその長さの計算を確実にコンパイル時に終わらせるためだと思われる
+      文字列リテラルを与えると長さの計算が実行時になりうる
+      また、この長さならSSOも期待できるため、std::stringの構築を固定長コピーに落とせる
+      */
     } else {
-      return string_t(_Msg._Str, _Msg._Length);
+      return string_t(message._Str, message._Length);
     }
   }
 

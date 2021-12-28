@@ -112,6 +112,7 @@ namespace chttpp::detail {
     const auto ln_pos = std::string_view{ data_ptr, data_len }.rfind("\r\n"sv);
     std::string_view header_str{ data_ptr, std::min(ln_pos, data_len) };
 
+    // 1行分のヘッダの読み取り・変換・格納は共通処理へ
     parse_response_header_oneline(headers, header_str);
   }
 }
@@ -127,17 +128,17 @@ namespace chttpp::underlying::terse {
   }
 
   template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
-  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* obj_ptr) -> std::size_t {
-    auto& proc_obj = *reinterpret_cast<T*>(obj_ptr);
-    const std::size_t data_len = one * length;
+  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* buffer_ptr) -> std::size_t {
+    auto& buffer_obj = *reinterpret_cast<T*>(buffer_ptr);
+    const std::size_t data_len = one * length;  // 第二引数(one)は常に1
 
-    reciever(proc_obj, data_ptr, data_len);
+    reciever(buffer_obj, data_ptr, data_len);
 
     // 返さないと失敗扱い
     return data_len;
   }
 
-  auto request_impl(std::string_view url, detail::tag::get_t) -> http_result {
+  inline auto request_impl(std::string_view url, detail::tag::get_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -183,7 +184,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  auto request_impl(std::string_view url, detail::tag::head_t) -> http_result {
+  inline auto request_impl(std::string_view url, detail::tag::head_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -221,7 +222,7 @@ namespace chttpp::underlying::terse {
 
   }
 
-  auto request_impl(std::string_view url, detail::tag::options_t) -> http_result {
+  inline auto request_impl(std::string_view url, detail::tag::options_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -268,7 +269,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  auto request_impl(std::string_view url, detail::tag::trace_t) -> http_result {
+  inline auto request_impl(std::string_view url, detail::tag::trace_t) -> http_result {
 
     unique_curl session{curl_easy_init()};
 
@@ -306,8 +307,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = {}, .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  template<typename M>
-  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::post_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::post_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -326,30 +326,26 @@ namespace chttpp::underlying::terse {
 
     unique_slist req_headers{};
 
-    if constexpr (std::convertible_to<const M&, std::string_view>) {
-      constexpr std::string_view name_str = "Content-Type: ";
-      std::string_view mime_str{mime};
-      string_t content_type{};
-      content_type.reserve(name_str.length() + mime_str.length());
+    constexpr std::string_view name_str = "Content-Type: ";
+    std::string_view mime_str{mime};
+    string_t content_type{};
+    content_type.reserve(name_str.length() + mime_str.length());
 
-      content_type.append(name_str);
-      content_type.append(mime_str);
+    content_type.append(name_str);
+    content_type.append(mime_str);
 
-      unique_slist_append(req_headers, content_type.c_str());
-    } else {
-      static_assert([]{return false;}(), "not implemented");
-    }
+    unique_slist_append(req_headers, content_type.c_str());
 
     if (req_headers) {
       curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
     }
 
     // レスポンスボディコールバックの指定
-    auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+    auto* resbody_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
       buffer.reserve(buffer.size() + data_len);
       std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
     }>;
-    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, resbody_recieve);
     curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
 
     // レスポンスヘッダコールバックの指定
@@ -375,8 +371,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  template<typename M>
-  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::put_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::put_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -396,19 +391,15 @@ namespace chttpp::underlying::terse {
 
     unique_slist req_headers{};
 
-    if constexpr (std::convertible_to<const M&, std::string_view>) {
-      constexpr std::string_view name_str = "Content-Type: ";
-      std::string_view mime_str{mime};
-      string_t content_type{};
-      content_type.reserve(name_str.length() + mime_str.length());
+    constexpr std::string_view name_str = "Content-Type: ";
+    std::string_view mime_str{mime};
+    string_t content_type{};
+    content_type.reserve(name_str.length() + mime_str.length());
 
-      content_type.append(name_str);
-      content_type.append(mime_str);
+    content_type.append(name_str);
+    content_type.append(mime_str);
 
-      unique_slist_append(req_headers, content_type.c_str());
-    } else {
-      static_assert([]{return false;}(), "not implemented");
-    }
+    unique_slist_append(req_headers, content_type.c_str());
 
     if (req_headers) {
       curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
@@ -445,8 +436,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  template<typename M>
-  auto request_impl(std::string_view url, const M& mime, std::span<const char> req_body, detail::tag::delete_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::delete_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -466,19 +456,15 @@ namespace chttpp::underlying::terse {
 
     unique_slist req_headers{};
 
-    if constexpr (std::convertible_to<const M&, std::string_view>) {
-      constexpr std::string_view name_str = "Content-Type: ";
-      std::string_view mime_str{mime};
-      string_t content_type{};
-      content_type.reserve(name_str.length() + mime_str.length());
+    constexpr std::string_view name_str = "Content-Type: ";
+    std::string_view mime_str{mime};
+    string_t content_type{};
+    content_type.reserve(name_str.length() + mime_str.length());
 
-      content_type.append(name_str);
-      content_type.append(mime_str);
+    content_type.append(name_str);
+    content_type.append(mime_str);
 
-      unique_slist_append(req_headers, content_type.c_str());
-    } else {
-      static_assert([]{return false;}(), "not implemented");
-    }
+    unique_slist_append(req_headers, content_type.c_str());
 
     if (req_headers) {
       curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
@@ -516,7 +502,7 @@ namespace chttpp::underlying::terse {
   }
 
 
-  auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
+  inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
     const std::size_t estimate_len = wstr.length() * 2;
     string_t buffer{};
     buffer.resize(estimate_len);
@@ -529,14 +515,14 @@ namespace chttpp::underlying::terse {
   }
 
   template<typename... Args>
-  auto request_impl(std::wstring_view url, Args&&... args) -> http_result {
+  auto request_impl(std::wstring_view wchar_url, Args&&... args) -> http_result {
 
-    const auto [curl, length] = wchar_to_char(url);
+    const auto [url, length] = wchar_to_char(wchar_url);
 
     if (length == static_cast<std::size_t>(-1)) {
       throw std::invalid_argument{"Failed to convert the URL wchar_t -> char."};
     }
 
-    return request_impl(std::string_view{curl.data(), length}, std::forward<Args>(args)...);
+    return request_impl(std::string_view{url.data(), length}, std::forward<Args>(args)...);
   }
 }

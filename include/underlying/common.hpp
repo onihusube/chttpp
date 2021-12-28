@@ -71,6 +71,9 @@ namespace chttpp::inline concepts {
   template <typename T>
   concept aggregate_with_substance = std::is_aggregate_v<T> and std::is_trivially_copyable_v<T>;
 
+  /**
+   * @brief バイト列への/からの読み替えが問題のない型を表す
+   */
   template <typename T>
   concept substantial =
     fundamental_type_with_substance<T> or
@@ -80,9 +83,16 @@ namespace chttpp::inline concepts {
 
 namespace chttpp::detail {
 
+  /**
+   * @brief ヘッダ1行分（1つ分）をパースし、適切に保存する
+   * @details winhttpとcurlとの共通処理
+   * @param headers 保存するmap<string, string>オブジェクの参照
+   * @param header_str 1行分のヘッダ要素文字列
+   */
   auto parse_response_header_oneline(header_t& headers, std::string_view header_str) {
     using namespace std::string_view_literals;
     // \r\nは含まないとする
+    assert(header_str.ends_with("\r\n") == false);
 
     if (header_str.starts_with("HTTP")) [[unlikely]] {
       const auto line_end_pos = header_str.end();
@@ -95,6 +105,7 @@ namespace chttpp::detail {
     const auto header_value_pos = std::ranges::find_if(header_str.begin() + colon_pos + 1, header_end_pos, [](char c) { return c != ' '; });
 
     // キー文字列は全て小文字になるようにする
+    // curlはこの処理いらないかもしれない？
     string_t key_str{header_str.substr(0, colon_pos)};
     for (auto& c : key_str) {
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));

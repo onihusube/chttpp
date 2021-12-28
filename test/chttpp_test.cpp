@@ -302,12 +302,16 @@ int main() {
 
   };
 
-  /*"terse post"_test = [] {
-    auto result = chttpp::post("https://example.com", "text/plain", "field1=value1&field2=value2");
+  "terse post"_test = [] {
+    using namespace chttpp::mime_types;
+
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
 
     !ut::expect(bool(result));
 
-  };*/
+    std::cout << result.response_body();
+
+  };
 
   underlying_test();
 }

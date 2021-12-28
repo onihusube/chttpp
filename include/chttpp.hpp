@@ -218,17 +218,15 @@ namespace chttpp::detail {
   template<detail::tag::has_reqbody_method MethodTag>
   struct terse_req_impl<MethodTag> {
 
-    template<typename M, byte_serializable B>
-      requires std::convertible_to<const M&, std::string_view>
-    auto operator()(nt_string_view URL, const M& mime_type, B&& request_body) const -> http_result {
-      // ここ、完全転送の必要あるかな・・・？
-      return chttpp::underlying::terse::request_impl(URL, mime_type, cpo::as_byte_seq(std::forward<B>(request_body)), MethodTag{});
+    template<std::convertible_to<std::string_view> MimeType, byte_serializable Body>
+    auto operator()(nt_string_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
+      // ここ、request_bodyの完全転送の必要あるかな・・・？
+      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }
 
-    template<typename M, byte_serializable B>
-      requires std::convertible_to<const M&, std::string_view>
-    auto operator()(nt_wstring_view URL, const M& mime_type, B&& request_body) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, mime_type, cpo::as_byte_seq(std::forward<B>(request_body)), MethodTag{});
+    template<std::convertible_to<std::string_view> MimeType, byte_serializable Body>
+    auto operator()(nt_wstring_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }
   };
 }
