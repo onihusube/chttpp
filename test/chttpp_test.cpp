@@ -258,6 +258,9 @@ int main() {
 
   };
 
+#ifndef _MSC_VER
+
+
   "mime type"_test = [] {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
@@ -302,10 +305,13 @@ int main() {
 
   };
 
+#endif
+
   "terse post"_test = [] {
     using namespace chttpp::mime_types;
 
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
+    //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
 
     !ut::expect(bool(result));
 
