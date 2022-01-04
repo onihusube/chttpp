@@ -31,14 +31,68 @@ namespace chttpp {
     template<typename T>
     inline constexpr bool is_specialization_of_span_v<std::span<T>> = true;
 
+    template<typename T>
+    inline constexpr bool is_character_literal_v = false;
+
+    template<character T>
+    inline constexpr bool is_character_literal_v<const T*> = true;
+
+    template<typename T>
+    inline constexpr bool is_specialization_of_string_view_v = false;
+
+    template<typename T>
+    inline constexpr bool is_specialization_of_string_view_v<std::basic_string_view<T>> = true;
+
+    template<typename T>
+    inline constexpr bool is_specialization_of_string_v = false;
+
+    template<typename T, typename Alloc>
+    inline constexpr bool is_specialization_of_string_v<std::basic_string<T, std::char_traits<T>, Alloc>> = true;
+
+    template <typename T>
+    concept string_like = is_character_literal_v<std::remove_cvref_t<T>> or is_specialization_of_string_view_v<std::remove_cvref_t<T>> or is_specialization_of_string_v<std::remove_cvref_t<T>>;
+
+    template<typename T>
+    struct string_like_traits;
+
+    template <typename T>
+    struct string_like_traits<std::basic_string_view<T>> {
+      using element_type = T;
+    };
+
+    template <typename T, typename Alloc>
+    struct string_like_traits<std::basic_string<T, std::char_traits<T>, Alloc>> {
+      using element_type = T;
+    };
+
+    template<character T>
+    struct string_like_traits<const T*> {
+      using element_type = T;
+    };
+
     struct as_byte_seq_impl {
+
+      /**
+      * @brief 0. 文字列をバイト列へ変換する
+      * @details 利用側はこの結果を直接span<const char>を受け取る関数へ渡すことを想定するので右辺値が来ても良い
+      */
+      template<string_like S>
+      [[nodiscard]]
+      auto operator()(S&& str) const noexcept -> std::span<const char> {
+        using CharT = string_like_traits<std::remove_cvref_t<S>>::element_type;
+
+        // string_viewに変換してからシリアライズする
+        std::basic_string_view<CharT> str_view{str};
+        return {reinterpret_cast<const char *>(std::ranges::data(str_view)), sizeof(CharT) * std::ranges::size(str_view)};
+      }
 
       /**
       * @brief 1. contiguous_rangeな範囲をバイト列へ変換する
       * @details 利用側はこの結果を直接span<const char>を受け取る関数へ渡すことを想定するので右辺値が来ても良い
       */
       template<std::ranges::contiguous_range R>
-        requires requires(R& t) {
+        requires (not string_like<R>) and
+                 requires(R& t) {
                    std::ranges::data(t);
                  } and
                  std::ranges::sized_range<R>
@@ -239,6 +293,8 @@ namespace chttpp {
   inline constexpr detail::terse_req_impl<detail::tag::trace_t> trace{};
 
   inline constexpr detail::terse_req_impl<detail::tag::post_t> post{};
-  //inline constexpr detail::terse_req_impl<detail::tag::put_t> put{};
-  //inline constexpr detail::terse_req_impl<detail::tag::delete_t> delete_{};
+#ifndef _MSC_VER
+  inline constexpr detail::terse_req_impl<detail::tag::put_t> put{};
+  inline constexpr detail::terse_req_impl<detail::tag::delete_t> delete_{};
+#endif
 }

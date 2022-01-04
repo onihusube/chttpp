@@ -126,6 +126,39 @@ int main() {
   };
 #endif
 
+  "string_like concept"_test = [] {
+    using chttpp::detail::string_like;
+
+    static_assert(string_like<const char *>);
+    static_assert(string_like<const wchar_t*>);
+    static_assert(string_like<const char8_t*>);
+    static_assert(string_like<const char16_t*>);
+    static_assert(string_like<const char32_t*>);
+    static_assert(string_like<std::string>);
+    static_assert(string_like<std::wstring>);
+    static_assert(string_like<std::u8string>);
+    static_assert(string_like<std::u16string>);
+    static_assert(string_like<std::u32string>);
+    static_assert(string_like<std::string_view>);
+    static_assert(string_like<std::wstring_view>);
+    static_assert(string_like<std::u8string_view>);
+    static_assert(string_like<std::u16string_view>);
+    static_assert(string_like<std::u32string_view>);
+    static_assert(string_like<const std::string>);
+    static_assert(string_like<const std::string&>);
+    static_assert(string_like<std::string&>);
+    static_assert(string_like<std::string&&>);
+    static_assert(string_like<const std::string_view>);
+    static_assert(string_like<const std::string_view&>);
+    static_assert(string_like<std::string_view&>);
+    static_assert(string_like<std::string_view&&>);
+
+    static_assert(not string_like<char*>);
+    static_assert(not string_like<char>);
+    static_assert(not string_like<int>);
+    static_assert(not string_like<const int*>);
+  };
+
   "as_byte_seq"_test = [] {
     static_assert(chttpp::byte_serializable<std::string>);
     static_assert(chttpp::byte_serializable<std::string&>);
@@ -134,6 +167,11 @@ int main() {
     static_assert(chttpp::byte_serializable<std::span<int>>);
     static_assert(chttpp::byte_serializable<std::vector<char>>);
     static_assert(chttpp::byte_serializable<std::vector<int>>);
+    static_assert(chttpp::byte_serializable<const char*>);
+
+    static_assert(not chttpp::byte_serializable<int*>);
+    static_assert(not chttpp::byte_serializable<const int*>);
+    static_assert(not chttpp::byte_serializable<const int*&>);
 
     {
       std::string str = "test";
@@ -157,6 +195,12 @@ int main() {
       std::span<const char> sp = chttpp::cpo::as_byte_seq("test");
 
       ut::expect(sp.size() == 5_ull);
+    }
+    {
+      const char* str = "test";
+      std::span<const char> sp = chttpp::cpo::as_byte_seq(str);
+
+      ut::expect(sp.size() == 4_ull);
     }
     {
       std::vector vec = {1, 2, 3, 4};
@@ -309,9 +353,16 @@ int main() {
 
   "terse post"_test = [] {
     using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
 
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
+#ifndef _MSC_VER
+    // 文字列リテラル直渡しの時、リクエストボディに\0が入る
+    // char[N]&で渡ってるせいで、C-like構造体の一種として処理されて、全体がシリアライズされている
     //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
+#else
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
+#endif
 
     !ut::expect(bool(result));
 

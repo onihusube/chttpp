@@ -71,14 +71,17 @@ namespace chttpp::inline concepts {
   template <typename T>
   concept aggregate_with_substance = std::is_aggregate_v<T> and std::is_trivially_copyable_v<T>;
 
+  template <typename T>
+  concept standard_layout_class = std::is_class_v<T> and std::is_standard_layout_v<T>;
+
   /**
    * @brief バイト列への/からの読み替えが問題のない型を表す
    */
   template <typename T>
   concept substantial =
-    fundamental_type_with_substance<T> or
+    fundamental_type_with_substance<std::remove_reference_t<T>> or
     aggregate_with_substance<T> or
-    std::is_standard_layout_v<T>;
+    standard_layout_class<T>;
 }
 
 namespace chttpp::detail {
@@ -130,7 +133,7 @@ namespace chttpp::detail {
   using std::ranges::size;
 
   template<typename CharT>
-  concept charcter = 
+  concept character = 
     std::same_as<CharT, char> or
     std::same_as<CharT, wchar_t> or 
     std::same_as<CharT, char8_t> or
@@ -188,7 +191,7 @@ namespace chttpp::detail {
       return {data(response.body), size(response.body)};
     }
 
-    template<charcter CharT>
+    template<character CharT>
     auto response_body() const -> std::basic_string_view<CharT> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
