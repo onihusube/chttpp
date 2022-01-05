@@ -133,7 +133,12 @@ int main() {
     static_assert(string_like<const wchar_t*>);
     static_assert(string_like<const char8_t*>);
     static_assert(string_like<const char16_t*>);
-    static_assert(string_like<const char32_t*>);
+    static_assert(string_like<const char32_t *>);
+    static_assert(string_like<decltype("test")>);
+    static_assert(string_like<decltype(L"test")>);
+    static_assert(string_like<decltype(u8"test")>);
+    static_assert(string_like<decltype(u"test")>);
+    static_assert(string_like<decltype(U"test")>);
     static_assert(string_like<std::string>);
     static_assert(string_like<std::wstring>);
     static_assert(string_like<std::u8string>);
@@ -194,7 +199,7 @@ int main() {
     {
       std::span<const char> sp = chttpp::cpo::as_byte_seq("test");
 
-      ut::expect(sp.size() == 5_ull);
+      ut::expect(sp.size() == 4_ull);
     }
     {
       const char* str = "test";
@@ -358,8 +363,8 @@ int main() {
 #ifndef _MSC_VER
     // 文字列リテラル直渡しの時、リクエストボディに\0が入る
     // char[N]&で渡ってるせいで、C-like構造体の一種として処理されて、全体がシリアライズされている
-    //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
+    //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
 #else
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
 #endif

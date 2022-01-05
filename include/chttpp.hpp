@@ -32,10 +32,16 @@ namespace chttpp {
     inline constexpr bool is_specialization_of_span_v<std::span<T>> = true;
 
     template<typename T>
-    inline constexpr bool is_character_literal_v = false;
+    inline constexpr bool is_character_ptr_v = false;
 
     template<character T>
-    inline constexpr bool is_character_literal_v<const T*> = true;
+    inline constexpr bool is_character_ptr_v<const T*> = true;
+
+    template<typename T>
+    inline constexpr bool is_character_literal_v = false;
+
+    template<character T, std::size_t N>
+    inline constexpr bool is_character_literal_v<const T(&)[N]> = true;
 
     template<typename T>
     inline constexpr bool is_specialization_of_string_view_v = false;
@@ -50,7 +56,11 @@ namespace chttpp {
     inline constexpr bool is_specialization_of_string_v<std::basic_string<T, std::char_traits<T>, Alloc>> = true;
 
     template <typename T>
-    concept string_like = is_character_literal_v<std::remove_cvref_t<T>> or is_specialization_of_string_view_v<std::remove_cvref_t<T>> or is_specialization_of_string_v<std::remove_cvref_t<T>>;
+    concept string_like =
+      is_character_ptr_v<std::remove_cvref_t<T>> or 
+      is_character_literal_v<T> or 
+      is_specialization_of_string_view_v<std::remove_cvref_t<T>> or
+      is_specialization_of_string_v<std::remove_cvref_t<T>>;
 
     template<typename T>
     struct string_like_traits;
@@ -67,6 +77,11 @@ namespace chttpp {
 
     template<character T>
     struct string_like_traits<const T*> {
+      using element_type = T;
+    };
+
+    template<character T, std::size_t N>
+    struct string_like_traits<T[N]> {
       using element_type = T;
     };
 
@@ -133,7 +148,7 @@ namespace chttpp {
       * @brief 4. C-likeな構造体のオブジェクトをそのままシリアライズする
       */
       template<substantial T>
-        requires (not is_specialization_of_span_v<T>)
+        requires (not is_specialization_of_span_v<T>) and (not string_like<const T&>)
       [[nodiscard]]
       auto operator()(const T& t) const noexcept -> std::span<const char> {
         return {reinterpret_cast<const char*>(std::addressof(t)), sizeof(t)};
