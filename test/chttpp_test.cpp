@@ -8,6 +8,8 @@
 #define BOOST_UT_DISABLE_MODULE
 #include <boost/ut.hpp>
 
+#include <picojson.h>
+
 namespace ut = boost::ut;
 
 #ifdef _MSC_VER
@@ -371,6 +373,17 @@ int main() {
 #endif
 
     !ut::expect(bool(result));
+
+    auto json = result | [](std::string_view str_view) -> picojson::value {
+      picojson::value result{};
+
+      [[maybe_unused]]
+      auto err = picojson::parse(result, std::string{str_view});
+
+      ut::expect(err.empty());
+
+      return result;
+    };
 
     std::cout << result.response_body();
 
