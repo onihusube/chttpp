@@ -107,6 +107,7 @@ int main() {
     // 右辺値から構築できない
     static_assert(not std::constructible_from<nt_string_view, std::string>);
     static_assert(std::constructible_from<nt_string_view, std::string&>);
+    static_assert(std::constructible_from<nt_string_view, std::pmr::string&>);
 
     static_assert(std::three_way_comparable<nt_string_view>);
     static_assert(std::equality_comparable<nt_string_view>);

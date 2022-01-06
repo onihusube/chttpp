@@ -197,13 +197,17 @@ namespace chttpp {
       * @brief 4. C-likeな構造体の連続範囲へバイト列からロードする
       */
       template<std::ranges::contiguous_range R>
-        requires std::ranges::sized_range<R> and
-                 substantial<std::ranges::range_value_t<R>>
+        requires substantial<std::ranges::range_value_t<R>>
       void operator()(R& r, std::span<const char> bytes) const {
         // 要素型
         using T = std::ranges::range_value_t<R>;
+
+        // 宛先に確保されている長さ
+        std::size_t dst_len = std::ranges::distance(r);
+
         // 短い方のサイズに合わせる
-        const std::size_t len = std::min(std::ranges::size(r), bytes.size() / sizeof(T));
+        const std::size_t len = std::min(dst_len, bytes.size() / sizeof(T));
+
         // memcpyによってデシリアライズ
         std::memcpy(std::ranges::data(r), bytes.data(), len * sizeof(T));
       }
@@ -218,12 +222,7 @@ namespace chttpp {
         using T = std::ranges::range_value_t<R>;
 
         // 宛先に確保されている長さ
-        std::size_t dst_len;
-        if constexpr (std::ranges::sized_range<R>) {
-          dst_len = std::ranges::size(r);
-        } else {
-          dst_len = std::ranges::distance(r);
-        }
+        std::size_t dst_len = std::ranges::distance(r);
 
         // 短い方のサイズに合わせる
         const std::size_t len = std::min(dst_len, bytes.size() / sizeof(T));
@@ -257,7 +256,7 @@ namespace chttpp {
     */
     template<typename T>
     concept byte_serializable = requires(T&& t) {
-      cpo::as_byte_seq(std::forward<T>(t));
+      { cpo::as_byte_seq(std::forward<T>(t)) } -> std::convertible_to<std::span<const char>>;
     };
 
     /**
@@ -287,13 +286,13 @@ namespace chttpp::detail {
   template<detail::tag::has_reqbody_method MethodTag>
   struct terse_req_impl<MethodTag> {
 
-    template<std::convertible_to<std::string_view> MimeType, byte_serializable Body>
+    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
     auto operator()(nt_string_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
       // ここ、request_bodyの完全転送の必要あるかな・・・？
       return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }
 
-    template<std::convertible_to<std::string_view> MimeType, byte_serializable Body>
+    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
     auto operator()(nt_wstring_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
       return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }

@@ -8,6 +8,11 @@ namespace chttpp {
 
   namespace detail {
 
+    /**
+     * @brief コンパイル時文字列のnull終端判定を行う
+     * @param str 文字列の先頭ポインタ
+     * @param N 文字列のnullを含む長さ
+     */
     template<typename CharT>
     consteval auto check_null_terminate(const CharT* str, std::size_t N) -> std::basic_string_view<CharT> {
       if (str[N - 1] != CharT{}) {
@@ -16,30 +21,33 @@ namespace chttpp {
       return {str, N - 1};
     }
   }
-  
+
+  /**
+   * @brief 実行時にnull終端が保証されたstring_view
+   * @details 実行時にはnull終端保証のあるstd::stringからのみ構築可能とし
+   * @details そのほかの文字列からの構築はコンパイル時のみとし、かつnull終端をチェックする事で保証する
+   */
   template<typename CharT>
   class basic_null_terminated_string_view {
     std::basic_string_view<CharT> m_view;
 
-    using base = std::basic_string_view<CharT>;
-
   public:
     basic_null_terminated_string_view() = default;
 
-    template<typename Allocator>
-    explicit constexpr basic_null_terminated_string_view(const std::basic_string<CharT, std::char_traits<CharT>, Allocator>& str) noexcept
+    template<typename Traits, typename Allocator>
+    constexpr basic_null_terminated_string_view(const std::basic_string<CharT, Traits, Allocator>& str) noexcept
       : m_view(str)
     {}
 
-    template<typename Allocator>
-    explicit basic_null_terminated_string_view(std::basic_string<CharT, std::char_traits<CharT>, Allocator>&&) = delete;
+    template<typename Traits, typename Allocator>
+    basic_null_terminated_string_view(std::basic_string<CharT, Traits, Allocator>&&) = delete;
 
     template<std::size_t N>
     consteval basic_null_terminated_string_view(const CharT(&str_literal)[N])
       : m_view(detail::check_null_terminate(str_literal, N))
     {}
 
-    explicit consteval basic_null_terminated_string_view(std::basic_string_view<CharT> str_view)
+    consteval basic_null_terminated_string_view(std::basic_string_view<CharT> str_view)
         : m_view(detail::check_null_terminate(str_view.data(), str_view.size() + 1))
     {}
 
@@ -54,6 +62,9 @@ namespace chttpp {
       return m_view;
     }
 
+    /**
+     * @brief null終端された文字列へのポインタを得る
+     */
     constexpr auto c_str() const noexcept -> const CharT* {
       return m_view.data();
     }
