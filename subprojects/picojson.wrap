@@ -1,0 +1,5 @@
+[wrap-git]
+directory=picojson
+url=https://github.com/kazuho/picojson.git
+patch_directory = picojson_patch
+revision=HEAD

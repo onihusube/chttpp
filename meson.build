@@ -32,7 +32,9 @@ endif
 
 # 依存プロジェクト
 boostut_dep = dependency('boost.ut')
-dep_libs += [boostut_dep]
+picojson_dep = dependency('picojson')
+
+dep_libs += [boostut_dep, picojson_dep]
 
 exe = executable('chttpp_test', 'test/chttpp_test.cpp', include_directories : include_dir, extra_files : vs_files, cpp_args : options, dependencies : dep_libs)
 test('chttpp test', exe)
