@@ -359,13 +359,24 @@ int main() {
 
 #endif
 
-  "terse post"_test = [] {
+  // jsonレスポンスをpicojsonのvalueオブジェクトへ変換する
+  const auto to_json = [](std::string_view str_view) -> picojson::value {
+    picojson::value result{};
+
+    [[maybe_unused]]
+    auto err = picojson::parse(result, std::string{str_view});
+
+    ut::expect(err.empty()) << err;
+
+    return result;
+  };
+
+  "terse post"_test = [to_json]
+  {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
 #ifndef _MSC_VER
-    // 文字列リテラル直渡しの時、リクエストボディに\0が入る
-    // char[N]&で渡ってるせいで、C-like構造体の一種として処理されて、全体がシリアライズされている
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
     //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
 #else
@@ -373,21 +384,162 @@ int main() {
 #endif
 
     !ut::expect(bool(result));
+    //std::cout << result.response_body();
+/*
+なんかこんな感じのが得られるはず
+{
+  "args": {}, 
+  "data": "field1=value1&field2=value2", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "＊/＊", 
+    "Accept-Encoding": "deflate, gzip", 
+    "Content-Length": "27", 
+    "Content-Type": "text/plain", 
+    "Host": "httpbin.org", 
+    "X-Amzn-Trace-Id": "Root=1-61d7ed99-4ce197f010a8866b75072a7e"
+  }, 
+  "json": null, 
+  "origin": "www.xxx.yyy.zzz", 
+  "url": "https://httpbin.org/post"
+}
+*/
 
-    auto json = result | [](std::string_view str_view) -> picojson::value {
-      picojson::value result{};
+    auto json = result | to_json;
 
-      [[maybe_unused]]
-      auto err = picojson::parse(result, std::string{str_view});
+    !ut::expect(json.is<picojson::value::object>());
 
-      ut::expect(err.empty());
+    const auto &obj = json.get<picojson::value::object>();
 
-      return result;
-    };
+    ut::expect(std::ranges::size(obj) == 8_ull);
+    ut::expect(obj.contains("data"));
+    ut::expect(obj.contains("url"));
+    ut::expect(obj.contains("headers"));
 
-    std::cout << result.response_body();
+    // json要素のチェック
+    ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
 
+    const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+    //ut::expect(std::ranges::size(headers) == 6_ull);
+    ut::expect(headers.contains("Content-Length"));
+    ut::expect(headers.contains("Content-Type"));
+
+    ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
   };
+
+#ifndef _MSC_VER
+  "terse put"_test = [to_json]
+  {
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+
+    auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", text/html);
+
+    !ut::expect(bool(result));
+/*
+なんかこんな感じのが得られるはず
+{
+  "args": {}, 
+  "data": "<p>put test</p>", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "＊/＊", 
+    "Accept-Encoding": "deflate, gzip", 
+    "Content-Length": "15", 
+    "Content-Type": "text/html", 
+    "Host": "httpbin.org", 
+    "X-Amzn-Trace-Id": "Root=1-61d800fe-7a213f0f0a3fe8a0594c4a74"
+  }, 
+  "json": null, 
+  "origin": "www.xxx.yyy.zzz", 
+  "url": "https://httpbin.org/put"
+}
+*/
+
+    auto json = result | to_json;
+
+    !ut::expect(json.is<picojson::value::object>());
+
+    const auto &obj = json.get<picojson::value::object>();
+
+    ut::expect(std::ranges::size(obj) == 8_ull);
+    ut::expect(obj.contains("data"));
+    ut::expect(obj.contains("url"));
+    ut::expect(obj.contains("headers"));
+
+    // json要素のチェック
+    ut::expect(obj.at("data").get<std::string>() == "<p>put test</p>");
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/put");
+
+    const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+    //ut::expect(std::ranges::size(headers) == 6_ull);
+    ut::expect(headers.contains("Content-Length"));
+    ut::expect(headers.contains("Content-Type"));
+
+    ut::expect(headers.at("Content-Length").get<std::string>() == "15");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/html");
+  };
+
+  "terse delete"_test = [to_json]
+  {
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+
+    auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", text/plain);
+
+    !ut::expect(bool(result));
+/*
+なんかこんな感じのが得られるはず
+{
+  "args": {}, 
+  "data": "delete test", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "＊/＊", 
+    "Accept-Encoding": "deflate, gzip", 
+    "Content-Length": "11", 
+    "Content-Type": "text/plain", 
+    "Host": "httpbin.org", 
+    "X-Amzn-Trace-Id": "Root=1-61d80377-3a314ce12aa66d95192130cc"
+  }, 
+  "json": null, 
+  "origin": "www.xxx.yyy.zzz", 
+  "url": "https://httpbin.org/delete"
+}
+*/
+
+    auto json = result | to_json;
+
+    !ut::expect(json.is<picojson::value::object>());
+
+    const auto &obj = json.get<picojson::value::object>();
+
+    ut::expect(std::ranges::size(obj) == 8_ull);
+    ut::expect(obj.contains("data"));
+    ut::expect(obj.contains("url"));
+    ut::expect(obj.contains("headers"));
+
+    // json要素のチェック
+    ut::expect(obj.at("data").get<std::string>() == "delete test");
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/delete");
+
+    const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+    //ut::expect(std::ranges::size(headers) == 6_ull);
+    ut::expect(headers.contains("Content-Length"));
+    ut::expect(headers.contains("Content-Type"));
+
+    ut::expect(headers.at("Content-Length").get<std::string>() == "11");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+  };
+#endif
 
   underlying_test();
 }

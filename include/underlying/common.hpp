@@ -245,16 +245,15 @@ namespace chttpp::detail {
     /**
      * @brief 結果を文字列として任意の継続処理を実行する
      * @param f std::string_viewを1つ受けて呼び出し可能なもの
-     * @details 有効値を保持していない場合（httpアクセスに失敗している場合）、fは呼び出されず、fの戻り値型をデフォルト構築して返す
-     * @return （応答が取得できていれば）f(str_view)の戻り値、decayする
+     * @details 有効値を保持していない場合（httpアクセスに失敗している場合）、空のstring_viewが渡される
+     * @return f(str_view)の戻り値
      */
     template<std::invocable<std::string_view> F>
-      requires std::default_initializable<std::decay_t<std::invoke_result_t<F, std::string_view>>>
-    friend auto operator|(const basic_result& self, F&& f) noexcept(std::is_nothrow_invocable_v<F, std::string_view>) -> std::decay_t<std::invoke_result_t<F, std::string_view>> {
+    friend decltype(auto) operator|(const basic_result& self, F&& f) noexcept(std::is_nothrow_invocable_v<F, std::string_view>) {
       if (self.has_response()) {
         return std::invoke(std::forward<F>(f), self.response_body());
       } else {
-        return {};
+        return std::invoke(std::forward<F>(f), std::string_view{});
       }
     }
 
