@@ -231,6 +231,14 @@ namespace chttpp::detail {
       return (*pos).second;
     }
 
+    auto error_message() const -> string_t {
+      if (this->has_response()) {
+        return "";
+      } else {
+        return this->error_to_string();
+      }
+    }
+
     auto error_to_string() const -> string_t;
 
     friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {

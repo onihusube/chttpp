@@ -101,7 +101,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
+    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
+    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
+
+    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
 
     if (not connect) {
       return http_result{ ::GetLastError() };
@@ -193,7 +197,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
+    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
+    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
+
+    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
 
     if (not connect) {
       return http_result{ ::GetLastError() };
@@ -268,7 +276,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
+    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
+    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
+
+    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
 
     if (not connect) {
       return http_result{ ::GetLastError() };
@@ -345,7 +357,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
+    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
+    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
+
+    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
 
     if (not connect) {
       return http_result{ ::GetLastError() };
@@ -420,7 +436,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    hinet connect{ ::WinHttpConnect(session.get(), url_component.lpszHostName, url_component.nPort, 0) };
+    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
+    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
+    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
+
+    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
 
     if (not connect) {
       return http_result{ ::GetLastError() };
@@ -443,7 +463,8 @@ namespace chttpp::underlying::terse {
     }
 
     // リクエストの送信（送信とは言ってない）
-    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, const_cast<char*>(req_dody.data()), static_cast<DWORD>(req_dody.size_bytes()), static_cast<DWORD>(req_dody.size_bytes()), 0) or
+    constexpr const std::wstring_view add_headers = L"Content-Type: text/plain\r\n";
+    if (not ::WinHttpSendRequest(request.get(), add_headers.data(), static_cast<DWORD>(add_headers.length()), const_cast<char*>(req_dody.data()), static_cast<DWORD>(req_dody.size_bytes()), static_cast<DWORD>(req_dody.size_bytes()), 0) or
       not ::WinHttpReceiveResponse(request.get(), nullptr)) {
       return http_result{ ::GetLastError() };
     }

@@ -291,7 +291,7 @@ int main() {
   "terse_options"_test = [] {
     auto result = chttpp::options(L"https://example.com");
 
-    !ut::expect(bool(result));
+    ut::expect(bool(result));
     const auto status_code = result.status_code();
     ut::expect(200 <= status_code and status_code < 300);
 
@@ -304,7 +304,7 @@ int main() {
   "terse_trace"_test = [] {
     auto result = chttpp::trace("https://example.com");
 
-    !ut::expect(bool(result));
+    ut::expect(bool(result));
     const auto status_code = result.status_code();
     ut::expect(status_code == 405);
 
@@ -380,10 +380,10 @@ int main() {
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
     //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
 #else
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
+    auto result = chttpp::post(L"https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
 #endif
 
-    !ut::expect(bool(result));
+    ut::expect(bool(result)) << result.error_message();
     //std::cout << result.response_body();
 /*
 なんかこんな感じのが得られるはず
@@ -406,11 +406,11 @@ int main() {
 }
 */
 
-    auto json = result | to_json;
+    auto res_json = result | to_json;
 
-    !ut::expect(json.is<picojson::value::object>());
+    ut::expect(res_json.is<picojson::value::object>());
 
-    const auto &obj = json.get<picojson::value::object>();
+    const auto &obj = res_json.get<picojson::value::object>();
 
     ut::expect(std::ranges::size(obj) == 8_ull);
     ut::expect(obj.contains("data"));
@@ -439,7 +439,7 @@ int main() {
 
     auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", text/html);
 
-    !ut::expect(bool(result));
+    ut::expect(bool(result));
 /*
 なんかこんな感じのが得られるはず
 {
@@ -463,7 +463,7 @@ int main() {
 
     auto json = result | to_json;
 
-    !ut::expect(json.is<picojson::value::object>());
+    ut::expect(json.is<picojson::value::object>());
 
     const auto &obj = json.get<picojson::value::object>();
 
@@ -493,7 +493,7 @@ int main() {
 
     auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", text/plain);
 
-    !ut::expect(bool(result));
+    ut::expect(bool(result));
 /*
 なんかこんな感じのが得られるはず
 {
@@ -517,7 +517,7 @@ int main() {
 
     auto json = result | to_json;
 
-    !ut::expect(json.is<picojson::value::object>());
+    ut::expect(json.is<picojson::value::object>());
 
     const auto &obj = json.get<picojson::value::object>();
 
