@@ -383,39 +383,40 @@ int main() {
     auto result = chttpp::post(L"https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
 #endif
 
-    ut::expect(bool(result)) << result.error_message();
-    //std::cout << result.response_body();
-/*
-なんかこんな感じのが得られるはず
-{
-  "args": {}, 
-  "data": "field1=value1&field2=value2", 
-  "files": {}, 
-  "form": {}, 
-  "headers": {
-    "Accept": "＊/＊", 
-    "Accept-Encoding": "deflate, gzip", 
-    "Content-Length": "27", 
-    "Content-Type": "text/plain", 
-    "Host": "httpbin.org", 
-    "X-Amzn-Trace-Id": "Root=1-61d7ed99-4ce197f010a8866b75072a7e"
-  }, 
-  "json": null, 
-  "origin": "www.xxx.yyy.zzz", 
-  "url": "https://httpbin.org/post"
-}
-*/
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(result.status_code() == 200_us);
+    // std::cout << result.response_body();
+    /*
+    なんかこんな感じのが得られるはず
+    {
+      "args": {},
+      "data": "field1=value1&field2=value2",
+      "files": {},
+      "form": {},
+      "headers": {
+        "Accept": "＊/＊",
+        "Accept-Encoding": "deflate, gzip",
+        "Content-Length": "27",
+        "Content-Type": "text/plain",
+        "Host": "httpbin.org",
+        "X-Amzn-Trace-Id": "Root=1-61d7ed99-4ce197f010a8866b75072a7e"
+      },
+      "json": null,
+      "origin": "www.xxx.yyy.zzz",
+      "url": "https://httpbin.org/post"
+    }
+    */
 
     auto res_json = result | to_json;
 
-    ut::expect(res_json.is<picojson::value::object>());
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
     const auto &obj = res_json.get<picojson::value::object>();
 
     ut::expect(std::ranges::size(obj) == 8_ull);
-    ut::expect(obj.contains("data"));
-    ut::expect(obj.contains("url"));
-    ut::expect(obj.contains("headers"));
+    ut::expect(obj.contains("data") >> ut::fatal);
+    ut::expect(obj.contains("url") >> ut::fatal);
+    ut::expect(obj.contains("headers") >> ut::fatal);
 
     // json要素のチェック
     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
@@ -439,7 +440,8 @@ int main() {
 
     auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", text/html);
 
-    ut::expect(bool(result));
+    ut::expect(bool(result) >> ut::fatal);
+    ut::expect(result.status_code() == 200_us);
 /*
 なんかこんな感じのが得られるはず
 {
@@ -461,16 +463,16 @@ int main() {
 }
 */
 
-    auto json = result | to_json;
+    auto res_json = result | to_json;
 
-    ut::expect(json.is<picojson::value::object>());
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
-    const auto &obj = json.get<picojson::value::object>();
+    const auto &obj = res_json.get<picojson::value::object>();
 
     ut::expect(std::ranges::size(obj) == 8_ull);
-    ut::expect(obj.contains("data"));
-    ut::expect(obj.contains("url"));
-    ut::expect(obj.contains("headers"));
+    ut::expect(obj.contains("data") >> ut::fatal);
+    ut::expect(obj.contains("url") >> ut::fatal);
+    ut::expect(obj.contains("headers") >> ut::fatal);
 
     // json要素のチェック
     ut::expect(obj.at("data").get<std::string>() == "<p>put test</p>");
@@ -493,7 +495,8 @@ int main() {
 
     auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", text/plain);
 
-    ut::expect(bool(result));
+    ut::expect(bool(result) >> ut::fatal);
+    ut::expect(result.status_code() == 200_us);
 /*
 なんかこんな感じのが得られるはず
 {
@@ -515,16 +518,16 @@ int main() {
 }
 */
 
-    auto json = result | to_json;
+    auto res_json = result | to_json;
 
-    ut::expect(json.is<picojson::value::object>());
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
-    const auto &obj = json.get<picojson::value::object>();
+    const auto &obj = res_json.get<picojson::value::object>();
 
     ut::expect(std::ranges::size(obj) == 8_ull);
-    ut::expect(obj.contains("data"));
-    ut::expect(obj.contains("url"));
-    ut::expect(obj.contains("headers"));
+    ut::expect(obj.contains("data") >> ut::fatal);
+    ut::expect(obj.contains("url") >> ut::fatal);
+    ut::expect(obj.contains("headers") >> ut::fatal);
 
     // json要素のチェック
     ut::expect(obj.at("data").get<std::string>() == "delete test");
