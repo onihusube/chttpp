@@ -152,6 +152,8 @@ namespace chttpp::detail {
     // exception_ptrも入れ込みたい、そのうち
     std::variant<http_response, Err> m_either;
 
+    auto error_to_string() const -> string_t;
+
   public:
 
     template<typename T = Err>
@@ -239,17 +241,6 @@ namespace chttpp::detail {
       }
     }
 
-    auto error_to_string() const -> string_t;
-
-    friend auto operator<<(std::ostream& os, const basic_result& self) -> std::ostream& {
-      if (bool(self) == false) {
-        os << self.error_to_string() << '\n';
-      } else {
-        os << "No error, communication completed successfully.\n";
-      }
-      return os;
-    }
-
     /**
      * @brief 結果を文字列として任意の継続処理を実行する
      * @param f std::string_viewを1つ受けて呼び出し可能なもの
@@ -266,11 +257,6 @@ namespace chttpp::detail {
     }
 
     // optional/expected的インターフェース
-    // なんかこれらいらない気がしてきた・・・
-
-    bool has_value() const noexcept {
-      return m_either.index() == 0;
-    }
 
     auto value() & -> http_response& {
       return std::get<0>(m_either);
