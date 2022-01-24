@@ -81,7 +81,7 @@ void underlying_test() {
     {
       auto result = chttpp::get("https://example.com");
 
-      !ut::expect(bool(result));
+      ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
       
@@ -96,7 +96,7 @@ void underlying_test() {
     {
       auto result = chttpp::get("http://example.com");
 
-      !ut::expect(bool(result));
+      ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
 
@@ -106,7 +106,20 @@ void underlying_test() {
     {
       auto result = chttpp::get(L"https://example.com");
 
-      !ut::expect(bool(result));
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+    }
+    {
+      auto result = chttpp::get
+                        .url("https://example.com")
+                        .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
+                        .send();
+
+      ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_i);
 
@@ -119,7 +132,7 @@ void underlying_test() {
     {
       auto result = chttpp::head("https://example.com");
 
-      !ut::expect(bool(result));
+      ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() == 0_i);
 

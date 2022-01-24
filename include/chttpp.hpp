@@ -271,6 +271,40 @@ namespace chttpp {
 
 namespace chttpp::detail {
 
+  template<typename MethodTag, character CharT>
+  class terse_settings_wrapper {
+    chttpp::basic_null_terminated_string_view<CharT> m_url;
+    std::span<const char> m_body{};
+    std::string_view mime_str{};
+    std::vector<std::pair<std::string_view, std::string_view>> headers{};
+
+public:
+
+    terse_settings_wrapper(chttpp::basic_null_terminated_string_view<CharT> url) : m_url{url} {}
+
+    auto send() && -> http_result {
+      return chttpp::underlying::terse::request_impl(this->m_url, MethodTag{});
+    }
+
+    auto send() && -> http_result requires detail::tag::has_reqbody_method<MethodTag> {
+      return chttpp::underlying::terse::request_impl(this->m_url, this->mime_str, this->m_body, MethodTag{});
+    }
+
+    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
+      requires detail::tag::has_reqbody_method<MethodTag>
+    auto body(Body&& request_body, MimeType&& mime_type) && -> terse_settings_wrapper&& {
+      this->m_body = cpo::as_byte_seq(std::forward<Body>(request_body));
+      this->mime_str = std::string_view{std::forward<MimeType>(mime_type)};
+      return std::move(*this);
+    }
+
+    auto header(std::string_view name, std::string_view key) && -> terse_settings_wrapper&& {
+      this->headers.emplace_back(name, key);
+      return std::move(*this);
+    }
+  };
+
+
   template<typename MethodTag>
   struct terse_req_impl {
 
@@ -280,6 +314,14 @@ namespace chttpp::detail {
 
     auto operator()(nt_wstring_view URL) const -> http_result {
       return chttpp::underlying::terse::request_impl(URL, MethodTag{});
+    }
+
+    auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
+      return {URL};
+    }
+
+    auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
+      return {URL};
     }
   };
 
@@ -295,6 +337,14 @@ namespace chttpp::detail {
     template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
     auto operator()(nt_wstring_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
       return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
+    }
+
+    auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
+      return {URL};
+    }
+
+    auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
+      return {URL};
     }
   };
 }

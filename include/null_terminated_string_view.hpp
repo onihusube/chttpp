@@ -51,6 +51,9 @@ namespace chttpp {
         : m_view(detail::check_null_terminate(str_view.data(), str_view.size() + 1))
     {}
 
+    constexpr basic_null_terminated_string_view(const basic_null_terminated_string_view&) = default;
+    constexpr basic_null_terminated_string_view(basic_null_terminated_string_view&&) = default;
+
     basic_null_terminated_string_view& operator=(const basic_null_terminated_string_view &) = default;
     basic_null_terminated_string_view& operator=(basic_null_terminated_string_view&&) = default;
 

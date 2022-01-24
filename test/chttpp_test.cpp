@@ -432,6 +432,44 @@ int main() {
     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
   };
 
+  "terse post setting"_test = [to_json] {
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+
+    auto result = chttpp::post
+                      .url("https://httpbin.org/post")
+                      .body("field1=value1&field2=value2", text/plain)
+                      .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
+                      .send();
+
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(result.status_code() == 200_us);
+
+    auto res_json = result | to_json;
+
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+    const auto &obj = res_json.get<picojson::value::object>();
+
+    ut::expect(std::ranges::size(obj) == 8_ull);
+    ut::expect(obj.contains("data") >> ut::fatal);
+    ut::expect(obj.contains("url") >> ut::fatal);
+    ut::expect(obj.contains("headers") >> ut::fatal);
+
+    // json要素のチェック
+    ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+
+    const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+    // ut::expect(std::ranges::size(headers) == 6_ull);
+    ut::expect(headers.contains("Content-Length"));
+    ut::expect(headers.contains("Content-Type"));
+
+    ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+  };
+
 #ifndef _MSC_VER
   "terse put"_test = [to_json]
   {
