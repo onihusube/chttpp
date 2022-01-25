@@ -276,7 +276,7 @@ namespace chttpp::detail {
     chttpp::basic_null_terminated_string_view<CharT> m_url;
     std::span<const char> m_body{};
     std::string_view mime_str{};
-    std::vector<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> m_headers{};
 
 public:
 
@@ -287,7 +287,7 @@ public:
     }
 
     auto send() && -> http_result requires detail::tag::has_reqbody_method<MethodTag> {
-      return chttpp::underlying::terse::request_impl(this->m_url, this->mime_str, this->m_body, MethodTag{});
+      return chttpp::underlying::terse::request_impl(this->m_url, this->mime_str, this->m_body, this->m_headers, MethodTag{});
     }
 
     template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
@@ -299,7 +299,7 @@ public:
     }
 
     auto header(std::string_view name, std::string_view key) && -> terse_settings_wrapper&& {
-      this->headers.emplace_back(name, key);
+      this->m_headers.emplace_back(name, key);
       return std::move(*this);
     }
   };
@@ -331,12 +331,12 @@ public:
     template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
     auto operator()(nt_string_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
       // ここ、request_bodyの完全転送の必要あるかな・・・？
-      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), {}, MethodTag{});
     }
 
     template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
     auto operator()(nt_wstring_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), {}, MethodTag{});
     }
 
     auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {

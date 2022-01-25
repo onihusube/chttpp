@@ -307,7 +307,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = {}, .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::post_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, detail::tag::post_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -324,20 +324,44 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char*>(req_body.data()));
 
-    unique_slist req_headers{};
+    unique_slist req_header_list{};
+    {
+  
+      constexpr std::string_view separater = ": ";
+      string_t header_buffer{};
+      header_buffer.reserve(100);
 
-    constexpr std::string_view name_str = "Content-Type: ";
-    std::string_view mime_str{mime};
-    string_t content_type{};
-    content_type.reserve(name_str.length() + mime_str.length());
+      for (const auto &[name, value] : req_headers) {
+        // key: name となるようにコピー
+        header_buffer.append(name);
+        if (value.empty()) {
+          // 中身が空のヘッダを追加する
+          header_buffer.append(";");
+        } else {
+          header_buffer.append(separater);
+          header_buffer.append(value);
+        }
 
-    content_type.append(name_str);
-    content_type.append(mime_str);
+        unique_slist_append(req_header_list, header_buffer.c_str());
 
-    unique_slist_append(req_headers, content_type.c_str());
+        header_buffer.clear();
+      }
 
-    if (req_headers) {
-      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
+      const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type"; }, &std::pair<std::string_view, std::string_view>::first);
+
+      if (not set_content_type) {
+        constexpr std::string_view name_str = "Content-Type: ";
+        std::string_view mime_str{mime};
+
+        header_buffer.append(name_str);
+        header_buffer.append(mime_str);
+
+        unique_slist_append(req_header_list, header_buffer.c_str());
+      }
+    }
+
+    if (req_header_list) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
     }
 
     // レスポンスボディコールバックの指定
@@ -371,7 +395,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::put_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, detail::tag::put_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -389,7 +413,7 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
     curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PUT");
 
-    unique_slist req_headers{};
+    unique_slist req_header_list{};
 
     constexpr std::string_view name_str = "Content-Type: ";
     std::string_view mime_str{mime};
@@ -399,10 +423,10 @@ namespace chttpp::underlying::terse {
     content_type.append(name_str);
     content_type.append(mime_str);
 
-    unique_slist_append(req_headers, content_type.c_str());
+    unique_slist_append(req_header_list, content_type.c_str());
 
-    if (req_headers) {
-      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
+    if (req_header_list) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
     }
 
     // レスポンスボディコールバックの指定
@@ -436,7 +460,7 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
   }
 
-  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, detail::tag::delete_t) -> http_result {
+  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, detail::tag::delete_t) -> http_result {
     unique_curl session{curl_easy_init()};
 
     if (not session) {
@@ -454,7 +478,7 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
     curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
 
-    unique_slist req_headers{};
+    unique_slist req_header_list{};
 
     constexpr std::string_view name_str = "Content-Type: ";
     std::string_view mime_str{mime};
@@ -464,10 +488,10 @@ namespace chttpp::underlying::terse {
     content_type.append(name_str);
     content_type.append(mime_str);
 
-    unique_slist_append(req_headers, content_type.c_str());
+    unique_slist_append(req_header_list, content_type.c_str());
 
-    if (req_headers) {
-      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_headers.get());
+    if (req_header_list) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
     }
 
     // レスポンスボディコールバックの指定

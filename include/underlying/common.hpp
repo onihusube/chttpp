@@ -86,6 +86,10 @@ namespace chttpp::inline concepts {
 
 namespace chttpp::detail {
 
+  // chttpp デフォルトUser-Agent
+  inline constexpr std::string_view default_UA   =  "Mozilla/5.0 chttpp/0.0.1";
+  inline constexpr std::wstring_view wdefault_UA = L"Mozilla/5.0 chttpp/0.0.1";
+
   /**
    * @brief ヘッダ1行分（1つ分）をパースし、適切に保存する
    * @details winhttpとcurlとの共通処理
