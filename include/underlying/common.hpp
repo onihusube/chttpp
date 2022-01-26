@@ -26,6 +26,17 @@
 
 #include "null_terminated_string_view.hpp"
 
+#ifdef _MSC_VER
+
+#define OPT_STR(str) L##str
+
+#else
+
+#define OPT_STR(str) str
+
+#endif
+
+
 namespace chttpp::inline types {
 
   /**
@@ -85,10 +96,11 @@ namespace chttpp::inline concepts {
 }
 
 namespace chttpp::detail {
+  using namespace std::string_view_literals;
 
   // chttpp デフォルトUser-Agent
-  inline constexpr std::string_view default_UA   =  "Mozilla/5.0 chttpp/0.0.1";
-  inline constexpr std::wstring_view wdefault_UA = L"Mozilla/5.0 chttpp/0.0.1";
+  inline constexpr std::string_view default_UA = "Mozilla/5.0 chttpp/0.0.1";
+  inline constexpr std::wstring_view default_UA_w = L"Mozilla/5.0 chttpp/0.0.1";
 
   /**
    * @brief ヘッダ1行分（1つ分）をパースし、適切に保存する

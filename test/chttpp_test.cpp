@@ -427,9 +427,11 @@ int main() {
     //ut::expect(std::ranges::size(headers) == 6_ull);
     ut::expect(headers.contains("Content-Length"));
     ut::expect(headers.contains("Content-Type"));
+    ut::expect(headers.contains("User-Agent"));
 
     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+    ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
   };
 
   "terse post setting"_test = [to_json] {
