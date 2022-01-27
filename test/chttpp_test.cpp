@@ -371,6 +371,58 @@ int main() {
     return result;
   };
 
+
+  "ters_get"_test = [] {
+    {
+      auto result = chttpp::get("https://example.com");
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_i);
+      
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+
+      {
+        const auto httpver = result.response_header("HTTP Ver");
+        ut::expect(httpver == "HTTP/2 200 "sv); // なぜか後ろにスペースが入る
+      }
+    }
+    {
+      auto result = chttpp::get("http://example.com");
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+    }
+    {
+      auto result = chttpp::get(L"https://example.com");
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+    }
+    {
+      auto result = chttpp::get
+                        .url("https://example.com")
+                        .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
+                        .send();
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_i);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 13_i);
+    }
+  };
+
   "terse post"_test = [to_json]
   {
     using namespace chttpp::mime_types;
@@ -434,7 +486,7 @@ int main() {
     ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
   };
 
-  "terse post setting"_test = [to_json] {
+  "terse post header"_test = [to_json] {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
@@ -472,6 +524,52 @@ int main() {
     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+  };
+
+  "terse post headers"_test = [to_json] {
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+
+    auto result = chttpp::post
+                      .url("https://httpbin.org/post")
+                      .body("field1=value1&field2=value2", image/svg)
+                      .headers({{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+                                {"Content-Type", "text/plain"},
+                                {"Content-Language", "ja-JP"}})
+                      .send();
+
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(result.status_code() == 200_us);
+
+    auto res_json = result | to_json;
+
+    //std::cout << result.response_body() << std::endl;
+
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+    const auto &obj = res_json.get<picojson::value::object>();
+
+    ut::expect(std::ranges::size(obj) == 8_ull);
+    ut::expect(obj.contains("data") >> ut::fatal);
+    ut::expect(obj.contains("url") >> ut::fatal);
+    ut::expect(obj.contains("headers") >> ut::fatal);
+
+    // json要素のチェック
+    ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+
+    const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+    // ut::expect(std::ranges::size(headers) == 6_ull);
+    ut::expect(headers.contains("Content-Length"));
+    ut::expect(headers.contains("Content-Type"));
+    ut::expect(headers.contains("User-Agent"));
+    ut::expect(headers.contains("Content-Language"));
+
+    ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+    ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+    ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
   };
 
 #ifndef _MSC_VER

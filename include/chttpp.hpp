@@ -273,8 +273,7 @@ namespace chttpp::detail {
     std::span<const char> m_body{};
     std::string_view mime_str{};
     vector_t<std::pair<std::string_view, std::string_view>> m_headers{};
-
-public:
+  public:
 
     terse_settings_wrapper(chttpp::basic_null_terminated_string_view<CharT> url) : m_url{url} {}
 
@@ -296,6 +295,15 @@ public:
 
     auto header(std::string_view name, std::string_view key) && -> terse_settings_wrapper&& {
       m_headers.emplace_back(name, key);
+      return std::move(*this);
+    }
+
+    auto headers(vector_t<std::pair<std::string_view, std::string_view>>&& headers) && -> terse_settings_wrapper&& {
+      if (m_headers.empty()) {
+        m_headers = std::exchange(headers, {});
+      } else {
+        m_headers.insert(m_headers.end(), std::make_move_iterator(headers.begin()), std::make_move_iterator(headers.end()));
+      }
       return std::move(*this);
     }
   };
