@@ -203,27 +203,27 @@ namespace chttpp::detail {
       return response.status_code;
     }
 
-    auto response_body() const -> std::string_view {
+    auto response_body() const & -> std::string_view {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
     template<character CharT>
-    auto response_body() const -> std::basic_string_view<CharT> {
+    auto response_body() const & -> std::basic_string_view<CharT> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
     }
 
-    auto response_data() const -> std::span<char> {
+    auto response_data() const & -> std::span<char> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return {data(response.body), size(response.body)};
     }
 
     template<substantial ElementType>
-    auto response_data(std::size_t N = std::dynamic_extent) const -> std::span<ElementType> {
+    auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<ElementType> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
@@ -231,13 +231,13 @@ namespace chttpp::detail {
       return {reinterpret_cast<const ElementType *>(data(response.body)), count};
     }
 
-    auto response_header() const -> const header_t& {
+    auto response_header() const & -> const header_t& {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return response.headers;
     }
 
-    auto response_header(std::string_view header_name) const -> std::string_view {
+    auto response_header(std::string_view header_name) const & -> std::string_view {
       assert(bool(*this));
       const auto &headers = std::get<0>(m_either).headers;
 

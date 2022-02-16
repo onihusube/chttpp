@@ -659,7 +659,6 @@ int main() {
 */
 
     auto res_json = result | to_json;
-
     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
     const auto &obj = res_json.get<picojson::value::object>();
