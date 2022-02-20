@@ -378,10 +378,10 @@ int main() {
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
-      ut::expect(result.response_body().length() >= 648_i);
+      ut::expect(result.response_body().length() >= 648_ull);
       
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_i);
+      ut::expect(headers.size() >= 13_ull);
 
       {
         const auto httpver = result.response_header("HTTP Ver");
@@ -393,20 +393,20 @@ int main() {
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
-      ut::expect(result.response_body().length() >= 648_i);
+      ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_i);
+      ut::expect(headers.size() >= 13_ull);
     }
     {
       auto result = chttpp::get(L"https://example.com");
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
-      ut::expect(result.response_body().length() >= 648_i);
+      ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_i);
+      ut::expect(headers.size() >= 13_ull);
     }
     {
       auto result = chttpp::get
@@ -416,10 +416,10 @@ int main() {
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
-      ut::expect(result.response_body().length() >= 648_i);
+      ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_i);
+      ut::expect(headers.size() >= 13_ull);
     }
   };
 
