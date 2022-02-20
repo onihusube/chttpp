@@ -79,7 +79,7 @@ namespace chttpp::underlying::terse {
   using hinet = std::unique_ptr<HINTERNET, hinet_deleter>;
 
 
-  auto request_impl(std::wstring_view url, detail::tag::get_t) -> http_result {
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::get_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -175,7 +175,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, detail::tag::head_t) -> http_result {
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::head_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -254,7 +254,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, detail::tag::options_t) -> http_result {
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::options_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -335,7 +335,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, detail::tag::trace_t) -> http_result {
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::trace_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -414,7 +414,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, detail::tag::post_t) -> http_result {
+  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::post_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 

@@ -269,13 +269,21 @@ namespace chttpp::detail {
 
   template<typename MethodTag, character CharT>
   class terse_settings_wrapper {
+#ifdef _MSC_VER
+    std::basic_string_view<CharT> m_url;
+#else
     chttpp::basic_null_terminated_string_view<CharT> m_url;
+#endif
     std::span<const char> m_body{};
     std::string_view mime_str{};
     vector_t<std::pair<std::string_view, std::string_view>> m_headers{};
   public:
 
-    terse_settings_wrapper(chttpp::basic_null_terminated_string_view<CharT> url) : m_url{url} {}
+    constexpr terse_settings_wrapper(chttpp::basic_null_terminated_string_view<CharT> url) : m_url{url} {}
+
+#ifdef _MSC_VER
+    constexpr terse_settings_wrapper(std::basic_string_view<CharT> url) : m_url{ url } {}
+#endif
 
     auto send() && -> http_result {
       return chttpp::underlying::terse::request_impl(m_url, m_headers, MethodTag{});
@@ -343,11 +351,11 @@ namespace chttpp::detail {
       return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), vector_t<std::pair<std::string_view, std::string_view>>{}, MethodTag{});
     }
 
-    auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
+    constexpr auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
       return {URL};
     }
 
-    auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
+    constexpr auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
       return {URL};
     }
   };

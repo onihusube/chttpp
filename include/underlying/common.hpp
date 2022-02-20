@@ -165,7 +165,7 @@ namespace chttpp::detail {
     std::variant<T, E, std::exception_ptr> outcome;
 
     template<std::invocable<T> F>
-    auto then(F&& func) && -> then_impl<std::invoke_result_t<F&&, T>> {
+    auto then(F&& func) && -> then_impl<std::invoke_result_t<F&&, T>, E> {
       using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F&&, T>>, E>;
 
       return std::visit(overloaded{
@@ -173,10 +173,10 @@ namespace chttpp::detail {
             return ret_then_t{ .outcome{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
           },
           [](E &&err) {
-            return ret_then_t{ .outcome{std::in_place_index<1>, std::move(err))} };
+            return ret_then_t{ .outcome{std::in_place_index<1>, std::move(err)} };
           },
           [](std::exception_ptr &&exptr) {
-            return ret_then_t{ .outcome{std::in_place_index<2>, std::move(exptr))} };
+            return ret_then_t{ .outcome{std::in_place_index<2>, std::move(exptr)} };
           }}, std::move(this->outcome));
     }
 

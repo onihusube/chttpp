@@ -48,11 +48,11 @@ namespace chttpp {
     {}
 
     consteval basic_null_terminated_string_view(std::basic_string_view<CharT> str_view)
-        : m_view(detail::check_null_terminate(str_view.data(), str_view.size() + 1))
+      : m_view(detail::check_null_terminate(str_view.data(), str_view.size() + 1))
     {}
 
-    constexpr basic_null_terminated_string_view(const basic_null_terminated_string_view&) = default;
-    constexpr basic_null_terminated_string_view(basic_null_terminated_string_view&&) = default;
+    basic_null_terminated_string_view(const basic_null_terminated_string_view&) = default;
+    basic_null_terminated_string_view(basic_null_terminated_string_view&&) = default;
 
     basic_null_terminated_string_view& operator=(const basic_null_terminated_string_view &) = default;
     basic_null_terminated_string_view& operator=(basic_null_terminated_string_view&&) = default;

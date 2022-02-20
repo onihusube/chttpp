@@ -69,8 +69,9 @@ namespace chttpp::mime_types::inline subtypes {
       // type名をコピー（\0は含めない）
       auto [i_end, o_end] = std::ranges::copy_n(std::ranges::begin(type.name), Type::Len, name);
       *o_end = punct; // typeの\0位置に/(+)を入れる
-      // subtype名をコピー（こちらは\0を含める）
-      std::ranges::copy_n(std::ranges::begin(subtype.name), SubType::Len, o_end + 1);
+      // subtype名をコピー（\0は含めない）
+      auto [_, o_end2] = std::ranges::copy_n(std::ranges::begin(subtype.name), SubType::Len - 1, o_end + 1);
+      *o_end2 = '\0'; // null終端する
     }
 
     /**
