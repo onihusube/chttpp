@@ -79,7 +79,14 @@ namespace chttpp::underlying::terse {
   using hinet = std::unique_ptr<HINTERNET, hinet_deleter>;
 
 
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::get_t) -> http_result {
+  template<typename MethodTag>
+    requires (not detail::tag::has_reqbody_method<MethodTag>)
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, MethodTag) -> http_result {
+    // メソッド判定
+    constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
+    constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -113,13 +120,26 @@ namespace chttpp::underlying::terse {
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"GET", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
+    hinet request{};
+    if constexpr (is_get) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"GET", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else if constexpr (is_head) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"HEAD", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else if constexpr (is_opt) {
+      // OPTIONSリクエストの対象を指定する
+      LPCWSTR target = (url_component.dwUrlPathLength == 0) ? L"*" : url_component.lpszUrlPath;
+      request.reset(::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else if constexpr (is_trace) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else {
+      static_assert([] { return false; }(), "not implemented.");
+    }
 
     if (not request) {
       return http_result{ ::GetLastError() };
     }
 
-    {
+    if constexpr (is_get or is_opt) {
       // レスポンスデータを自動で解凍する
       DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
       if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
@@ -127,26 +147,29 @@ namespace chttpp::underlying::terse {
       }
     }
 
+    // リクエスト送信とレスポンスの受信
     if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
         not ::WinHttpReceiveResponse(request.get(), nullptr)) {
       return http_result{ ::GetLastError() };
     }
 
     // レスポンスデータの取得
-    DWORD data_len{};
-    if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
-      return http_result{ ::GetLastError() };
-    }
-
     vector_t<char> body{};
-    if (0 < data_len) {
-      body.resize(data_len);
-      DWORD read_len{};
-
-      if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
+    if constexpr (is_get or is_opt) {
+      DWORD data_len{};
+      if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
         return http_result{ ::GetLastError() };
       }
-      assert(read_len == data_len);
+
+      if (0 < data_len) {
+        body.resize(data_len);
+        DWORD read_len{};
+
+        if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
+          return http_result{ ::GetLastError() };
+        }
+        assert(read_len == data_len);
+      }
     }
 
     // ステータスコードの取得
@@ -173,245 +196,6 @@ namespace chttpp::underlying::terse {
     }
 
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
-  }
-
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::head_t) -> http_result {
-
-    hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
-
-    if (not session) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // HTTP2を常に使用する
-      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1 };
-
-    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
-    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
-    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
-
-    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
-
-    if (not connect) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"HEAD", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
-
-    if (not request) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // レスポンスデータを自動で解凍する
-      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
-      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
-      not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // ステータスコードの取得
-    DWORD status_code{};
-    DWORD dowrd_len = sizeof(status_code);
-    if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // レスポンスヘッダの取得
-    DWORD header_bytes{};
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
-    // 生ヘッダはUTF-16文字列として得られる（null終端されている）
-    wstring_t header_buf;
-    header_buf.resize(header_bytes / sizeof(wchar_t));
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
-
-    // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
-    string_t converted_header{};
-    converted_header.resize(converted_len);
-    if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
-  }
-
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::options_t) -> http_result {
-
-    hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
-
-    if (not session) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // HTTP2を常に使用する
-      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1 };
-
-    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
-    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
-    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
-
-    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
-
-    if (not connect) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
-    // OPTIONSリクエストの対象を指定する
-    LPCWSTR target = (url_component.dwUrlPathLength == 0) ? L"*" : url_component.lpszUrlPath;
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
-
-    if (not request) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // レスポンスデータを自動で解凍する
-      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
-      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
-      not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // ステータスコードの取得
-    DWORD status_code{};
-    DWORD dowrd_len = sizeof(status_code);
-    if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // レスポンスヘッダの取得
-    DWORD header_bytes{};
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
-    // 生ヘッダはUTF-16文字列として得られる（null終端されている）
-    wstring_t header_buf;
-    header_buf.resize(header_bytes / sizeof(wchar_t));
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
-
-    // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
-    string_t converted_header{};
-    converted_header.resize(converted_len);
-    if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
-  }
-
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::trace_t) -> http_result {
-
-    hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
-
-    if (not session) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // HTTP2を常に使用する
-      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1 };
-
-    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
-    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
-    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
-
-    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
-
-    if (not connect) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"TRACE", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
-
-    if (not request) {
-      return http_result{ ::GetLastError() };
-    }
-
-    {
-      // レスポンスデータを自動で解凍する
-      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
-      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
-      not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // ステータスコードの取得
-    DWORD status_code{};
-    DWORD dowrd_len = sizeof(status_code);
-    if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // レスポンスヘッダの取得
-    DWORD header_bytes{};
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
-    // 生ヘッダはUTF-16文字列として得られる（null終端されている）
-    wstring_t header_buf;
-    header_buf.resize(header_bytes / sizeof(wchar_t));
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
-
-    // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
-    string_t converted_header{};
-    converted_header.resize(converted_len);
-    if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return http_result{ chttpp::detail::http_response{.body = {}, .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
   auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::post_t) -> http_result {
