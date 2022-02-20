@@ -263,13 +263,12 @@ namespace chttpp::underlying::terse {
     } else if constexpr (is_del) {
       curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
     } else if constexpr (is_patch) {
-      //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
+      //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
       static_assert([]{return false;}(), "not implemented.");
     }
 
     unique_slist req_header_list{};
     {
-  
       constexpr std::string_view separater = ": ";
       string_t header_buffer{};
       header_buffer.reserve(100);
@@ -278,7 +277,7 @@ namespace chttpp::underlying::terse {
         // key: name となるようにコピー
         header_buffer.append(name);
         if (value.empty()) {
-          // 中身が空のヘッダを追加する
+          // 中身が空のヘッダを追加するときのcurlの作法
           header_buffer.append(";");
         } else {
           header_buffer.append(separater);
@@ -338,13 +337,16 @@ namespace chttpp::underlying::terse {
   }
 
   inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
-    const std::size_t estimate_len = wstr.length() * 2;
+    std::mbstate_t state{};
+    const wchar_t *src = wstr.data();
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
+
     string_t buffer{};
-    buffer.resize(estimate_len);
+    buffer.resize(required_len);
 
     // ロケールの考慮・・・？
     // 外側でコントロールしてもらう方向で・・・
-    const std::size_t converted_len = std::wcstombs(buffer.data(), wstr.data(), estimate_len);
+    const std::size_t converted_len = std::wcsrtombs(buffer.data(), &src, required_len, &state);
 
     return { std::move(buffer), converted_len };
   }
