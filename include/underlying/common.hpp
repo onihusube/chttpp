@@ -164,9 +164,9 @@ namespace chttpp::detail {
   struct then_impl {
     std::variant<T, E, std::exception_ptr> outcome;
 
-    template<std::invocable<T> F>
-    auto then(F&& func) && -> then_impl<std::invoke_result_t<F&&, T>, E> {
-      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F&&, T>>, E>;
+    template<std::invocable<T&&> F>
+    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> try {
+      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
 
       return std::visit(overloaded{
           [&](T &&value) {
@@ -178,11 +178,30 @@ namespace chttpp::detail {
           [](std::exception_ptr &&exptr) {
             return ret_then_t{ .outcome{std::in_place_index<2>, std::move(exptr)} };
           }}, std::move(this->outcome));
+    } catch (...) {
+      return then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>{ .outcome{ std::in_place_index<2>, std::current_exception() } };
     }
 
     template<typename F>
-    void catch_err(F&& func) {
+      requires requires {
+        requires std::invocable<F, const E&> or std::invocable<F, const std::exception_ptr&>;
+      }
+    auto catch_err(F&& func) && noexcept -> then_impl&& try {
+      std::visit(overloaded{
+          [&](E &&err) requires std::invocable<F, const E&> {
+            std::invoke(std::forward<F>(func), err);
+          },
+          [&](std::exception_ptr&& exptr) requires std::invocable<F, const std::exception_ptr&> {
+            std::invoke(std::forward<F>(func), exptr);
+          },
+          [](auto&&) {}
+        }, std::move(this->outcome));
 
+      return std::move(*this);
+    } catch (...) {
+      // ここ例外投げる？
+      this->outcome.emplace<2>(std::current_exception());
+      return std::move(*this);
     }
   };
 }
@@ -299,6 +318,45 @@ namespace chttpp::detail {
       } else {
         return this->error_to_string();
       }
+    }
+
+    template<std::invocable<http_response&&> F>
+    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err> try {
+      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err>;
+
+      return std::visit(overloaded{
+          [&](http_response&& value) {
+            return ret_then_t{ .outcome{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+          },
+          [](Err &&err) {
+            return ret_then_t{ .outcome{std::in_place_index<1>, std::move(err)} };
+          },
+          [](std::exception_ptr &&exptr) {
+            return ret_then_t{ .outcome{std::in_place_index<2>, std::move(exptr)} };
+          }}, std::move(this->m_either));
+    } catch (...) {
+      return then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response &&>>, Err>{ .outcome{ std::in_place_index<2>, std::current_exception() } };
+    }
+
+    template<typename F>
+      requires requires {
+        requires std::invocable<F, const Err&> or std::invocable<F, const std::exception_ptr&>;
+      }
+    auto catch_err(F&& func) && noexcept -> then_impl<http_response, Err> try {
+      return std::visit(overloaded{
+          [&](Err&& err) requires std::invocable<F, const Err&> {
+            std::invoke(std::forward<F>(func), err);
+            return then_impl<http_response, Err>{ .outcome{std::in_place_index<1>, std::move(err)} };
+          },
+          [&](std::exception_ptr& exptr) requires std::invocable<F, const std::exception_ptr&> {
+            std::invoke(std::forward<F>(func), exptr);
+            return then_impl<http_response, Err>{ .outcome{std::in_place_index<2>, std::move(exptr)} };
+          },
+          [](http_response&& httpres) {
+            return then_impl<http_response, Err>{ .outcome{std::in_place_index<0>, std::move(httpres)} };
+          }}, std::move(this->m_either));
+    } catch (...) {
+      return then_impl<http_response, Err>{ .outcome{std::in_place_index<2>, std::current_exception()} };
     }
 
     /**
