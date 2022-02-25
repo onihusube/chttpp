@@ -22,6 +22,8 @@ namespace ut = boost::ut;
 
 #endif
 
+#include "http_result_test.hpp"
+
 namespace chttpp_test {
 
   struct wrap_vec1 {
@@ -684,4 +686,5 @@ int main() {
 #endif
 
   underlying_test();
+  http_result_test();
 }
