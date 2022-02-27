@@ -383,12 +383,7 @@ int main() {
       ut::expect(result.response_body().length() >= 648_ull);
       
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_ull);
-
-      {
-        const auto httpver = result.response_header("HTTP Ver");
-        ut::expect(httpver == "HTTP/2 200 "sv); // なぜか後ろにスペースが入る
-      }
+      ut::expect(headers.size() >= 11_ull);
     }
     {
       auto result = chttpp::get("http://example.com");
@@ -398,7 +393,7 @@ int main() {
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_ull);
+      ut::expect(headers.size() >= 11_ull);
     }
     {
       auto result = chttpp::get(L"https://example.com");
@@ -408,7 +403,7 @@ int main() {
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_ull);
+      ut::expect(headers.size() >= 11_ull);
     }
     {
       auto result = chttpp::get
@@ -421,7 +416,7 @@ int main() {
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
-      ut::expect(headers.size() >= 13_ull);
+      ut::expect(headers.size() >= 11_ull);
     }
   };
 

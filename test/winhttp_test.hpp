@@ -69,7 +69,7 @@ void underlying_test() {
 
   };
 
-  "ters_get"_test = [] {
+  "ters_get wihttp"_test = [] {
     {
       auto result = chttpp::get(L"https://example.com");
 
@@ -111,7 +111,7 @@ void underlying_test() {
     }
   };
 
-  "terse_head"_test = [] {
+  "terse_head winhttp"_test = [] {
     {
       auto result = chttpp::head(L"https://example.com");
 

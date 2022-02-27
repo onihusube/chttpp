@@ -7,6 +7,7 @@
 #include <memory_resource>
 #include <algorithm>
 #include <functional>
+#include <format>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -78,10 +79,24 @@ namespace chttpp::underlying::terse {
 
   using hinet = std::unique_ptr<HINTERNET, hinet_deleter>;
 
+  /**
+  * @brief charの文字列をstd::wstringへ変換する
+  * @param cstr 変換したい文字列
+  * @return {変換後文字列, 失敗を示すbool値（失敗したらtrue）}
+  */
+  auto char_to_wchar(std::string_view cstr) -> std::pair<wstring_t, bool> {
+    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
+    wstring_t converted_str{};
+    converted_str.resize(converted_len);
+    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), converted_str.data(), static_cast<int>(converted_len));
+
+    return { std::move(converted_str), res == 0 };
+  }
+
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>&, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>& headers, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
@@ -147,8 +162,31 @@ namespace chttpp::underlying::terse {
       }
     }
 
+    LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
+    std::wstring send_header_buf{};
+
+    if (not headers.empty()) {
+      std::string tmp_buf{};
+
+      // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+      for (auto& [name, value] : headers) {
+        // name: value\r\n のフォーマット
+        tmp_buf += std::format("{:s}: {:s}\r\n", name, value);
+      }
+
+      // まとめてWCHAR文字列へ文字コード変換
+      auto&& [wstr, failed] = char_to_wchar(tmp_buf);
+      
+      if (failed) {
+        return http_result{ ::GetLastError() };
+      }
+
+      send_header_buf = std::move(wstr);
+      add_header = send_header_buf.c_str();
+    }
+
     // リクエスト送信とレスポンスの受信
-    if (not ::WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
+    if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
         not ::WinHttpReceiveResponse(request.get(), nullptr)) {
       return http_result{ ::GetLastError() };
     }
@@ -198,7 +236,7 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, const vector_t<std::pair<std::string_view, std::string_view>>&, detail::tag::post_t) -> http_result {
+  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, const vector_t<std::pair<std::string_view, std::string_view>>& headers, detail::tag::post_t) -> http_result {
 
     hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -297,21 +335,12 @@ namespace chttpp::underlying::terse {
   }
 
 
-  auto char_to_wchar(std::string_view cstr) -> std::pair<wstring_t, int> {
-    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
-    wstring_t converted_str{};
-    converted_str.resize(converted_len);
-    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), converted_str.data(), static_cast<int>(converted_len));
-
-    return { std::move(converted_str), res };
-  }
-
   template<typename... Args>
   auto request_impl(std::string_view url, Args&&... args) -> http_result {
 
-    const auto [converted_url, res] = char_to_wchar(url);
+    const auto [converted_url, failed] = char_to_wchar(url);
 
-    if (res == 0) {
+    if (failed) {
       return http_result{ ::GetLastError() };
     }
 
