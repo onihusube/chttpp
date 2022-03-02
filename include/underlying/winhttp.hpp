@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <functional>
 #include <format>
+#include <numeric>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -103,7 +104,7 @@ namespace chttpp::underlying::terse {
     constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
     constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
 
-    hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
+    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0)};
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -166,12 +167,17 @@ namespace chttpp::underlying::terse {
     std::wstring send_header_buf{};
 
     if (not headers.empty()) {
-      std::string tmp_buf{};
+
+      // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
+      const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
+
+      std::string tmp_buf(total_len, '\0');
+      auto pos = tmp_buf.begin();
 
       // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
       for (auto& [name, value] : headers) {
         // name: value\r\n のフォーマット
-        tmp_buf += std::format("{:s}: {:s}\r\n", name, value);
+        pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
       }
 
       // まとめてWCHAR文字列へ文字コード変換
@@ -236,9 +242,9 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, const vector_t<std::pair<std::string_view, std::string_view>>& headers, detail::tag::post_t) -> http_result {
+  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, vector_t<std::pair<std::string_view, std::string_view>>&& headers, detail::tag::post_t) -> http_result {
 
-    hinet session{ WinHttpOpen(L"Mozilla/5.0 Test", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
+    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -284,10 +290,35 @@ namespace chttpp::underlying::terse {
       }
     }
 
+    // Content-Typeヘッダの追加
+    // ヘッダ指定されたものを優先する
+    std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
+    if (i == headers.end()) {
+      headers.emplace_back("Content-Type", mime);
+    }
+
+    // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
+    const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
+
+    std::string tmp_buf(total_len, '\0');
+    auto pos = tmp_buf.begin();
+
+    // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+    for (auto& [name, value] : headers) {
+      // name: value\r\n のフォーマット
+      pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+    }
+
+    // まとめてWCHAR文字列へ文字コード変換
+    auto&& [send_header_buf, failed] = char_to_wchar(tmp_buf);
+
+    if (failed) {
+      return http_result{ ::GetLastError() };
+    }
+
     // リクエストの送信（送信とは言ってない）
-    constexpr const std::wstring_view add_headers = L"Content-Type: text/plain\r\n";
-    if (not ::WinHttpSendRequest(request.get(), add_headers.data(), static_cast<DWORD>(add_headers.length()), const_cast<char*>(req_dody.data()), static_cast<DWORD>(req_dody.size_bytes()), static_cast<DWORD>(req_dody.size_bytes()), 0) or
-      not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+    if (not ::WinHttpSendRequest(request.get(), send_header_buf.c_str(), static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_dody.data()), static_cast<DWORD>(req_dody.size_bytes()), static_cast<DWORD>(req_dody.size_bytes()), 0) or
+        not ::WinHttpReceiveResponse(request.get(), nullptr)) {
       return http_result{ ::GetLastError() };
     }
 

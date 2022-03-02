@@ -425,12 +425,7 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-#ifndef _MSC_VER
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
-    //auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2"sv, text/plain);
-#else
-    auto result = chttpp::post(L"https://httpbin.org/post", "field1=value1&field2=value2", "text/plain");
-#endif
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200_us);
@@ -489,7 +484,7 @@ int main() {
 
     auto result = chttpp::post
                       .url("https://httpbin.org/post")
-                      .body("field1=value1&field2=value2", text/plain)
+                      .body("field1=value1&field2=value2")
                       .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
                       .send();
 

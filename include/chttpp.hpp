@@ -286,16 +286,16 @@ namespace chttpp::detail {
 #endif
 
     auto send() && -> http_result {
-      return chttpp::underlying::terse::request_impl(m_url, m_headers, MethodTag{});
+      return chttpp::underlying::terse::request_impl(m_url, std::move(m_headers), MethodTag{});
     }
 
     auto send() && -> http_result requires detail::tag::has_reqbody_method<MethodTag> {
-      return chttpp::underlying::terse::request_impl(m_url, mime_str, m_body, m_headers, MethodTag{});
+      return chttpp::underlying::terse::request_impl(m_url, mime_str, m_body, std::move(m_headers), MethodTag{});
     }
 
-    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
+    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType = std::string_view>
       requires detail::tag::has_reqbody_method<MethodTag>
-    auto body(Body&& request_body, MimeType&& mime_type) && -> terse_settings_wrapper&& {
+    auto body(Body&& request_body, MimeType&& mime_type = "text/plain") && -> terse_settings_wrapper&& {
       m_body = cpo::as_byte_seq(std::forward<Body>(request_body));
       mime_str = std::string_view{std::forward<MimeType>(mime_type)};
       return std::move(*this);
