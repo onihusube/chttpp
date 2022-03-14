@@ -187,16 +187,26 @@ namespace chttpp::detail {
       return ret_then_t{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
     }
 
-    template<typename F>
-      requires requires {
-        requires std::invocable<F, const E&> or std::invocable<F, const std::exception_ptr&>;
-      }
-    auto catch_err(F&& func) && noexcept -> then_impl&& try {
+    template<std::invocable<const E&> F>
+    auto catch_error(F&& func) && noexcept -> then_impl&& try {
       std::visit(overloaded{
-          [&](E &&err) requires std::invocable<F, const E&> {
+          [&](E &&err) {
             std::invoke(std::forward<F>(func), err);
           },
-          [&](std::exception_ptr&& exptr) requires std::invocable<F, const std::exception_ptr&> {
+          [](auto&&) {}
+        }, std::move(this->outcome));
+
+      return std::move(*this);
+    } catch (...) {
+      // ここ例外投げる？
+      this->outcome.template emplace<2>(std::current_exception());
+      return std::move(*this);
+    }
+
+    template<std::invocable<const std::exception_ptr&> F>
+    auto catch_exception(F&& func) && noexcept -> then_impl&& try {
+      std::visit(overloaded{
+          [&](std::exception_ptr&& exptr) {
             std::invoke(std::forward<F>(func), exptr);
           },
           [](auto&&) {}
@@ -346,20 +356,39 @@ namespace chttpp::detail {
       return then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response &&>>, Err>{ .outcome = V{ std::in_place_index<2>, std::current_exception() } };
     }
 
-    template<typename F>
-      requires requires {
-        requires std::invocable<F, const Err&> or std::invocable<F, const std::exception_ptr&>;
-      }
-    auto catch_err(F&& func) && noexcept -> then_impl<http_response, Err> try {
+    template<std::invocable<const Err&> F>
+    auto catch_error(F&& func) && noexcept -> then_impl<http_response, Err> try {
       using ret_then_t = then_impl<http_response, Err>;
       using V = typename ret_then_t::V;
 
       return std::visit(overloaded{
-          [&](Err&& err) requires std::invocable<F, const Err&> {
+          [&](Err&& err) {
             std::invoke(std::forward<F>(func), err);
             return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
           },
-          [&](std::exception_ptr& exptr) requires std::invocable<F, const std::exception_ptr&> {
+          [&](std::exception_ptr&& exptr) {
+            return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
+          },
+          [](http_response&& httpres) {
+            return ret_then_t{ .outcome = V{std::in_place_index<0>, std::move(httpres)} };
+          }}, std::move(this->m_either));
+    } catch (...) {
+      using ret_then_t = then_impl<http_response, Err>;
+      using V = typename ret_then_t::V;
+
+      return ret_then_t{.outcome = V{std::in_place_index<2>, std::current_exception()}};
+    }
+
+    template<std::invocable<const std::exception_ptr&> F>
+    auto catch_exception(F&& func) && noexcept -> then_impl<http_response, Err> try {
+      using ret_then_t = then_impl<http_response, Err>;
+      using V = typename ret_then_t::V;
+
+      return std::visit(overloaded{
+          [&](Err&& err) {
+            return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+          },
+          [&](std::exception_ptr&& exptr) {
             std::invoke(std::forward<F>(func), exptr);
             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
           },

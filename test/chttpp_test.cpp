@@ -627,7 +627,7 @@ int main() {
 
     auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", text/plain);
 
-    ut::expect(bool(result) >> ut::fatal);
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200_us);
 /*
 なんかこんな感じのが得られるはず
