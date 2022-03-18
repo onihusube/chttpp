@@ -242,7 +242,12 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
   }
 
-  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, vector_t<std::pair<std::string_view, std::string_view>>&& headers, detail::tag::post_t) -> http_result {
+  template<detail::tag::has_reqbody_method Tag>
+  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, vector_t<std::pair<std::string_view, std::string_view>>&& headers, Tag) -> http_result {
+
+    constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
+    constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
+    constexpr bool is_del = std::same_as<Tag, detail::tag::delete_t>;
 
     hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
 
@@ -276,7 +281,17 @@ namespace chttpp::underlying::terse {
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
-    hinet request{ ::WinHttpOpenRequest(connect.get(), L"POST", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag) };
+    hinet request{};
+
+    if constexpr (is_post) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"POST", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else if constexpr (is_put) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else if constexpr (is_del) {
+      request.reset(::WinHttpOpenRequest(connect.get(), L"DELETE", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+    } else {
+      static_assert([] { return false; }(), "not implemented.");
+    }
 
     if (not request) {
       return http_result{ ::GetLastError() };

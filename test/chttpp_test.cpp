@@ -489,7 +489,7 @@ int main() {
                       .send();
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect(result.status_code() == 200_us);
+    ut::expect((result.status_code() == 200_us) >> ut::fatal) >> result.status_code();
 
     auto res_json = result | to_json;
 
@@ -564,7 +564,6 @@ int main() {
     ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
   };
 
-#ifndef _MSC_VER
   "terse put"_test = [to_json]
   {
     using namespace chttpp::mime_types;
@@ -673,7 +672,6 @@ int main() {
     ut::expect(headers.at("Content-Length").get<std::string>() == "11");
     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
   };
-#endif
 
   underlying_test();
   http_result_test();
