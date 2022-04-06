@@ -489,7 +489,7 @@ int main() {
                       .send();
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect((result.status_code() == 200_us) >> ut::fatal) >> result.status_code();
+    ut::expect((result.status_code() == 200_us) >> ut::fatal) << result.status_code();
 
     auto res_json = result | to_json;
 

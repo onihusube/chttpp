@@ -82,6 +82,7 @@ namespace chttpp::inline concepts {
   template <typename T>
   concept aggregate_with_substance = std::is_aggregate_v<T> and std::is_trivially_copyable_v<T>;
 
+  // もう少し考慮が必要（これだとstd::vectorでも満たせるっぽい）
   template <typename T>
   concept standard_layout_class = std::is_class_v<T> and std::is_standard_layout_v<T>;
 
@@ -91,8 +92,7 @@ namespace chttpp::inline concepts {
   template <typename T>
   concept substantial =
     fundamental_type_with_substance<std::remove_reference_t<T>> or
-    aggregate_with_substance<T> or
-    standard_layout_class<T>;
+    aggregate_with_substance<T>;
 }
 
 namespace chttpp::detail {
