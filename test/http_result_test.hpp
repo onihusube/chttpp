@@ -14,14 +14,13 @@ auto hr_err() -> chttpp::http_result {
 
   return chttpp::http_result{E{}};
 }
-/*
-auto hr_exptr() -> chttpp::http_result {
-  try {
-    throw std::runtime_error{"exception test."};
-  } catch (...) {
-    return chttpp::http_result{std::current_exception()};
-  }
-}*/
+
+decltype(auto) hr_exptr() {
+  return hr_ok().then([](auto&&) {
+    throw std::runtime_error{"test throw"};
+    return 10;
+  });
+}
 
 void http_result_test() {
   using namespace boost::ut::literals;
@@ -47,37 +46,45 @@ void http_result_test() {
       });
   };
 
-/*
   "catch_exception"_test = []
   {
-    hr_exptr().then([](http_response&& hr) {
+    int count = 0;
+
+    hr_exptr().then([](int&& hr) {
         ut::expect(false);
         return hr;
-      }).then([](http_response&& hr) {
+      }).then([](int&& hr) {
         ut::expect(false);
         return hr;
-      }).then([](http_response&& hr) {
+      }).then([](int&& hr) {
         ut::expect(false);
         return hr;
       }).catch_error([](const auto&) {
         ut::expect(false);
-      }).catch_exception([](const auto& exptr) {
+      }).catch_exception([&](const auto& exptr) {
         try {
           std::rethrow_exception(exptr);
         } catch (const std::runtime_error& re) {
-          ut::expect(re.what() == "exception test."sv);
+          ut::expect(re.what() == "test throw"sv);
+          ++count;
         } catch (...) {
           ut::expect(false);
         }
-      }).catch_exception([](const auto& exptr) {
+      }).catch_exception([&](const auto& exptr) {
         try {
           std::rethrow_exception(exptr);
         } catch (const std::runtime_error& re) {
-          ut::expect(re.what() == "exception test."sv);
+          ut::expect(re.what() == "test throw"sv);
+          ++count;
         } catch (...) {
           ut::expect(false);
         }
       });
+
+    ut::expect(count == 2);
   };
-  */
+
+  "catch_error"_test = [] {
+
+  };
 }

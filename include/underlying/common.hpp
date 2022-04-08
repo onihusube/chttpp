@@ -159,6 +159,11 @@ namespace chttpp::detail {
 	template<typename... Fs>
 	overloaded(Fs&&...) -> overloaded<Fs...>;
 
+  /**
+   * @brief `T`がvoidならmonostateに変換する
+   */
+  template <typename T>
+  using void_to_monostate = std::conditional_t<std::same_as<std::remove_cvref_t<T>, void>, std::monostate, std::remove_cvref_t<T>>;
 
   template<typename T, typename E>
   struct then_impl {
@@ -187,20 +192,35 @@ namespace chttpp::detail {
       return ret_then_t{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
     }
 
-    template<std::invocable<const E&> F>
-    auto catch_error(F&& func) && noexcept -> then_impl&& try {
-      std::visit(overloaded{
+    template<std::invocable<E&&> F>
+    auto catch_error(F&& func) && noexcept -> then_impl<T, void_to_monostate<std::invoke_result_t<F, E&&>>> try {
+      using ret_t = std::invoke_result_t<F, E&&>;
+      using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
+      using V2 = typename ret_then_t::V;
+
+      return std::visit(overloaded{
           [&](E &&err) {
-            std::invoke(std::forward<F>(func), err);
+            if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
+              std::invoke(std::forward<F>(func), std::move(err));
+              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::monostate{}}};
+            } else {
+              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::invoke(std::forward<F>(func), err)}};
+            }
           },
-          [](auto&&) {}
+          [](T&& v) {
+            return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::move(v)} };
+          },
+          [](std::exception_ptr &&exptr) {
+            return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+          }
         }, std::move(this->outcome));
 
-      return std::move(*this);
     } catch (...) {
-      // ここ例外投げる？
-      this->outcome.template emplace<2>(std::current_exception());
-      return std::move(*this);
+      using ret_t = std::invoke_result_t<F, E&&>;
+      using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
+      using V2 = typename ret_then_t::V;
+
+      return ret_then_t{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
     }
 
     template<std::invocable<const std::exception_ptr&> F>
