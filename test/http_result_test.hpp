@@ -85,6 +85,24 @@ void http_result_test() {
   };
 
   "catch_error"_test = [] {
+    using err_t = chttpp::http_result::error_type;
 
+    int count = 0;
+
+    hr_err().catch_error([&](auto e) -> int {
+      ut::expect(e == err_t{});
+      ++count;
+      return -11;
+    }).catch_error([&](int e) {
+      ut::expect(e == -11_i);
+      ++count;
+    }).catch_exception([](const auto&) {
+      ut::expect(false);
+    }).then([](auto&& hr) {
+      ut::expect(false);
+      return hr;
+    });
+
+    ut::expect(count == 2);
   };
 }

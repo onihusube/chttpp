@@ -193,6 +193,7 @@ namespace chttpp::detail {
     }
 
     template<std::invocable<E&&> F>
+      requires (not std::same_as<E, std::monostate>)
     auto catch_error(F&& func) && noexcept -> then_impl<T, void_to_monostate<std::invoke_result_t<F, E&&>>> try {
       using ret_t = std::invoke_result_t<F, E&&>;
       using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
@@ -204,7 +205,7 @@ namespace chttpp::detail {
               std::invoke(std::forward<F>(func), std::move(err));
               return ret_then_t{.outcome = V2{std::in_place_index<1>, std::monostate{}}};
             } else {
-              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::invoke(std::forward<F>(func), err)}};
+              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
             }
           },
           [](T&& v) {
@@ -224,19 +225,28 @@ namespace chttpp::detail {
     }
 
     template<std::invocable<const std::exception_ptr&> F>
-    auto catch_exception(F&& func) && noexcept -> then_impl&& try {
-      std::visit(overloaded{
-          [&](std::exception_ptr&& exptr) {
-            std::invoke(std::forward<F>(func), exptr);
-          },
-          [](auto&&) {}
-        }, std::move(this->outcome));
+      requires requires(F&& f, const std::exception_ptr& exptr) {
+        {std::invoke(std::forward<F>(f), exptr)} -> std::same_as<void>;
+      }
+    auto catch_exception(F&& func) && noexcept -> then_impl try {
+      using V2 = typename then_impl::V;
 
-      return std::move(*this);
+      return std::visit(overloaded{
+          [](T&& v) {
+            return then_impl{ .outcome = V2{std::in_place_index<0>, std::move(v)} };
+          },
+          [](E &&err) {
+            return then_impl{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+          },
+          [&](std::exception_ptr &&exptr) {
+            std::invoke(std::forward<F>(func), exptr);
+            return then_impl{.outcome = V2{std::in_place_index<2>, std::move(exptr)}};
+          }
+        }, std::move(this->outcome));
     } catch (...) {
-      // ここ例外投げる？
-      this->outcome.template emplace<2>(std::current_exception());
-      return std::move(*this);
+      using V2 = typename then_impl::V;
+
+      return then_impl{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
     }
   };
 }
