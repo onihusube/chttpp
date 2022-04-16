@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "chttpp.hpp"
 
 #define BOOST_UT_DISABLE_MODULE

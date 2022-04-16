@@ -385,16 +385,21 @@ namespace chttpp::detail {
       using V = typename then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err>::V;
       return then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response &&>>, Err>{ .outcome = V{ std::in_place_index<2>, std::current_exception() } };
     }
-
-    template<std::invocable<const Err&> F>
-    auto catch_error(F&& func) && noexcept -> then_impl<http_response, Err> try {
-      using ret_then_t = then_impl<http_response, Err>;
+    
+    template<std::invocable<Err&&> F>
+    auto catch_error(F&& func) && noexcept -> then_impl<http_response, void_to_monostate<std::invoke_result_t<F, Err&&>>> try {
+      using ret_t = std::invoke_result_t<F, Err&&>;
+      using ret_then_t = then_impl<http_response, void_to_monostate<ret_t>>;
       using V = typename ret_then_t::V;
 
       return std::visit(overloaded{
           [&](Err&& err) {
-            std::invoke(std::forward<F>(func), err);
-            return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+            if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
+              std::invoke(std::forward<F>(func), std::move(err));
+              return ret_then_t{.outcome = V{std::in_place_index<1>, std::monostate{}}};
+            } else {
+              return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+            }
           },
           [&](std::exception_ptr&& exptr) {
             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
@@ -403,13 +408,14 @@ namespace chttpp::detail {
             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::move(httpres)} };
           }}, std::move(this->m_either));
     } catch (...) {
-      using ret_then_t = then_impl<http_response, Err>;
+      using ret_t = std::invoke_result_t<F, Err&&>;
+      using ret_then_t = then_impl<http_response, void_to_monostate<ret_t>>;
       using V = typename ret_then_t::V;
 
       return ret_then_t{.outcome = V{std::in_place_index<2>, std::current_exception()}};
     }
 
-    template<std::invocable<const std::exception_ptr&> F>
+    /*template<std::invocable<const std::exception_ptr&> F>
     auto catch_exception(F&& func) && noexcept -> then_impl<http_response, Err> try {
       using ret_then_t = then_impl<http_response, Err>;
       using V = typename ret_then_t::V;
@@ -430,7 +436,7 @@ namespace chttpp::detail {
       using V = typename ret_then_t::V;
 
       return ret_then_t{.outcome = V{std::in_place_index<2>, std::current_exception()}};
-    }
+    }*/
 
     /**
      * @brief 結果を文字列として任意の継続処理を実行する

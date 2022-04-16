@@ -9,7 +9,7 @@ cppcompiler = meson.get_compiler('cpp').get_argument_syntax()
 if cppcompiler == 'msvc'
     dep_libs = []
     # VSプロジェクトに編集しうるファイルを追加する
-    vs_files = ['include/chttpp.hpp', 'include/mime_types.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp']
+    vs_files = ['include/chttpp.hpp', 'include/mime_types.hpp', 'include/underlying/winhttp.hpp', 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp','test/http_result_test.hpp']
 elif cppcompiler == 'gcc'
     curl_dep = dependency('libcurl')
     dep_libs = [curl_dep]
