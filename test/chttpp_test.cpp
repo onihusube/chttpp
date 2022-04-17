@@ -1,5 +1,6 @@
 //#define CHTTPP_NOT_GLOBAL_INIT_CURL
 #include "chttpp.hpp"
+#include "mime_types.hpp"
 
 #include <type_traits>
 #include <cassert>

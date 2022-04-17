@@ -1,6 +1,7 @@
 #pragma once
 
 #include "chttpp.hpp"
+#include "mime_types.hpp"
 
 #define BOOST_UT_DISABLE_MODULE
 #include <boost/ut.hpp>
