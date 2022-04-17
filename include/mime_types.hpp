@@ -5,7 +5,7 @@
 #include <ranges>
 #include <algorithm>
 
-namespace chttpp::mime_types::inline discrete_types {
+namespace chttpp::mime_types::detail {
 
   /**
    * @brief MIME Type（type/subtype）の左辺のtypeを表す型
@@ -17,8 +17,11 @@ namespace chttpp::mime_types::inline discrete_types {
     static constexpr std::size_t Len = N - 1; // \0を除いた長さ
     const std::string_view name;
   };
+}
 
-#define define_type(name) struct name ## _tag {}; inline constexpr type_base<sizeof(#name), name ## _tag> name = {#name}
+namespace chttpp::mime_types::inline discrete_types {
+
+#define define_type(name) struct name ## _tag {}; inline constexpr chttpp::mime_types::detail::type_base<sizeof(#name), name ## _tag> name = {#name}
 
   // typeはこれで全部、exampleはサンプルコードで出現するためのものなのでとりあえずいらない？
 
@@ -34,7 +37,7 @@ namespace chttpp::mime_types::inline discrete_types {
 #undef define_type
 }
 
-namespace chttpp::mime_types::inline subtypes {
+namespace chttpp::mime_types::detail {
 
   /**
    * @brief mime_typeを生成対象毎に別の型とするためのタグ型
@@ -42,7 +45,7 @@ namespace chttpp::mime_types::inline subtypes {
    * @details そこで、mime_typeをすべて異なる型とする事で+の候補を制限する
    */
   template<typename...>
-  struct mime_tag_t{};
+  struct mime_tag_t {};
 
   /**
    * @brief MIME Type（type/subtype）の全体を表す型
@@ -84,7 +87,7 @@ namespace chttpp::mime_types::inline subtypes {
   };
 
   template<typename T, typename S>
-  mime_type(const T&, const S&, const char = '/') -> mime_type<T::Len + 1 + S::Len, mime_tag_t<T, S>>;
+  mime_type(const T&, const S&, const char = '/')->mime_type<T::Len + 1 + S::Len, mime_tag_t<T, S>>;
 
   /**
    * @brief subtypeの型
@@ -96,7 +99,7 @@ namespace chttpp::mime_types::inline subtypes {
   template<std::size_t N, typename T, typename... Ts>
   struct subtype_base : public subtype_base<N, Ts...> {
     friend consteval auto operator/(const T& type, const subtype_base& self) {
-      return mime_type{type, self};
+      return mime_type{ type, self };
     }
   };
 
@@ -106,7 +109,7 @@ namespace chttpp::mime_types::inline subtypes {
     const std::string_view name;
 
     friend consteval auto operator/(const T& type, const subtype_base& self) {
-      return mime_type{type, self};
+      return mime_type{ type, self };
     }
   };
 
@@ -118,7 +121,11 @@ namespace chttpp::mime_types::inline subtypes {
   template<std::size_t N, const auto&... types>
   using subtype_t = subtype_base<N, std::remove_cvref_t<decltype(types)>...>;
 
-#define define_subtype(name, ...) inline constexpr subtype_t<sizeof(#name), __VA_ARGS__> name = {#name}
+}
+
+namespace chttpp::mime_types::inline subtypes {
+
+#define define_subtype(name, ...) inline constexpr chttpp::mime_types::detail::subtype_t<sizeof(#name), __VA_ARGS__> name = {#name}
 
   define_subtype(plain, discrete_types::text);
   define_subtype(css, discrete_types::text);
@@ -147,8 +154,8 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(ogg, discrete_types::video, discrete_types::audio, discrete_types::application);
 
   // 数字始まりは全角数字に（_始まりは予約されてる・・・
-  inline constexpr subtype_t<5, discrete_types::video, discrete_types::audio> ３gpp = {"3gpp"};
-  inline constexpr subtype_t<6, discrete_types::video, discrete_types::audio> ３gpp2 = {"3gpp2"};
+  inline constexpr chttpp::mime_types::detail::subtype_t<5, discrete_types::video, discrete_types::audio> ３gpp = {"3gpp"};
+  inline constexpr chttpp::mime_types::detail::subtype_t<6, discrete_types::video, discrete_types::audio> ３gpp2 = {"3gpp2"};
 
   define_subtype(collection, discrete_types::font);
   define_subtype(otf, discrete_types::font);
@@ -158,7 +165,7 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(woff2, discrete_types::font);
 
   define_subtype(vml, discrete_types::model);
-  inline constexpr subtype_t<4, discrete_types::model> ３mf = {"3mf"};
+  inline constexpr chttpp::mime_types::detail::subtype_t<4, discrete_types::model> ３mf = {"3mf"};
 
   define_subtype(zip, discrete_types::application);
   define_subtype(gzip, discrete_types::application);
@@ -168,17 +175,20 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(msword, discrete_types::application);
 
   // -で結合するsubtypeは-を_へ置換
-  inline constexpr subtype_t<13, discrete_types::application> octet_stream = {"octet-stream"};
-  inline constexpr subtype_t<22, discrete_types::application> x_www_form_urlencoded = {"x-www-form-urlencoded"};
+  inline constexpr chttpp::mime_types::detail::subtype_t<13, discrete_types::application> octet_stream = {"octet-stream"};
+  inline constexpr chttpp::mime_types::detail::subtype_t<22, discrete_types::application> x_www_form_urlencoded = {"x-www-form-urlencoded"};
 
 #undef define_subtype
+}
+
+namespace chttpp::mime_types::detail {
 
   struct apple_t {
-    subtype_t<sizeof("vnd.apple.installer"), application> installer = {"vnd.apple.installer"};
+    subtype_t<sizeof("vnd.apple.installer"), application> installer = { "vnd.apple.installer" };
   };
 
-  struct wordprocessingml_t{
-    subtype_t<sizeof("vnd.openxmlformats-officedocument.wordprocessingml.document"), application> document = {"vnd.openxmlformats-officedocument.wordprocessingml.document"};
+  struct wordprocessingml_t {
+    subtype_t<sizeof("vnd.openxmlformats-officedocument.wordprocessingml.document"), application> document = { "vnd.openxmlformats-officedocument.wordprocessingml.document" };
   };
 
   struct openxmlformats_officedocument_t {
@@ -190,22 +200,19 @@ namespace chttpp::mime_types::inline subtypes {
     openxmlformats_officedocument_t openxmlformats_officedocument{};
   };
 
-  inline constexpr vnd_t vnd{};
-
-
   template<std::size_t N, typename T, typename... Ts>
   struct free_subtype : public free_subtype<N, Ts...> {
 
     friend consteval auto operator/(const T& type, const free_subtype& self)
       requires std::is_const_v<T>
     {
-      return mime_type{type, self};
+      return mime_type{ type, self };
     }
 
     friend consteval auto operator+(const T& semi_mime, const free_subtype& self)
       requires (not std::is_const_v<T>)
     {
-      return mime_type{semi_mime, self, '+'};
+      return mime_type{ semi_mime, self, '+' };
     }
   };
 
@@ -217,18 +224,23 @@ namespace chttpp::mime_types::inline subtypes {
     friend consteval auto operator/(const T& type, const free_subtype& self)
       requires std::is_const_v<T>
     {
-      return mime_type{type, self};
+      return mime_type{ type, self };
     }
 
     friend consteval auto operator+(const T& semi_mime, const free_subtype& self)
       requires (not std::is_const_v<T>)
     {
-      return mime_type{semi_mime, self, '+'};
+      return mime_type{ semi_mime, self, '+' };
     }
   };
+}
 
-#define define_semi_subtype_lhs(name, ...) struct name ## _tag : subtype_t<sizeof(#name), __VA_ARGS__>{}; inline constexpr name ## _tag name = {#name}
-#define define_semi_subtype_rhs(name, ...) inline constexpr free_subtype<sizeof(#name), __VA_ARGS__> name = {#name}
+namespace chttpp::mime_types::inline subtypes {
+  
+  inline constexpr chttpp::mime_types::detail::vnd_t vnd{};
+
+#define define_semi_subtype_lhs(name, ...) struct name ## _tag : chttpp::mime_types::detail::subtype_t<sizeof(#name), __VA_ARGS__>{}; inline constexpr name ## _tag name = {#name}
+#define define_semi_subtype_rhs(name, ...) inline constexpr chttpp::mime_types::detail::free_subtype<sizeof(#name), __VA_ARGS__> name = {#name}
 #define D(arg) decltype(arg)
   
   // /で結合した後の+待ち系
