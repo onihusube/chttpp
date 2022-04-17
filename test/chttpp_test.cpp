@@ -555,7 +555,7 @@ int main() {
     ut::expect(headers.contains("Content-Language"));
 
     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
-    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");  // ヘッダ設定のmime_typeが優先される
     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
     ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
   };
