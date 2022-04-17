@@ -313,9 +313,6 @@ int main() {
 
   };
 
-#ifndef _MSC_VER
-
-
   "mime type"_test = [] {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
@@ -359,8 +356,6 @@ int main() {
     }
 
   };
-
-#endif
 
   // jsonレスポンスをpicojsonのvalueオブジェクトへ変換する
   const auto to_json = [](std::string_view str_view) -> picojson::value {
