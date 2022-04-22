@@ -81,6 +81,8 @@ int main() {
 - PUT : `chttpp::put(url, body, mime_type)`
 - DELETE : `chttpp::delete_(url, body, mime_type)`
 
+In these cases, the request can still be made through a consistent interface.
+
 ### Adding Headers
 
 Use method chain notation when setting headers.
