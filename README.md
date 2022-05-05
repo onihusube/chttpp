@@ -124,4 +124,60 @@ This uses POST(`chttpp::post`), but the same is true for other methods.
 
 ### Consumption of request results
 
+The type of the request result is `http_result<E>`, a monadic type (`E` is the error code type of the underlying library).
+
+`.then()` is available for continuation processing after a successful request.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", text/plain)
+              .then([](auto&& http_res) { 
+                auto&& [body, headers, status] = std::move(http_res);
+                // status is std::uint16_t
+                if (status == 200) {
+
+                  // body is std::vector<char>
+                  std::cout << std::string_view(body.data(), body.size()) << '\n';
+
+                  // headers is std::unordered_map<std::string, std::string>
+                  for (auto [name, value] : headers) {
+                    std::cout << name << " : " << value << '\n';
+                  }
+
+                  return body;
+                }
+              })
+              .then([](auto&& body) {
+                // It can be further continued while changing the type.
+              });
+}
+```
+
+Errors in the underlying library can be handled by `.catch_error()`.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", text/plain)
+              .then([](auto&& http_res) { 
+                // Not called on errors in the underlying library.
+              })
+              .catch_error([](auto ec) {
+                // ec is error code (integer type)
+                std::cout << ec << '\n';
+                // 
+              });
+}
+```
+
+
 ## API
