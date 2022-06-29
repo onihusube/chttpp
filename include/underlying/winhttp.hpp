@@ -200,20 +200,30 @@ namespace chttpp::underlying::terse {
     // レスポンスデータの取得
     vector_t<char> body{};
     if constexpr (is_get or is_opt) {
-      DWORD data_len{};
-      if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
-        return http_result{ ::GetLastError() };
-      }
+      DWORD read_len{};
+      std::size_t total_read{};
 
-      if (0 < data_len) {
-        body.resize(data_len);
-        DWORD read_len{};
-
-        if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
+      // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
+      // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
+      do {
+        DWORD data_len{};
+        if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
           return http_result{ ::GetLastError() };
         }
-        assert(read_len == data_len);
-      }
+
+        // 実際にはここで止まるらしい
+        if (data_len == 0) break;
+
+        body.resize(total_read + data_len);
+
+        // WinHttpReadDataが最初に0にセットするらしいよ
+        //read_len = 0;
+        if (not ::WinHttpReadData(request.get(), body.data() + total_read, data_len, &read_len)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        total_read += read_len;
+      } while (0 < read_len);
     }
 
     // ステータスコードの取得
