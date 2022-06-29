@@ -325,10 +325,25 @@ namespace chttpp::detail {
       return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
     }
 
-    auto response_data() const & -> std::span<char> {
+    auto response_data() & -> std::span<char> {
+      assert(bool(*this));
+      auto& response = std::get<0>(m_either);
+      return response.body;
+    }
+
+    auto response_data() const & -> std::span<const char> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
-      return {data(response.body), size(response.body)};
+      return response.body;
+    }
+
+    template<substantial ElementType>
+    auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<const ElementType> {
+      assert(bool(*this));
+      auto& response = std::get<0>(m_either);
+      const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
+
+      return { reinterpret_cast<ElementType*>(data(response.body)), count };
     }
 
     template<substantial ElementType>
