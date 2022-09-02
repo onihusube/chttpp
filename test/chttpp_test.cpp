@@ -24,6 +24,7 @@ namespace ut = boost::ut;
 #endif
 
 #include "http_result_test.hpp"
+#include "http_config_test.hpp"
 
 namespace chttpp_test {
 
@@ -338,8 +339,8 @@ int main() {
       ut::expect(mime3 == "application/ogg"sv);
     }
     {
-      constexpr auto mime = video/３gpp;
-      ut::expect(mime == "video/3gpp"sv);
+      //constexpr auto mime = video/３gpp;
+      //ut::expect(mime == "video/3gpp"sv);
     }
     {
       // xmlは単独でsubtypeになるし、+で結合してsubtypeを完成させる
@@ -671,4 +672,5 @@ int main() {
 
   underlying_test();
   http_result_test();
+  http_config_test();
 }

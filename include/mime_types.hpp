@@ -154,8 +154,8 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(ogg, discrete_types::video, discrete_types::audio, discrete_types::application);
 
   // 数字始まりは全角数字に（_始まりは予約されてる・・・
-  inline constexpr chttpp::mime_types::detail::subtype_t<5, discrete_types::video, discrete_types::audio> ３gpp = {"3gpp"};
-  inline constexpr chttpp::mime_types::detail::subtype_t<6, discrete_types::video, discrete_types::audio> ３gpp2 = {"3gpp2"};
+  //inline constexpr chttpp::mime_types::detail::subtype_t<5, discrete_types::video, discrete_types::audio> ３gpp = {"3gpp"};
+  //inline constexpr chttpp::mime_types::detail::subtype_t<6, discrete_types::video, discrete_types::audio> ３gpp2 = {"3gpp2"};
 
   define_subtype(collection, discrete_types::font);
   define_subtype(otf, discrete_types::font);
@@ -165,7 +165,7 @@ namespace chttpp::mime_types::inline subtypes {
   define_subtype(woff2, discrete_types::font);
 
   define_subtype(vml, discrete_types::model);
-  inline constexpr chttpp::mime_types::detail::subtype_t<4, discrete_types::model> ３mf = {"3mf"};
+  //inline constexpr chttpp::mime_types::detail::subtype_t<4, discrete_types::model> ３mf = {"3mf"};
 
   define_subtype(zip, discrete_types::application);
   define_subtype(gzip, discrete_types::application);

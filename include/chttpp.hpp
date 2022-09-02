@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string_view>
+#include <chrono>
+#include <functional>
+#include <utility>
 
 #include "underlying/common.hpp"
 #include "null_terminated_string_view.hpp"
@@ -316,6 +319,30 @@ namespace chttpp::detail {
     }
   };
 
+  enum class authentication_scheme {
+    basic,
+    //digest,
+  };
+
+  struct authorization {
+    std::string_view username = "";
+    std::string_view password = "";
+    authentication_scheme scheme = authentication_scheme::basic;
+  };
+
+  struct proxy_config {
+    std::string_view url = "";
+    authorization auth{};
+  };
+
+  struct request_config {
+    std::string_view mime_string = "text/plain";
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    std::chrono::milliseconds timeout{10000};
+    authorization auth{};
+    proxy_config proxy{};
+  };
 
   template<typename MethodTag>
   struct terse_req_impl {

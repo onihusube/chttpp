@@ -1,0 +1,1274 @@
+ninja: Entering directory `build'
+[1/2] Compiling C++ object chttpp_test.p/test_chttpp_test.cpp.o
+FAILED: chttpp_test.p/test_chttpp_test.cpp.o 
+/usr/local/bin/g++-12 -Ichttpp_test.p -I. -I.. -I../include -I../subprojects/ut/include -Isubprojects/picojson -I../subprojects/picojson -fdiagnostics-color=always -Wall -Winvalid-pch -Wnon-virtual-dtor -Wextra -Wpedantic -O0 -g -std=c++2a -MD -MQ chttpp_test.p/test_chttpp_test.cpp.o -MF chttpp_test.p/test_chttpp_test.cpp.o.d -o chttpp_test.p/test_chttpp_test.cpp.o -c ../test/chttpp_test.cpp
+In file included from ../test/chttpp_test.cpp:3:
+../include/mime_types.hpp:157:107: error: extended character ３ is not valid at the start of an identifier
+  157 |   inline constexpr chttpp::mime_types::detail::subtype_t<5, discrete_types::video, discrete_types::audio> ３gpp = {"3gpp"};
+      |                                                                                                           ^
+../include/mime_types.hpp:158:107: error: extended character ３ is not valid at the start of an identifier
+  158 |   inline constexpr chttpp::mime_types::detail::subtype_t<6, discrete_types::video, discrete_types::audio> ３gpp2 = {"3gpp2"};
+      |                                                                                                           ^
+../include/mime_types.hpp:168:84: error: extended character ３ is not valid at the start of an identifier
+  168 |   inline constexpr chttpp::mime_types::detail::subtype_t<4, discrete_types::model> ３mf = {"3mf"};
+      |                                                                                    ^
+../test/chttpp_test.cpp:342:35: error: extended character ３ is not valid at the start of an identifier
+  342 |       constexpr auto mime = video/３gpp;
+      |                                   ^
+In file included from ../include/chttpp.hpp:6,
+                 from ../test/chttpp_test.cpp:2:
+../include/underlying/common.hpp:229:15: error: 'invoke' is not a member of 'std'
+  229 |         {std::invoke(std::forward<F>(f), exptr)} -> std::same_as<void>;
+      |               ^~~~~~
+../include/underlying/common.hpp:28:1: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+   27 | #include "null_terminated_string_view.hpp"
+  +++ |+#include <functional>
+   28 | 
+../include/underlying/common.hpp: In lambda function:
+../include/underlying/common.hpp:180:75: error: 'invoke' is not a member of 'std'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                           ^~~~~~
+../include/underlying/common.hpp:180:75: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp: In lambda function:
+../include/underlying/common.hpp:205:20: error: 'invoke' is not a member of 'std'
+  205 |               std::invoke(std::forward<F>(func), std::move(err));
+      |                    ^~~~~~
+../include/underlying/common.hpp:205:20: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp:208:76: error: 'invoke' is not a member of 'std'
+  208 |               return ret_then_t{.outcome = V2{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                            ^~~~~~
+../include/underlying/common.hpp:208:76: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp: In lambda function:
+../include/underlying/common.hpp:242:18: error: 'invoke' is not a member of 'std'
+  242 |             std::invoke(std::forward<F>(func), exptr);
+      |                  ^~~~~~
+../include/underlying/common.hpp:242:18: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp: In lambda function:
+../include/underlying/common.hpp:391:74: error: 'invoke' is not a member of 'std'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                          ^~~~~~
+../include/underlying/common.hpp:391:74: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp: In lambda function:
+../include/underlying/common.hpp:413:20: error: 'invoke' is not a member of 'std'
+  413 |               std::invoke(std::forward<F>(func), std::move(err));
+      |                    ^~~~~~
+../include/underlying/common.hpp:413:20: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp:416:75: error: 'invoke' is not a member of 'std'
+  416 |               return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                           ^~~~~~
+../include/underlying/common.hpp:416:75: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp: In function 'decltype(auto) chttpp::detail::operator|(const basic_result<Err>&, F&&)':
+../include/underlying/common.hpp:465:21: error: 'invoke' is not a member of 'std'
+  465 |         return std::invoke(std::forward<F>(f), self.response_body());
+      |                     ^~~~~~
+../include/underlying/common.hpp:465:21: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/underlying/common.hpp:467:21: error: 'invoke' is not a member of 'std'
+  467 |         return std::invoke(std::forward<F>(f), std::string_view{});
+      |                     ^~~~~~
+../include/underlying/common.hpp:467:21: note: 'std::invoke' is defined in header '<functional>'; did you forget to '#include <functional>'?
+../include/chttpp.hpp: In member function 'chttpp::detail::terse_settings_wrapper<MethodTag, CharT>&& chttpp::detail::terse_settings_wrapper<MethodTag, CharT>::headers(chttpp::types::vector_t<std::pair<std::basic_string_view<char>, std::basic_string_view<char> > >&&) &&':
+../include/chttpp.hpp:312:26: error: 'exchange' is not a member of 'std'; did you mean 'std::__atomic_impl::exchange'?
+  312 |         m_headers = std::exchange(headers, {});
+      |                          ^~~~~~~~
+In file included from /usr/local/Cellar/gcc/12.1.0/include/c++/12/atomic:41,
+                 from /usr/local/Cellar/gcc/12.1.0/include/c++/12/stop_token:34,
+                 from /usr/local/Cellar/gcc/12.1.0/include/c++/12/condition_variable:46,
+                 from /usr/local/Cellar/gcc/12.1.0/include/c++/12/shared_mutex:42,
+                 from /usr/local/Cellar/gcc/12.1.0/include/c++/12/memory_resource:39,
+                 from ../include/underlying/common.hpp:18:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/bits/atomic_base.h:976:7: note: 'std::__atomic_impl::exchange' declared here
+  976 |       exchange(_Tp* __ptr, _Val<_Tp> __desired, memory_order __m) noexcept
+      |       ^~~~~~~~
+In file included from ../test/chttpp_test.cpp:26:
+../test/http_result_test.hpp: In lambda function:
+../test/http_result_test.hpp:46:25: error: no matching function for call to 'chttpp::detail::then_impl<chttpp::detail::http_response, std::monostate>::catch_exception(http_result_test()::<lambda()>::<lambda(const auto:74&)>)'
+   35 |     hr_ok().then([](http_response&& hr) {
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   36 |         ut::expect(hr.body.empty());
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   37 |         return hr;
+      |         ~~~~~~~~~~       
+   38 |       }).then([](http_response&& hr) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   39 |         ut::expect(hr.headers.size() == 1_ull);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   40 |         return hr;
+      |         ~~~~~~~~~~       
+   41 |       }).then([](http_response&& hr) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   42 |         ut::expect(hr.status_code == 200_i);
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   43 |         return hr;
+      |         ~~~~~~~~~~       
+   44 |       }).catch_error([](const auto&) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   45 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   46 |       }).catch_exception([](const auto&) {
+      |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+   47 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   48 |       });
+      |       ~~                 
+../include/underlying/common.hpp:231:10: note: candidate: 'template<class F>  requires  <erroneous-expression> chttpp::detail::then_impl<T, E> chttpp::detail::then_impl<T, E>::catch_exception(F&&) && [with T = chttpp::detail::http_response; E = std::monostate]'
+  231 |     auto catch_exception(F&& func) && noexcept -> then_impl try {
+      |          ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp:231:10: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:231:10: note: constraints not satisfied
+../test/http_result_test.hpp: In lambda function:
+../test/http_result_test.hpp:66:25: error: no matching function for call to 'chttpp::detail::then_impl<int, std::monostate>::catch_exception(http_result_test()::<lambda()>::<lambda(const auto:76&)>)'
+   55 |     hr_exptr().then([](int&& hr) {
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   57 |         return hr;
+      |         ~~~~~~~~~~       
+   58 |       }).then([](int&& hr) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~
+   59 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   60 |         return hr;
+      |         ~~~~~~~~~~       
+   61 |       }).then([](int&& hr) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~
+   62 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   63 |         return hr;
+      |         ~~~~~~~~~~       
+   64 |       }).catch_error([](const auto&) {
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   65 |         ut::expect(false);
+      |         ~~~~~~~~~~~~~~~~~~
+   66 |       }).catch_exception([&](const auto& exptr) {
+      |       ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~
+   67 |         try {
+      |         ~~~~~            
+   68 |           std::rethrow_exception(exptr);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |         } catch (const std::runtime_error& re) {
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |           ut::expect(re.what() == "test throw"sv);
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   71 |           ++count;
+      |           ~~~~~~~~       
+   72 |         } catch (...) {
+      |         ~~~~~~~~~~~~~~~  
+   73 |           ut::expect(false);
+      |           ~~~~~~~~~~~~~~~~~~
+   74 |         }
+      |         ~                
+   75 |       }).catch_exception([&](const auto& exptr) {
+      |       ~~                 
+../include/underlying/common.hpp:231:10: note: candidate: 'template<class F>  requires  <erroneous-expression> chttpp::detail::then_impl<T, E> chttpp::detail::then_impl<T, E>::catch_exception(F&&) && [with T = int; E = std::monostate]'
+  231 |     auto catch_exception(F&& func) && noexcept -> then_impl try {
+      |          ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp:231:10: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:231:10: note: constraints not satisfied
+../test/http_result_test.hpp: In lambda function:
+../test/http_result_test.hpp:101:23: error: no matching function for call to 'chttpp::detail::then_impl<chttpp::detail::http_response, std::monostate>::catch_exception(http_result_test()::<lambda()>::<lambda(const auto:79&)>)'
+   94 |     hr_err().catch_error([&](auto e) -> int {
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   95 |       ut::expect(e == err_t{});
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~
+   96 |       ++count;
+      |       ~~~~~~~~         
+   97 |       return -11;
+      |       ~~~~~~~~~~~      
+   98 |     }).catch_error([&](int e) {
+      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   99 |       ut::expect(e == -11_i);
+      |       ~~~~~~~~~~~~~~~~~~~~~~~
+  100 |       ++count;
+      |       ~~~~~~~~         
+  101 |     }).catch_exception([](const auto&) {
+      |     ~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+  102 |       ut::expect(false);
+      |       ~~~~~~~~~~~~~~~~~~
+  103 |     }).then([](auto&& hr) {
+      |     ~~                 
+../include/underlying/common.hpp:231:10: note: candidate: 'template<class F>  requires  <erroneous-expression> chttpp::detail::then_impl<T, E> chttpp::detail::then_impl<T, E>::catch_exception(F&&) && [with T = chttpp::detail::http_response; E = std::monostate]'
+  231 |     auto catch_exception(F&& func) && noexcept -> then_impl try {
+      |          ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp:231:10: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:231:10: note: constraints not satisfied
+In file included from ../test/chttpp_test.cpp:27:
+../test/http_config_test.hpp: At global scope:
+../test/http_config_test.hpp:8:33: error: 'chttpp::request_config' has not been declared
+    8 | void test_req(std::string_view, chttpp::request_config) {}
+      |                                 ^~~~~~
+../test/http_config_test.hpp: In function 'void http_config_test()':
+../test/http_config_test.hpp:14:11: error: cannot convert '<brace-enclosed initializer list>' to 'int'
+   14 |   test_req("https://example.com", {.mime_string = "application/json"});
+      |   ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |           |
+      |           <brace-enclosed initializer list>
+../test/http_config_test.hpp:8:33: note:   initializing argument 2 of 'void test_req(std::string_view, int)'
+    8 | void test_req(std::string_view, chttpp::request_config) {}
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~
+../test/http_config_test.hpp:15:11: error: cannot convert '<brace-enclosed initializer list>' to 'int'
+   15 |   test_req("https://example.com", {.mime_string = application/json});
+      |   ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |           |
+      |           <brace-enclosed initializer list>
+../test/http_config_test.hpp:8:33: note:   initializing argument 2 of 'void test_req(std::string_view, int)'
+    8 | void test_req(std::string_view, chttpp::request_config) {}
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~
+../test/http_config_test.hpp:16:11: error: cannot convert '<brace-enclosed initializer list>' to 'int'
+   16 |   test_req("https://example.com", {.headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+      |   ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |           |
+      |           <brace-enclosed initializer list>
+   17 |                                                {"Content-Type", "text/plain"},
+      |                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   18 |                                                {"Content-Language", "ja-JP"}}});
+      |                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../test/http_config_test.hpp:8:33: note:   initializing argument 2 of 'void test_req(std::string_view, int)'
+    8 | void test_req(std::string_view, chttpp::request_config) {}
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~
+../test/chttpp_test.cpp: In lambda function:
+../test/chttpp_test.cpp:451:10: error: 'void res_json' has incomplete type
+  451 |     auto res_json = result | to_json;
+      |          ^~~~~~~~
+../test/chttpp_test.cpp:453:51: error: expected primary-expression before '>' token
+  453 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                   ^
+../test/chttpp_test.cpp:453:53: error: expected primary-expression before ')' token
+  453 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                     ^
+../test/chttpp_test.cpp:455:59: error: expected primary-expression before '>' token
+  455 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                           ^
+../test/chttpp_test.cpp:455:61: error: expected primary-expression before ')' token
+  455 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                             ^
+../test/chttpp_test.cpp:463:46: error: expected primary-expression before '>' token
+  463 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                              ^
+../test/chttpp_test.cpp:463:48: error: expected primary-expression before ')' token
+  463 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                                ^
+../test/chttpp_test.cpp:464:45: error: expected primary-expression before '>' token
+  464 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                             ^
+../test/chttpp_test.cpp:464:47: error: expected primary-expression before ')' token
+  464 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                               ^
+../test/chttpp_test.cpp:466:72: error: expected primary-expression before '>' token
+  466 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                        ^
+../test/chttpp_test.cpp:466:74: error: expected primary-expression before ')' token
+  466 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                          ^
+../test/chttpp_test.cpp:473:60: error: expected primary-expression before '>' token
+  473 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                            ^
+../test/chttpp_test.cpp:473:62: error: expected primary-expression before ')' token
+  473 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                              ^
+../test/chttpp_test.cpp:474:58: error: expected primary-expression before '>' token
+  474 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                          ^
+../test/chttpp_test.cpp:474:60: error: expected primary-expression before ')' token
+  474 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                            ^
+../test/chttpp_test.cpp:475:56: error: expected primary-expression before '>' token
+  475 |     ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
+      |                                                        ^
+../test/chttpp_test.cpp:475:58: error: expected primary-expression before ')' token
+  475 |     ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
+      |                                                          ^
+../test/chttpp_test.cpp: In lambda function:
+../test/chttpp_test.cpp:491:10: error: 'void res_json' has incomplete type
+  491 |     auto res_json = result | to_json;
+      |          ^~~~~~~~
+../test/chttpp_test.cpp:493:51: error: expected primary-expression before '>' token
+  493 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                   ^
+../test/chttpp_test.cpp:493:53: error: expected primary-expression before ')' token
+  493 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                     ^
+../test/chttpp_test.cpp:495:59: error: expected primary-expression before '>' token
+  495 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                           ^
+../test/chttpp_test.cpp:495:61: error: expected primary-expression before ')' token
+  495 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                             ^
+../test/chttpp_test.cpp:503:46: error: expected primary-expression before '>' token
+  503 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                              ^
+../test/chttpp_test.cpp:503:48: error: expected primary-expression before ')' token
+  503 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                                ^
+../test/chttpp_test.cpp:504:45: error: expected primary-expression before '>' token
+  504 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                             ^
+../test/chttpp_test.cpp:504:47: error: expected primary-expression before ')' token
+  504 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                               ^
+../test/chttpp_test.cpp:506:72: error: expected primary-expression before '>' token
+  506 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                        ^
+../test/chttpp_test.cpp:506:74: error: expected primary-expression before ')' token
+  506 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                          ^
+../test/chttpp_test.cpp:513:60: error: expected primary-expression before '>' token
+  513 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                            ^
+../test/chttpp_test.cpp:513:62: error: expected primary-expression before ')' token
+  513 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                              ^
+../test/chttpp_test.cpp:514:58: error: expected primary-expression before '>' token
+  514 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                          ^
+../test/chttpp_test.cpp:514:60: error: expected primary-expression before ')' token
+  514 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                            ^
+../test/chttpp_test.cpp:515:56: error: expected primary-expression before '>' token
+  515 |     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+      |                                                        ^
+../test/chttpp_test.cpp:515:58: error: expected primary-expression before ')' token
+  515 |     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+      |                                                          ^
+../test/chttpp_test.cpp: In lambda function:
+../test/chttpp_test.cpp:533:10: error: 'void res_json' has incomplete type
+  533 |     auto res_json = result | to_json;
+      |          ^~~~~~~~
+../test/chttpp_test.cpp:537:51: error: expected primary-expression before '>' token
+  537 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                   ^
+../test/chttpp_test.cpp:537:53: error: expected primary-expression before ')' token
+  537 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                     ^
+../test/chttpp_test.cpp:539:59: error: expected primary-expression before '>' token
+  539 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                           ^
+../test/chttpp_test.cpp:539:61: error: expected primary-expression before ')' token
+  539 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                             ^
+../test/chttpp_test.cpp:547:46: error: expected primary-expression before '>' token
+  547 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                              ^
+../test/chttpp_test.cpp:547:48: error: expected primary-expression before ')' token
+  547 |     ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      |                                                ^
+../test/chttpp_test.cpp:548:45: error: expected primary-expression before '>' token
+  548 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                             ^
+../test/chttpp_test.cpp:548:47: error: expected primary-expression before ')' token
+  548 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      |                                               ^
+../test/chttpp_test.cpp:550:72: error: expected primary-expression before '>' token
+  550 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                        ^
+../test/chttpp_test.cpp:550:74: error: expected primary-expression before ')' token
+  550 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                          ^
+../test/chttpp_test.cpp:558:60: error: expected primary-expression before '>' token
+  558 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                            ^
+../test/chttpp_test.cpp:558:62: error: expected primary-expression before ')' token
+  558 |     ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      |                                                              ^
+../test/chttpp_test.cpp:559:58: error: expected primary-expression before '>' token
+  559 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");  // ヘッダ設定のmime_typeが優先される
+      |                                                          ^
+../test/chttpp_test.cpp:559:60: error: expected primary-expression before ')' token
+  559 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");  // ヘッダ設定のmime_typeが優先される
+      |                                                            ^
+../test/chttpp_test.cpp:560:56: error: expected primary-expression before '>' token
+  560 |     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+      |                                                        ^
+../test/chttpp_test.cpp:560:58: error: expected primary-expression before ')' token
+  560 |     ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+      |                                                          ^
+../test/chttpp_test.cpp:561:62: error: expected primary-expression before '>' token
+  561 |     ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
+      |                                                              ^
+../test/chttpp_test.cpp:561:64: error: expected primary-expression before ')' token
+  561 |     ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
+      |                                                                ^
+../test/chttpp_test.cpp: In lambda function:
+../test/chttpp_test.cpp:594:10: error: 'void res_json' has incomplete type
+  594 |     auto res_json = result | to_json;
+      |          ^~~~~~~~
+../test/chttpp_test.cpp:596:51: error: expected primary-expression before '>' token
+  596 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                   ^
+../test/chttpp_test.cpp:596:53: error: expected primary-expression before ')' token
+  596 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                     ^
+../test/chttpp_test.cpp:598:59: error: expected primary-expression before '>' token
+  598 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                           ^
+../test/chttpp_test.cpp:598:61: error: expected primary-expression before ')' token
+  598 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                             ^
+../test/chttpp_test.cpp:606:46: error: expected primary-expression before '>' token
+  606 |     ut::expect(obj.at("data").get<std::string>() == "<p>put test</p>");
+      |                                              ^
+../test/chttpp_test.cpp:606:48: error: expected primary-expression before ')' token
+  606 |     ut::expect(obj.at("data").get<std::string>() == "<p>put test</p>");
+      |                                                ^
+../test/chttpp_test.cpp:607:45: error: expected primary-expression before '>' token
+  607 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/put");
+      |                                             ^
+../test/chttpp_test.cpp:607:47: error: expected primary-expression before ')' token
+  607 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/put");
+      |                                               ^
+../test/chttpp_test.cpp:609:72: error: expected primary-expression before '>' token
+  609 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                        ^
+../test/chttpp_test.cpp:609:74: error: expected primary-expression before ')' token
+  609 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                          ^
+../test/chttpp_test.cpp:615:60: error: expected primary-expression before '>' token
+  615 |     ut::expect(headers.at("Content-Length").get<std::string>() == "15");
+      |                                                            ^
+../test/chttpp_test.cpp:615:62: error: expected primary-expression before ')' token
+  615 |     ut::expect(headers.at("Content-Length").get<std::string>() == "15");
+      |                                                              ^
+../test/chttpp_test.cpp:616:58: error: expected primary-expression before '>' token
+  616 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/html");
+      |                                                          ^
+../test/chttpp_test.cpp:616:60: error: expected primary-expression before ')' token
+  616 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/html");
+      |                                                            ^
+../test/chttpp_test.cpp: In lambda function:
+../test/chttpp_test.cpp:649:10: error: 'void res_json' has incomplete type
+  649 |     auto res_json = result | to_json;
+      |          ^~~~~~~~
+../test/chttpp_test.cpp:650:51: error: expected primary-expression before '>' token
+  650 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                   ^
+../test/chttpp_test.cpp:650:53: error: expected primary-expression before ')' token
+  650 |     ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      |                                                     ^
+../test/chttpp_test.cpp:652:59: error: expected primary-expression before '>' token
+  652 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                           ^
+../test/chttpp_test.cpp:652:61: error: expected primary-expression before ')' token
+  652 |     const auto &obj = res_json.get<picojson::value::object>();
+      |                                                             ^
+../test/chttpp_test.cpp:660:46: error: expected primary-expression before '>' token
+  660 |     ut::expect(obj.at("data").get<std::string>() == "delete test");
+      |                                              ^
+../test/chttpp_test.cpp:660:48: error: expected primary-expression before ')' token
+  660 |     ut::expect(obj.at("data").get<std::string>() == "delete test");
+      |                                                ^
+../test/chttpp_test.cpp:661:45: error: expected primary-expression before '>' token
+  661 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/delete");
+      |                                             ^
+../test/chttpp_test.cpp:661:47: error: expected primary-expression before ')' token
+  661 |     ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/delete");
+      |                                               ^
+../test/chttpp_test.cpp:663:72: error: expected primary-expression before '>' token
+  663 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                        ^
+../test/chttpp_test.cpp:663:74: error: expected primary-expression before ')' token
+  663 |     const auto &headers = obj.at("headers").get<picojson::value::object>();
+      |                                                                          ^
+../test/chttpp_test.cpp:669:60: error: expected primary-expression before '>' token
+  669 |     ut::expect(headers.at("Content-Length").get<std::string>() == "11");
+      |                                                            ^
+../test/chttpp_test.cpp:669:62: error: expected primary-expression before ')' token
+  669 |     ut::expect(headers.at("Content-Length").get<std::string>() == "11");
+      |                                                              ^
+../test/chttpp_test.cpp:670:58: error: expected primary-expression before '>' token
+  670 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                          ^
+../test/chttpp_test.cpp:670:60: error: expected primary-expression before ')' token
+  670 |     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      |                                                            ^
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = hr_exptr()::<lambda(auto:72&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = int; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = int]':
+../test/http_result_test.hpp:21:22:   required from here
+../include/underlying/common.hpp:391:123: error: no matching function for call to 'std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+In file included from ../include/underlying/common.hpp:3:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   candidate expects 1 argument, 2 provided
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:389:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<chttpp::detail::http_response, CURLcode>&>::type)'
+  389 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  390 |           [&](http_response&& value) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  392 |           },
+      |           ~~            
+  393 |           [](Err &&err) {
+      |           ~~~~~~~~~~~~~~~
+  394 |             return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  395 |           },
+      |           ~~            
+  396 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  397 |             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  398 |           }}, std::move(this->m_either));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+In file included from /usr/local/Cellar/gcc/12.1.0/include/c++/12/bits/char_traits.h:42,
+                 from /usr/local/Cellar/gcc/12.1.0/include/c++/12/string_view:41,
+                 from ../include/chttpp.hpp:3:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {chttpp::detail::http_response&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode>}]'
+../include/underlying/common.hpp:389:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = hr_exptr()::<lambda(auto:72&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = int; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = int]'
+../test/http_result_test.hpp:21:22:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<hr_exptr()::<lambda(auto:72&&)> >(hr_exptr()::<lambda(auto:72&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, chttpp::detail::http_response&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = hr_exptr()::<lambda(auto:72&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = int; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = int]':
+../test/http_result_test.hpp:21:22:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:389:24: note:   couldn't deduce template parameter '_Res'
+  389 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  390 |           [&](http_response&& value) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  392 |           },
+      |           ~~            
+  393 |           [](Err &&err) {
+      |           ~~~~~~~~~~~~~~~
+  394 |             return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  395 |           },
+      |           ~~            
+  396 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  397 |             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  398 |           }}, std::move(this->m_either));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:35:17:   required from here
+../include/underlying/common.hpp:391:123: error: no matching function for call to 'std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:391:123: note:   candidate expects 1 argument, 2 provided
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                           ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:389:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<chttpp::detail::http_response, CURLcode>&>::type)'
+  389 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  390 |           [&](http_response&& value) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  392 |           },
+      |           ~~            
+  393 |           [](Err &&err) {
+      |           ~~~~~~~~~~~~~~~
+  394 |             return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  395 |           },
+      |           ~~            
+  396 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  397 |             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  398 |           }}, std::move(this->m_either));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {chttpp::detail::http_response&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode>}]'
+../include/underlying/common.hpp:389:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = chttpp::detail::http_response]'
+../test/http_result_test.hpp:35:17:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::basic_result<CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, chttpp::detail::http_response&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type, Err> chttpp::detail::basic_result<Err>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; Err = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, chttpp::detail::http_response&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, chttpp::detail::http_response&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:35:17:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:389:24: note:   couldn't deduce template parameter '_Res'
+  389 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  390 |           [&](http_response&& value) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  391 |             return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  392 |           },
+      |           ~~            
+  393 |           [](Err &&err) {
+      |           ~~~~~~~~~~~~~~~
+  394 |             return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  395 |           },
+      |           ~~            
+  396 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  397 |             return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  398 |           }}, std::move(this->m_either));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:38:14:   required from here
+../include/underlying/common.hpp:180:124: error: no matching function for call to 'std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   candidate expects 1 argument, 2 provided
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:178:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>&>::type)'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {chttpp::detail::http_response&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>}]'
+../include/underlying/common.hpp:178:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]'
+../test/http_result_test.hpp:38:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, chttpp::detail::http_response&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:38:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:178:24: note:   couldn't deduce template parameter '_Res'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:41:14:   required from here
+../include/underlying/common.hpp:180:124: error: no matching function for call to 'std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   candidate expects 1 argument, 2 provided
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:178:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>&>::type)'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {chttpp::detail::http_response&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<chttpp::detail::http_response, CURLcode, std::__exception_ptr::exception_ptr>}]'
+../include/underlying/common.hpp:178:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]'
+../test/http_result_test.hpp:41:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(chttpp::detail::http_response&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<chttpp::detail::http_response, CURLcode>::then<http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)> >(http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, chttpp::detail::http_response&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(chttpp::detail::http_response&&)>; T = chttpp::detail::http_response; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = chttpp::detail::http_response; typename std::invoke_result<F, T&&>::type = chttpp::detail::http_response]':
+../test/http_result_test.hpp:41:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:178:24: note:   couldn't deduce template parameter '_Res'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:55:20:   required from here
+../include/underlying/common.hpp:180:124: error: no matching function for call to 'std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   candidate expects 1 argument, 2 provided
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:178:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>&>::type)'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {int&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+../include/underlying/common.hpp:178:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]'
+../test/http_result_test.hpp:55:20:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, int&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:55:20:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:178:24: note:   couldn't deduce template parameter '_Res'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:58:14:   required from here
+../include/underlying/common.hpp:180:124: error: no matching function for call to 'std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   candidate expects 1 argument, 2 provided
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:178:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>&>::type)'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {int&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+../include/underlying/common.hpp:178:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]'
+../test/http_result_test.hpp:58:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, int&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:58:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:178:24: note:   couldn't deduce template parameter '_Res'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:61:14:   required from here
+../include/underlying/common.hpp:180:124: error: no matching function for call to 'std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   'std::in_place_index_t<0>' is not derived from 'std::in_place_type_t<_Tp>'
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:180:124: note:   candidate expects 1 argument, 2 provided
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |                                                                                                                            ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {int, CURLcode, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+../include/underlying/common.hpp:178:24: error: no matching function for call to 'visit(chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, std::remove_reference<std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>&>::type)'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note: candidate: 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...)'
+ 1819 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits: In substitution of 'template<class _Fn, class ... _Args> using invoke_result_t = typename std::invoke_result::type [with _Fn = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Args = {int&&}]':
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1093:11:   required by substitution of 'template<class _Visitor, class ... _Variants> using __visit_result_t = std::invoke_result_t<_Visitor, std::__detail::__variant::__get_t<0, _Variants, decltype (std::__detail::__variant::__as(declval<_Variants>())), typename std::variant_alternative<0, typename std::remove_reference<decltype (std::__detail::__variant::__as(declval<_Variants>()))>::type>::type>...> [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1819:5:   required by substitution of 'template<class _Visitor, class ... _Variants> constexpr std::__detail::__variant::__visit_result_t<_Visitor, _Variants ...> std::visit(_Visitor&&, _Variants&& ...) [with _Visitor = chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >; _Variants = {std::variant<int, CURLcode, std::__exception_ptr::exception_ptr>}]'
+../include/underlying/common.hpp:178:24:   required from 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]'
+../test/http_result_test.hpp:61:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/type_traits:3034:11: error: no type named 'type' in 'struct std::invoke_result<chttpp::detail::overloaded<chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(int&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(CURLcode&&)>, chttpp::detail::then_impl<int, CURLcode>::then<http_result_test()::<lambda()>::<lambda(int&&)> >(http_result_test()::<lambda()>::<lambda(int&&)>&&) &&::<lambda(std::__exception_ptr::exception_ptr&&)> >, int&&>'
+ 3034 |     using invoke_result_t = typename invoke_result<_Fn, _Args...>::type;
+      |           ^~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, E> chttpp::detail::then_impl<T, E>::then(F&&) && [with F = http_result_test()::<lambda()>::<lambda(int&&)>; T = int; E = CURLcode; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:61:14:   required from here
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note: candidate: 'template<class _Res, class _Visitor, class ... _Variants> constexpr _Res std::visit(_Visitor&&, _Variants&& ...)'
+ 1859 |     visit(_Visitor&& __visitor, _Variants&&... __variants)
+      |     ^~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1859:5: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:178:24: note:   couldn't deduce template parameter '_Res'
+  178 |       return std::visit(overloaded{
+      |              ~~~~~~~~~~^~~~~~~~~~~~
+  179 |           [&](T &&value) {
+      |           ~~~~~~~~~~~~~~~~
+  180 |             return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  181 |           },
+      |           ~~            
+  182 |           [](E &&err) {
+      |           ~~~~~~~~~~~~~ 
+  183 |             return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  184 |           },
+      |           ~~            
+  185 |           [](std::exception_ptr &&exptr) {
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  186 |             return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  187 |           }}, std::move(this->outcome));
+      |           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../include/underlying/common.hpp: In instantiation of 'chttpp::detail::then_impl<chttpp::detail::http_response, typename std::conditional<same_as<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, void>, std::monostate, typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type>::type> chttpp::detail::basic_result<Err>::catch_error(F&&) && [with F = http_result_test()::<lambda()>::<lambda(auto:78)>; Err = CURLcode; typename std::conditional<same_as<typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type, void>, std::monostate, typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type>::type = int; typename std::remove_cvref<typename std::invoke_result<F, T&&>::type>::type = int; typename std::invoke_result<F, T&&>::type = int]':
+../test/http_result_test.hpp:94:25:   required from here
+../include/underlying/common.hpp:416:121: error: no matching function for call to 'std::variant<chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr>::variant(<brace-enclosed initializer list>)'
+  416 |               return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                                                                         ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note: candidate: 'template<long unsigned int _Np, class _Up, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, std::initializer_list<_Up>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = _Up; _Tp = {_Args ...}; <template-parameter-2-5> = _Tp; _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1457 |         variant(in_place_index_t<_Np>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1457:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note: candidate: 'template<long unsigned int _Np, class ... _Args, class _Tp, class> constexpr std::variant<_Types>::variant(std::in_place_index_t<_Np>, _Args&& ...) [with long unsigned int _Np = _Np; _Args = {_Args ...}; <template-parameter-2-4> = _Tp; _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1446 |         variant(in_place_index_t<_Np>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1446:9: note:   template argument deduction/substitution failed:
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note: candidate: 'template<class _Tp, class _Up, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, std::initializer_list<_Up>, _Args&& ...) [with _Up = _Tp; _Args = _Up; <template-parameter-2-4> = {_Args ...}; _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1436 |         variant(in_place_type_t<_Tp>, initializer_list<_Up> __il,
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1436:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:416:121: note:   'std::in_place_index_t<1>' is not derived from 'std::in_place_type_t<_Tp>'
+  416 |               return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                                                                         ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note: candidate: 'template<class _Tp, class ... _Args, class> constexpr std::variant<_Types>::variant(std::in_place_type_t<_Tp>, _Args&& ...) [with _Args = _Tp; <template-parameter-2-3> = {_Args ...}; _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1426 |         variant(in_place_type_t<_Tp>, _Args&&... __args)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1426:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:416:121: note:   'std::in_place_index_t<1>' is not derived from 'std::in_place_type_t<_Tp>'
+  416 |               return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                                                                         ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note: candidate: 'template<class _Tp, class, class, class _Tj, class> constexpr std::variant<_Types>::variant(_Tp&&) [with <template-parameter-2-2> = _Tp; _Tj = <template-parameter-1-2>; _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1416 |         variant(_Tp&& __t)
+      |         ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1416:9: note:   template argument deduction/substitution failed:
+../include/underlying/common.hpp:416:121: note:   candidate expects 1 argument, 2 provided
+  416 |               return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+      |                                                                                                                         ^
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note: candidate: 'constexpr std::variant<_Types>::variant(std::variant<_Types>&&) [with _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1404 |       variant(variant&&) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1404:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note: candidate: 'constexpr std::variant<_Types>::variant(const std::variant<_Types>&) [with _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1403 |       variant(const variant& __rhs) = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1403:7: note:   candidate expects 1 argument, 2 provided
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note: candidate: 'constexpr std::variant<_Types>::variant() [with _Types = {chttpp::detail::http_response, int, std::__exception_ptr::exception_ptr}]'
+ 1402 |       variant() = default;
+      |       ^~~~~~~
+/usr/local/Cellar/gcc/12.1.0/include/c++/12/variant:1402:7: note:   candidate expects 0 arguments, 2 provided
+ninja: build stopped: subcommand failed.
