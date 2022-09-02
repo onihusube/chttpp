@@ -324,7 +324,7 @@ namespace chttpp::detail {
     //digest,
   };
 
-  struct authorization {
+  struct authorization_config {
     std::string_view username = "";
     std::string_view password = "";
     authentication_scheme scheme = authentication_scheme::basic;
@@ -332,15 +332,23 @@ namespace chttpp::detail {
 
   struct proxy_config {
     std::string_view url = "";
-    authorization auth{};
+    authorization_config auth{};
   };
 
-  struct request_config {
-    std::string_view mime_string = "text/plain";
+  struct request_config_for_get {
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     std::chrono::milliseconds timeout{10000};
-    authorization auth{};
+    authorization_config auth{};
+    proxy_config proxy{};
+  };
+
+  struct request_config {
+    std::string_view content_type = "text/plain";
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    std::chrono::milliseconds timeout{10000};
+    authorization_config auth{};
     proxy_config proxy{};
   };
 
