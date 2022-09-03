@@ -663,9 +663,9 @@ int main() {
   };
 
   "timeout"_test = []{
-    auto res = chttpp::get("https://httpbin.org/delay/5", {.timeout = 100ms });
+    auto res = chttpp::get("https://httpbin.org/delay/5", { .timeout = 100ms });
 
-    ut::expect(bool(res) == false);
+    ut::expect(bool(res) == false >> ut::fatal);
 
 #ifdef _MSC_VER
     ut::expect(res.error() == 12002);
