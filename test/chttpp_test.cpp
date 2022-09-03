@@ -51,6 +51,7 @@ int main() {
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
+  using namespace std::chrono_literals;
 
   "parse_response_header_oneline"_test = [] {
     using chttpp::detail::parse_response_header_oneline;
@@ -659,6 +660,17 @@ int main() {
 
     ut::expect(headers.at("Content-Length").get<std::string>() == "11");
     ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+  };
+
+  "timeout"_test = []{
+    auto res = chttpp::get("https://httpbin.org/delay/5", {.timeout = 100ms });
+
+    ut::expect(bool(res) == false);
+
+#ifdef _MSC_VER
+    ut::expect(res.error() == 12002);
+#endif
+
   };
 
   underlying_test();

@@ -110,6 +110,17 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
+    // タイムアウトの設定
+    {
+      const int timeout = static_cast<int>(cfg.timeout.count());
+
+      // セッション全体ではなく各点でのタイムアウト指定になる
+      // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
+      if (not ::WinHttpSetTimeouts(session.get(), timeout, timeout, timeout, timeout)) {
+        return http_result{ ::GetLastError() };
+      }
+    }
+
     {
       // HTTP2を常に使用する
       DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
@@ -264,6 +275,17 @@ namespace chttpp::underlying::terse {
 
     if (not session) {
       return http_result{ ::GetLastError() };
+    }
+
+    // タイムアウトの設定
+    {
+      const int timeout = static_cast<int>(cfg.timeout.count());
+
+      // セッション全体ではなく各点でのタイムアウト指定になる
+      // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
+      if (not ::WinHttpSetTimeouts(session.get(), timeout, timeout, timeout, timeout)) {
+        return http_result{ ::GetLastError() };
+      }
     }
 
     {
