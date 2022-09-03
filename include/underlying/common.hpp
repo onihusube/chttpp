@@ -488,6 +488,42 @@ namespace chttpp::detail {
   };
 }
 
+namespace chttpp::detail::inline config {
+
+  enum class authentication_scheme {
+    basic,
+    //digest,
+  };
+
+  struct authorization_config {
+    std::string_view username = "";
+    std::string_view password = "";
+    authentication_scheme scheme = authentication_scheme::basic;
+  };
+
+  struct proxy_config {
+    std::string_view url = "";
+    authorization_config auth{};
+  };
+
+  struct request_config_for_get {
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    std::chrono::milliseconds timeout{ 10000 };
+    authorization_config auth{};
+    proxy_config proxy{};
+  };
+
+  struct request_config {
+    std::string_view content_type = "text/plain";
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    std::chrono::milliseconds timeout{ 10000 };
+    authorization_config auth{};
+    proxy_config proxy{};
+  };
+}
+
 namespace chttpp::detail::tag {
   struct get_t {};
   struct post_t {};

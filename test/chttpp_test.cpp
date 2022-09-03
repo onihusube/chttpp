@@ -403,10 +403,7 @@ int main() {
       ut::expect(headers.size() >= 11_ull);
     }
     {
-      auto result = chttpp::get
-                        .url("https://example.com")
-                        .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
-                        .send();
+      auto result = chttpp::get("https://example.com", { .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}} });
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
@@ -422,7 +419,7 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", text/plain);
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", {.content_type = text/plain });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200_us);
@@ -479,11 +476,7 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::post
-                      .url("https://httpbin.org/post")
-                      .body("field1=value1&field2=value2")
-                      .header("User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)")
-                      .send();
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}} });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect((result.status_code() == 200_us) >> ut::fatal) << result.status_code();
@@ -519,13 +512,11 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::post
-                      .url("https://httpbin.org/post")
-                      .body("field1=value1&field2=value2", image/svg)
-                      .headers({{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
-                                {"Content-Type", "text/plain"},
-                                {"Content-Language", "ja-JP"}})
-                      .send();
+    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .content_type = image/svg ,
+                                                                                            .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+                                                                                                       {"Content-Type", "text/plain"},
+                                                                                                       {"Content-Language", "ja-JP"}}
+                                                                                          });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200_us);
@@ -566,7 +557,7 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", text/html);
+    auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", {.content_type = text/html });
 
     ut::expect(bool(result) >> ut::fatal);
     ut::expect(result.status_code() == 200_us);
@@ -621,7 +612,7 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", text/plain);
+    auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", {.content_type = text/plain });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200_us);

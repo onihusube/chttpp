@@ -270,128 +270,30 @@ namespace chttpp {
 
 namespace chttpp::detail {
 
-  template<typename MethodTag, character CharT>
-  class terse_settings_wrapper {
-#ifdef _MSC_VER
-    std::basic_string_view<CharT> m_url;
-#else
-    chttpp::basic_null_terminated_string_view<CharT> m_url;
-#endif
-    std::span<const char> m_body{};
-    std::string_view mime_str{};
-    vector_t<std::pair<std::string_view, std::string_view>> m_headers{};
-  public:
-
-    constexpr terse_settings_wrapper(chttpp::basic_null_terminated_string_view<CharT> url) : m_url{url} {}
-
-#ifdef _MSC_VER
-    constexpr terse_settings_wrapper(std::basic_string_view<CharT> url) : m_url{ url } {}
-#endif
-
-    auto send() && -> http_result {
-      return chttpp::underlying::terse::request_impl(m_url, std::move(m_headers), MethodTag{});
-    }
-
-    auto send() && -> http_result requires detail::tag::has_reqbody_method<MethodTag> {
-      return chttpp::underlying::terse::request_impl(m_url, mime_str, m_body, std::move(m_headers), MethodTag{});
-    }
-
-    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType = std::string_view>
-      requires detail::tag::has_reqbody_method<MethodTag>
-    auto body(Body&& request_body, MimeType&& mime_type = "text/plain") && -> terse_settings_wrapper&& {
-      m_body = cpo::as_byte_seq(std::forward<Body>(request_body));
-      mime_str = std::string_view{std::forward<MimeType>(mime_type)};
-      return std::move(*this);
-    }
-
-    auto header(std::string_view name, std::string_view key) && -> terse_settings_wrapper&& {
-      m_headers.emplace_back(name, key);
-      return std::move(*this);
-    }
-
-    auto headers(vector_t<std::pair<std::string_view, std::string_view>>&& headers) && -> terse_settings_wrapper&& {
-      if (m_headers.empty()) {
-        m_headers = std::exchange(headers, {});
-      } else {
-        m_headers.insert(m_headers.end(), std::make_move_iterator(headers.begin()), std::make_move_iterator(headers.end()));
-      }
-      return std::move(*this);
-    }
-  };
-
-  enum class authentication_scheme {
-    basic,
-    //digest,
-  };
-
-  struct authorization_config {
-    std::string_view username = "";
-    std::string_view password = "";
-    authentication_scheme scheme = authentication_scheme::basic;
-  };
-
-  struct proxy_config {
-    std::string_view url = "";
-    authorization_config auth{};
-  };
-
-  struct request_config_for_get {
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    std::chrono::milliseconds timeout{10000};
-    authorization_config auth{};
-    proxy_config proxy{};
-  };
-
-  struct request_config {
-    std::string_view content_type = "text/plain";
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    std::chrono::milliseconds timeout{10000};
-    authorization_config auth{};
-    proxy_config proxy{};
-  };
-
   template<typename MethodTag>
   struct terse_req_impl {
 
-    auto operator()(nt_string_view URL) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, vector_t<std::pair<std::string_view, std::string_view>>{}, MethodTag{});
+    auto operator()(nt_string_view URL, request_config_for_get cfg = {}) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), MethodTag{});
     }
 
-    auto operator()(nt_wstring_view URL) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, vector_t<std::pair<std::string_view, std::string_view>>{}, MethodTag{});
-    }
-
-    auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
-      return {URL};
-    }
-
-    auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
-      return {URL};
+    auto operator()(nt_wstring_view URL, request_config_for_get cfg = {}) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), MethodTag{});
     }
   };
 
   template<detail::tag::has_reqbody_method MethodTag>
   struct terse_req_impl<MethodTag> {
 
-    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
-    auto operator()(nt_string_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
+    template<byte_serializable Body>
+    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
       // ここ、request_bodyの完全転送の必要あるかな・・・？
-      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), vector_t<std::pair<std::string_view, std::string_view>>{}, MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
 
-    template<byte_serializable Body, std::convertible_to<std::string_view> MimeType>
-    auto operator()(nt_wstring_view URL, Body&& request_body, MimeType&& mime_type) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, std::forward<MimeType>(mime_type), cpo::as_byte_seq(std::forward<Body>(request_body)), vector_t<std::pair<std::string_view, std::string_view>>{}, MethodTag{});
-    }
-
-    constexpr auto url(nt_string_view URL) const -> terse_settings_wrapper<MethodTag, char> {
-      return {URL};
-    }
-
-    constexpr auto url(nt_wstring_view URL) const -> terse_settings_wrapper<MethodTag, wchar_t> {
-      return {URL};
+    template<byte_serializable Body>
+    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+      return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
   };
 }

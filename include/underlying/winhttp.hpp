@@ -97,7 +97,7 @@ namespace chttpp::underlying::terse {
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  auto request_impl(std::wstring_view url, const vector_t<std::pair<std::string_view, std::string_view>>& headers, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
@@ -165,6 +165,7 @@ namespace chttpp::underlying::terse {
 
     LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
     std::wstring send_header_buf{};
+    auto& headers = cfg.headers;
 
     if (not headers.empty()) {
 
@@ -253,7 +254,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method Tag>
-  auto request_impl(std::wstring_view url, [[maybe_unused]] std::string_view mime, std::span<const char> req_dody, vector_t<std::pair<std::string_view, std::string_view>>&& headers, Tag) -> http_result {
+  auto request_impl(std::wstring_view url, std::span<const char> req_dody, detail::request_config&& cfg, Tag) -> http_result {
 
     constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
     constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
@@ -315,11 +316,13 @@ namespace chttpp::underlying::terse {
       }
     }
 
+    auto& headers = cfg.headers;
+
     // Content-Typeヘッダの追加
     // ヘッダ指定されたものを優先する
     std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
     if (i == headers.end()) {
-      headers.emplace_back("Content-Type", mime);
+      headers.emplace_back("Content-Type", cfg.content_type);
     }
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
