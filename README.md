@@ -83,6 +83,69 @@ int main() {
 
 In these cases, the request can still be made through a consistent interface.
 
+### Request body
+
+The request body can be any value that can be serialized into a byte array.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+int main() {
+  int array[] = {1, 2, 3, 4};
+  chttpp::post("https://example.com", array, { .content_type = application/octet_stream }); // ok
+
+  std::vector vec = {1, 2, 3, 4};
+  chttpp::post("https://example.com", vec, { .content_type = application/octet_stream });   // ok
+
+  std::span<const int> sp = vec;
+  chttpp::post("https://example.com", sp, { .content_type = application/octet_stream });    // ok
+
+  std::string json = R"({ id : 1, json : "test json"})";
+  chttpp::post("https://example.com", str, { .content_type = application/json });           // ok
+
+  std::string_view strview = json;
+  chttpp::post("https://example.com", strview, { .content_type = application/json });       // ok
+
+  double v = 3.14;
+  chttpp::post("https://example.com", v, { .content_type = application/octet_stream });     // ok
+}
+```
+
+This is implicitly converted by `chttpp::as_byte_seq` CPO.
+
+This CPO takes values of types `contiguous_range`, *Trivially Copyable*, etc. as a byte array.
+
+Besides, customization points by user-defined functions of the same name are available.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+class Test {
+  std::vector<char> m_bytes;
+
+public:
+
+  ...
+
+  // adopt as_byte_seq CPO by Hidden friends (free function is also acceptable)
+  friend auto as_byte_seq(const Test& self) -> std::span<const char> {
+    return self.m_bytes;
+  }
+
+  // or non static member function (one or the other!)
+  auto as_byte_seq() const -> std::span<const char> {
+    return m_bytes;
+  }
+};
+
+int main() {
+  Test dat = ...;
+  chttpp::post("https://example.com", dat, { .content_type = application/octet_stream }); // ok
+}
+```
+
 ### Adding Headers
 
 Headers and other configurations are specified in the last argument.

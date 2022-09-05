@@ -338,6 +338,10 @@ int main() {
       ut::expect(mime2 == "audio/ogg"sv);
       constexpr auto mime3 = application/ogg;
       ut::expect(mime3 == "application/ogg"sv);
+      constexpr auto mime4 = application/octet_stream;
+      ut::expect(mime4 == "application/octet-stream"sv);
+      constexpr auto mime5 = application/json;
+      ut::expect(mime5 == "application/json"sv);
     }
     {
       //constexpr auto mime = video/３gpp;
