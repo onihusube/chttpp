@@ -29,7 +29,7 @@ int main() {
 #include "chttpp.hpp"
 
 int main() {
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = "text/plain" });
+  auto res = chttpp::post("https://example.com", "post data", { .content_type = "text/plain" });
 
   if (res) {
     std::cout << res.status_code()   << '\n';
@@ -49,7 +49,7 @@ For common mime type specifications, another method is available.
 int main() {
   using namespace chttpp::mime_types;   // using
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2",  { .content_type = text/plain }); // Specification by Objects and Operators
+  auto res = chttpp::post("https://example.com", "post data",  { .content_type = text/plain }); // Specification by Objects and Operators
 
   if (res) {
     std::cout << res.status_code()   << '\n';
@@ -67,7 +67,7 @@ This advantage is
 int main() {
   using namespace chttpp::mime_types;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2",  { .content_type = text/mp4 }); // Compile error!
+  auto res = chttpp::post("https://example.com", "post data",  { .content_type = text/mp4 }); // Compile error!
 }
 ```
 
@@ -92,11 +92,11 @@ Headers and other configurations are specified in the last argument.
 #include "mime_types.hpp"
 
 int main() {
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain 
-                                                                                  .headers = {
-                                                                                    {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}
-                                                                                  }
-                                                                                });
+  auto res = chttpp::post("https://example.com", "post data", { .content_type = text/plain 
+                                                                .headers = {
+                                                                  {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}
+                                                                }
+                                                              });
 
   if (res) {
     std::cout << res.status_code()   << '\n';
@@ -111,12 +111,12 @@ Multiple headers can be added at once.
 #include "chttpp.hpp"
 
 int main() {
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .headers = {
-                                                                                    {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
-                                                                                    {"Content-Type", "text/plain"},
-                                                                                    {"Content-Language", "ja-JP"}
-                                                                                  }
-                                                                                });
+  auto res = chttpp::post("https://example.com", "post data", { .headers = {
+                                                                  {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+                                                                  {"Content-Type", "text/plain"},
+                                                                  {"Content-Language", "ja-JP"}
+                                                                }
+                                                              });
 }
 ```
 
@@ -127,29 +127,29 @@ This uses POST(`chttpp::post`), but the same is true for other methods.
 ※Some are still under development.
 
 ```cpp
-chttpp::post("url", "data", {
-                              // Content-Type header value (Only requests with body)
-                              .content_type = ..., 
-                              // Request headers
-                              .headers = { {"header name", "value"}, {..., ...}, ... }, 
-                              // URL parameter
-                              .params = { {"param name", "param value"}, {..., ...}, ... },
-                              // timeout in milliseconds (Use udl in chrono)
-                              .timeout = 1000ms,
-                              // HTTP Authentication settings (Basic authentication)
+chttpp::post("url", data, {
+                            // Content-Type header value (Only requests with body)
+                            .content_type = ..., 
+                            // Request headers
+                            .headers = { {"header name", "value"}, {..., ...}, ... }, 
+                            // URL parameter
+                            .params = { {"param name", "param value"}, {..., ...}, ... },
+                            // timeout in milliseconds (Use udl in chrono)
+                            .timeout = 1000ms,
+                            // HTTP Authentication settings (Basic authentication)
+                            .auth = {
+                              .username = "username",
+                              .password = "password"
+                            },
+                            // Proxy settings
+                            .proxy = {
+                              .url = "proxy address",
                               .auth = {
-                                .username = "username",
-                                .password = "password"
-                              },
-                              // Proxy settings
-                              .proxy = {
-                                .url = "proxy address",
-                                .auth = {
-                                  .username = "proxy username",
-                                  .password = "proxy password"
-                                }
+                                .username = "proxy username",
+                                .password = "proxy password"
                               }
-                            })
+                            }
+                          })
 ```
 
 ### Consumption of request results
