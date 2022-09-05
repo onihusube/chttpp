@@ -663,13 +663,28 @@ int main() {
   };
 
   "timeout"_test = []{
-    auto res = chttpp::get("https://httpbin.org/delay/5", { .timeout = 100ms });
+    {
+      auto res = chttpp::get("https://httpbin.org/delay/5", { .timeout = 100ms });
 
-    ut::expect(bool(res) == false >> ut::fatal);
+      ut::expect((not res.has_response()) >> ut::fatal);
 
 #ifdef _MSC_VER
-    ut::expect(res.error() == 12002);
+      ut::expect(res.error() == 12002);
+#else
+      ut::expect(res.error() == CURLE_OPERATION_TIMEDOUT);
 #endif
+    }
+    {
+      auto res = chttpp::post("https://httpbin.org/delay/5", "post", { .timeout = 100ms });
+
+      ut::expect((not res.has_response()) >> ut::fatal);
+
+#ifdef _MSC_VER
+      ut::expect(res.error() == 12002);
+#else
+      ut::expect(res.error() == CURLE_OPERATION_TIMEDOUT);
+#endif
+    }
 
   };
 

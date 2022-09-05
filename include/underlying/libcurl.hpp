@@ -141,7 +141,7 @@ namespace chttpp::underlying::terse {
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  inline auto request_impl(std::string_view url, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get   = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head  = std::same_as<detail::tag::head_t, MethodTag>;
@@ -171,12 +171,22 @@ namespace chttpp::underlying::terse {
       curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
     }
 
+    // タイムアウトの指定
+    {
+      const long timeout = cfg.timeout.count();
+
+      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
+      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+    }
+
     unique_slist req_header_list{};
     {
   
       constexpr std::string_view separater = ": ";
       string_t header_buffer{};
       header_buffer.reserve(100);
+
+      auto& req_headers = cfg.headers;
 
       for (const auto &[name, value] : req_headers) {
         // key: name となるようにコピー
@@ -232,7 +242,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method MethodTag>
-  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url, std::span<const char> req_body, detail::request_config&& cfg, MethodTag) -> http_result {
     // メソッド判定
     [[maybe_unused]]
     constexpr bool is_post  = std::same_as<detail::tag::post_t, MethodTag>;
@@ -267,11 +277,21 @@ namespace chttpp::underlying::terse {
       static_assert([]{return false;}(), "not implemented.");
     }
 
+    // タイムアウトの指定
+    {
+      const long timeout = cfg.timeout.count();
+
+      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
+      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+    }
+
     unique_slist req_header_list{};
     {
       constexpr std::string_view separater = ": ";
       string_t header_buffer{};
       header_buffer.reserve(100);
+
+      auto& req_headers = cfg.headers;
 
       for (const auto &[name, value] : req_headers) {
         // key: name となるようにコピー
@@ -292,11 +312,10 @@ namespace chttpp::underlying::terse {
       const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type"; }, &std::pair<std::string_view, std::string_view>::first);
 
       if (not set_content_type) {
-        constexpr std::string_view name_str = "Content-Type: ";
-        std::string_view mime_str{mime};
+        constexpr std::string_view content_type = "Content-Type: ";
 
-        header_buffer.append(name_str);
-        header_buffer.append(mime_str);
+        header_buffer.append(content_type);
+        header_buffer.append(cfg.content_type);
 
         unique_slist_append(req_header_list, header_buffer.c_str());
       }
