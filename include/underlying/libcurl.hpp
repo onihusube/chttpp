@@ -155,6 +155,7 @@ namespace chttpp::underlying::terse {
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
   using unique_slist = std::unique_ptr<curl_slist, decltype([](curl_slist* p) noexcept { curl_slist_free_all(p); })>;
   using unique_curlurl = std::unique_ptr<CURLU, decltype([](CURLU* p) noexcept { curl_url_cleanup(p); })>;
+  using unique_curlchar = std::unique_ptr<char, decltype([](char* p) noexcept { curl_free(p); })>;
 
   inline void unique_slist_append(unique_slist& plist, const char* value) noexcept {
     auto ptr = plist.release();
@@ -202,8 +203,38 @@ namespace chttpp::underlying::terse {
     }
     assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
 
-    // 編集後URLへのポインタ
-    char *purl = detail::rebuild_url(hurl.get(), cfg.params, buffer);
+    // 認証情報の取得とセット
+    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+    // configに指定された方を優先する
+    if (not cfg.auth.username.empty()) {
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
+    } else {
+      // 指定されない場合、URLに含まれているものを使用する
+      char* user = nullptr;
+      char* pw = nullptr;
+
+      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+        // あるものとする？
+        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+        // RAII
+        unique_curlchar userptr{user};
+        unique_curlchar pwptr{pw};
+
+        // とりあえずbasic認証
+        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
+        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
+      }
+    }
+
+    // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
+    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
 
     if (purl == nullptr) {
       // エラーコードの変換については要検討
@@ -213,7 +244,7 @@ namespace chttpp::underlying::terse {
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, purl);
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
@@ -327,8 +358,38 @@ namespace chttpp::underlying::terse {
     }
     assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
 
+    // 認証情報の取得とセット
+    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+    // configに指定された方を優先する
+    if (not cfg.auth.username.empty()) {
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
+    } else {
+      // 指定されない場合、URLに含まれているものを使用する
+      char* user = nullptr;
+      char* pw = nullptr;
+
+      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+        // あるものとする？
+        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+        // RAII
+        unique_curlchar userptr{user};
+        unique_curlchar pwptr{pw};
+
+        // とりあえずbasic認証
+        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
+        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
+      }
+    }
+
     // 編集後URLへのポインタ
-    char *purl = detail::rebuild_url(hurl.get(), cfg.params, buffer);
+    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
 
     if (purl == nullptr) {
       // エラーコードの変換については要検討
@@ -338,7 +399,7 @@ namespace chttpp::underlying::terse {
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, purl);
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);

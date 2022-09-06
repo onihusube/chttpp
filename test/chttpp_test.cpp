@@ -760,6 +760,79 @@ int main() {
 
   };
 
+  "http auth"_test = [to_json] {
+    using namespace chttpp::mime_types;
+    {
+      auto res = chttpp::get("https://httpbin.org/basic-auth/authtest_user/authtest_pw", { .auth = {
+                                                                                             .username = "authtest_user",
+                                                                                             .password = "authtest_pw"
+                                                                                           }
+                                                                                         });
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+
+      //std::cout << res.response_body() << "\n";
+/*
+こんなのが帰ってくる
+{
+  "authenticated": true, 
+  "user": "authtest_user"
+}
+*/
+
+      auto res_json = res | to_json;
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+
+      ut::expect(obj.at("authenticated").get<bool>());
+      ut::expect(obj.at("user").get<std::string>() == "authtest_user");
+    }
+    {
+      auto res = chttpp::get("https://authtest_user:authtest_pw@httpbin.org/basic-auth/authtest_user/authtest_pw");
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+    }
+    // POSTリクエスト時の認証はhttpbinだとテストできない（405が帰ってくる）
+    {
+      // 参考 : https://softmoco.com/basics/how-to-make-http-request-basic-auth-json.php
+      auto res = chttpp::post("https://softmoco.com/getItemInfo.php", R"({ "itemCode": "ABC" })",
+                              { .content_type = application/json,
+                                .auth = {
+                                   .username = "APIUser",
+                                   .password = "APIPassword123"
+                                }
+                              });
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+
+      //std::cout << res.response_body() << "\n";
+/*
+こんなのが帰ってくる
+{
+  "success":true,
+  "message":"ItemCode:ABC found.",
+  "item":{
+     "itemCode":"ABC",
+     "itemName":"ABC Item Name",
+     "unitPrice":150
+  }
+}
+*/
+
+      auto res_json = res | to_json;
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+
+      ut::expect(obj.at("success").get<bool>());
+      ut::expect(obj.at("message").get<std::string>() == "ItemCode:ABC found.");
+    }
+  };
+
   underlying_test();
   http_result_test();
   http_config_test();

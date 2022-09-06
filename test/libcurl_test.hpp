@@ -103,6 +103,7 @@ void underlying_test() {
   "rebuild_url"_test = [] {
     using chttpp::detail::rebuild_url;
     using chttpp::underlying::terse::unique_curlurl;
+    using chttpp::underlying::terse::unique_curlchar;
     using chttpp::types::vector_t;
     using chttpp::types::string_t;
 
@@ -118,7 +119,8 @@ void underlying_test() {
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
-      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+      unique_curlchar ptr{rebuild_url(hurl.get(), params, buffer)};
+      std::string_view res = ptr.get();
 
       ut::expect(res == "https://example.com/?param=value");
     }
@@ -133,7 +135,8 @@ void underlying_test() {
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
-      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+      unique_curlchar ptr{rebuild_url(hurl.get(), params, buffer)};
+      std::string_view res = ptr.get();
 
       ut::expect(res == "https://example.com/path/path?param1=value1&param2=value2&param3=value3");
     }
@@ -148,7 +151,8 @@ void underlying_test() {
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
-      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+      unique_curlchar ptr{rebuild_url(hurl.get(), params, buffer)};
+      std::string_view res = ptr.get();
 
       ut::expect(res == "https://example.com/path?param=value");
     }
@@ -163,7 +167,8 @@ void underlying_test() {
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
-      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+      unique_curlchar ptr{rebuild_url(hurl.get(), params, buffer)};
+      std::string_view res = ptr.get();
 
       ut::expect(res == url);
     }
