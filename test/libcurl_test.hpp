@@ -99,4 +99,73 @@ void underlying_test() {
 
     }
   };
+
+  "rebuild_url"_test = [] {
+    using chttpp::detail::rebuild_url;
+    using chttpp::underlying::terse::unique_curlurl;
+    using chttpp::types::vector_t;
+    using chttpp::types::string_t;
+
+    {
+      unique_curlurl hurl{::curl_url()};
+
+      ut::expect(bool(hurl) >> ut::fatal);
+
+
+      const std::string_view url = "https://example.com";
+      vector_t<std::pair<std::string_view, std::string_view>> params = { {"param", "value"} };
+      string_t buffer{};
+
+      ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
+
+      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+
+      ut::expect(res == "https://example.com/?param=value");
+    }
+    {
+      unique_curlurl hurl{::curl_url()};
+
+      ut::expect(bool(hurl) >> ut::fatal);
+
+      const std::string_view url = "https://example.com/path/path?param1=value1";
+      vector_t<std::pair<std::string_view, std::string_view>> params = { {"param2", "value2"}, {"param3", "value3"} };
+      string_t buffer{};
+
+      ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
+
+      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+
+      ut::expect(res == "https://example.com/path/path?param1=value1&param2=value2&param3=value3");
+    }
+    {
+      unique_curlurl hurl{::curl_url()};
+
+      ut::expect(bool(hurl) >> ut::fatal);
+
+      const std::string_view url = "https://user:pass@example.com/path#anchor";
+      vector_t<std::pair<std::string_view, std::string_view>> params = {{"param", "value"}};
+      string_t buffer{};
+
+      ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
+
+      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+
+      ut::expect(res == "https://example.com/path?param=value");
+    }
+    {
+      unique_curlurl hurl{::curl_url()};
+
+      ut::expect(bool(hurl) >> ut::fatal);
+
+      const std::string_view url = "https://example.com/path";
+      vector_t<std::pair<std::string_view, std::string_view>> params = {};
+      string_t buffer{};
+
+      ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
+
+      std::string_view res = rebuild_url(hurl.get(), params, buffer);
+
+      ut::expect(res == url);
+    }
+  };
 }

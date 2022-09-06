@@ -75,11 +75,11 @@ int main() {
 
 ### Other Requests
 
-- HEAD : `chttpp::head(url)`
-- OPTIONS : `chttpp::options(url)`
-- TRACE : `chttpp::trace(url)`
-- PUT : `chttpp::put(url, body, mime_type)`
-- DELETE : `chttpp::delete_(url, body, mime_type)`
+- HEAD : `chttpp::head(url, config)`
+- OPTIONS : `chttpp::options(url, config)`
+- TRACE : `chttpp::trace(url, config)`
+- PUT : `chttpp::put(url, body, config)`
+- DELETE : `chttpp::delete_(url, body, config)`
 
 In these cases, the request can still be made through a consistent interface.
 
