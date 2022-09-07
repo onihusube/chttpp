@@ -266,6 +266,22 @@ namespace chttpp::underlying::terse {
       curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
     }
 
+    // Proxyの指定
+    if (not cfg.proxy.url.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+      
+      if (not cfg.proxy.auth.username.empty()) {
+        // 仮定
+        assert(not cfg.proxy.auth.password.empty());
+
+        // とりあえずbasic認証のみ考慮
+        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
+        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
+      }
+    }
+
     unique_slist req_header_list{};
     {
       constexpr std::string_view separater = ": ";
@@ -422,6 +438,22 @@ namespace chttpp::underlying::terse {
 
       curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
       curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+    }
+
+    // Proxyの指定
+    if (not cfg.proxy.url.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+
+      if (not cfg.proxy.auth.username.empty()) {
+        // 仮定
+        assert(not cfg.proxy.auth.password.empty());
+
+        // とりあえずbasic認証のみ考慮
+        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
+        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
+      }
     }
 
     unique_slist req_header_list{};
