@@ -1,6 +1,7 @@
 //#define CHTTPP_NOT_GLOBAL_INIT_CURL
 #include "chttpp.hpp"
 #include "mime_types.hpp"
+#include "http_headers.hpp"
 
 #include <type_traits>
 #include <cassert>
@@ -361,6 +362,17 @@ int main() {
       ut::expect(mime == "application/vnd.apple.installer+xml"sv);
     }
 
+  };
+
+  "predefinde header"_test = [] {
+    using namespace chttpp::headers;
+
+    // 全部はテストせず、基本的or複雑な一部のみチェック（header_baseの動作がバグってないことを確かめるのみ）
+    static_assert(std::string_view{content_length} == "content-length");
+    static_assert(std::string_view{content_type} == "content-type");
+    static_assert(std::string_view{user_agent} == "user-agent");
+    static_assert(std::string_view{etag} == "etag");
+    static_assert(std::string_view{access_control_allow_origin} == "access-control-allow-origin");
   };
 
   // jsonレスポンスをpicojsonのvalueオブジェクトへ変換する
