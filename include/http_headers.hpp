@@ -130,5 +130,6 @@ namespace chttpp::headers {
     HEADER(www_authenticate);
   }
 
+#undef REQ_HEADER
 #undef HEADER
 }
