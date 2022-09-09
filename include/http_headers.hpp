@@ -1,16 +1,33 @@
 #pragma once
 
 #include <string_view>
+#include <concepts>
 #include <ranges>
 #include <algorithm>
 
 namespace chttpp::headers::detail {
-  template<std::size_t N>
+
+  /**
+   * @brief ヘッダオブジェクトに=で値を追加してヘッダペアを作るときの中間型
+   * @tparam T =の右辺の型
+   * @details content-typeヘッダにmime_typeオブジェクトを入れるとき、一時オブジェクトの参照を取るのを回避するためのもの（内部に一旦コピーして保持する）
+   */
+  template<typename T>
+  struct headerpair_precursor {
+    std::string_view name;
+    T value;
+
+    constexpr operator std::pair<std::string_view, std::string_view>() const noexcept {
+      return {name, value};
+    }
+  };
+
+  template<std::size_t N, bool Req = false>
   class header_base {
     char m_header_value[N]{};
   public:
 
-    consteval header_base(std::string_view str) {
+    consteval header_base(std::string_view str, bool = false) {
       std::ranges::copy(str | std::views::transform([](char c) { return (c == '_') ? '-' : c; }), 
                         std::ranges::begin(m_header_value));
     }
@@ -18,10 +35,25 @@ namespace chttpp::headers::detail {
     constexpr operator std::string_view() const noexcept {
       return m_header_value;
     }
+
+    /**
+     * @brief ヘッダ名=値、の形でヘッダ設定できるようにするための=
+     * @details リクエストヘッダの事前定義オブジェクトに対してのみ有効（にする
+     * @param value ヘッダの値
+     * @return ヘッダペア（std::pair<std::string_view, std::string_view>に暗黙変換可能な型の値）
+     */
+    template<std::convertible_to<std::string_view> T>
+      requires Req
+    constexpr auto operator=(T&& value) const noexcept {
+      return headerpair_precursor{.name = m_header_value, .value = value};
+    }
   };
 
   template<std::size_t N>
   header_base(const char(&)[N]) -> header_base<N>;
+
+  template<std::size_t N>
+  header_base(const char(&)[N], bool) -> header_base<N, true>;
 }
 
 namespace chttpp::headers {
@@ -53,39 +85,40 @@ namespace chttpp::headers {
   */
 
 #define HEADER(name) inline constexpr chttpp::headers::detail::header_base name{#name}
+#define REQ_HEADER(name) inline constexpr chttpp::headers::detail::header_base name{#name, true}
 
   inline namespace representation {
-    HEADER(content_type);
-    HEADER(content_encoding);
-    HEADER(content_language);
-    HEADER(content_location);
+    REQ_HEADER(content_type);
+    REQ_HEADER(content_encoding);
+    REQ_HEADER(content_language);
+    REQ_HEADER(content_location);
   }
 
   inline namespace payload {
     HEADER(content_length);
-    HEADER(content_range);
+    REQ_HEADER(content_range);
   }
 
-  HEADER(date);
-  HEADER(warning);
+  REQ_HEADER(date);
+  REQ_HEADER(warning);
 
   inline namespace request {
-    HEADER(accept);
-    HEADER(accept_encoding);
-    HEADER(accept_language);
-    HEADER(accept_ranges);
-    HEADER(cookie);
-    HEADER(authorization);
-    HEADER(forwarded);
-    HEADER(if_match);
-    HEADER(if_range);
-    HEADER(if_none_match);
-    HEADER(if_modified_since);
-    HEADER(if_unmodified_since);
-    HEADER(origin);
-    HEADER(range);
-    HEADER(referer);
-    HEADER(user_agent);
+    REQ_HEADER(accept);
+    REQ_HEADER(accept_encoding);
+    REQ_HEADER(accept_language);
+    REQ_HEADER(accept_ranges);
+    REQ_HEADER(cookie);
+    REQ_HEADER(authorization);
+    REQ_HEADER(forwarded);
+    REQ_HEADER(if_match);
+    REQ_HEADER(if_range);
+    REQ_HEADER(if_none_match);
+    REQ_HEADER(if_modified_since);
+    REQ_HEADER(if_unmodified_since);
+    REQ_HEADER(origin);
+    REQ_HEADER(range);
+    REQ_HEADER(referer);
+    REQ_HEADER(user_agent);
   }
 
   inline namespace response {

@@ -366,6 +366,7 @@ int main() {
 
   "predefinde header"_test = [] {
     using namespace chttpp::headers;
+    using namespace chttpp::mime_types;
 
     // 全部はテストせず、基本的or複雑な一部のみチェック（header_baseの動作がバグってないことを確かめるのみ）
     static_assert(std::string_view{content_length} == "content-length");
@@ -373,6 +374,20 @@ int main() {
     static_assert(std::string_view{user_agent} == "user-agent");
     static_assert(std::string_view{etag} == "etag");
     static_assert(std::string_view{access_control_allow_origin} == "access-control-allow-origin");
+
+    using P = std::pair<std::string_view, std::string_view>;
+    {
+      constexpr auto p = content_type = "text/plain";
+
+      static_assert(P{p}.first == "content-type");
+      static_assert(P{p}.second == "text/plain");
+    }
+    {
+      constexpr auto p = content_type = text/plain;
+      
+      static_assert(P{p}.first == "content-type");
+      static_assert(P{p}.second == "text/plain");
+    }
   };
 
   // jsonレスポンスをpicojsonのvalueオブジェクトへ変換する
