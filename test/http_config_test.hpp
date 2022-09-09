@@ -28,7 +28,7 @@ void http_config_test() {
   // 全部のせ
   test_req("https://example.com", {.content_type = application/json,
                                    .headers = { user_agent = "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)",
-                                                content_type = "text/plain",
+                                                content_type = text/plain,
                                                 content_language = "ja-JP" },
                                    .params = {{"param1", "value1"}, {"param2", "value2"}},
                                    .timeout = 1000ms,

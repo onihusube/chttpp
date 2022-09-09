@@ -155,11 +155,13 @@ Headers and other configurations are specified in the last argument.
 #include "mime_types.hpp"
 
 int main() {
-  auto res = chttpp::post("https://example.com", "post data", { .content_type = text/plain 
-                                                                .headers = {
-                                                                  {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}
-                                                                }
-                                                              });
+  auto res = chttpp::post("https://example.com", 
+                          "post data", 
+                          { .content_type = text/plain,
+                            .headers = {
+                              {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}
+                            }
+                          });
 
   if (res) {
     std::cout << res.status_code()   << '\n';
@@ -174,16 +176,73 @@ Multiple headers can be added at once.
 #include "chttpp.hpp"
 
 int main() {
-  auto res = chttpp::post("https://example.com", "post data", { .headers = {
-                                                                  {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
-                                                                  {"Content-Type", "text/plain"},
-                                                                  {"Content-Language", "ja-JP"}
-                                                                }
-                                                              });
+  auto res = chttpp::post("https://example.com", 
+                          "post data",
+                          { .headers = {
+                              {"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+                              {"Content-Type", "text/plain"},
+                              {"Content-Language", "ja-JP"}
+                            }
+                          });
 }
 ```
 
 This uses POST(`chttpp::post`), but the same is true for other methods.
+
+#### Predefined header name object
+
+`http_deaders.hpp` has a predefined header name object. This can be used to avoid header name errors.
+
+```cpp
+#include "chttpp.hpp"
+#include "http_deaders.hpp" // opt-in
+
+int main() {
+  using namespace chttpp::headers;   // using
+
+  auto res = chttpp::post("https://example.com", 
+                          "post data",
+                          // When setting request headers
+                          { .headers = {
+                              { user_agent, "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
+                              { content_type, "text/plain"},
+                              { content_language, "ja-JP"}
+                            }
+                          });
+  
+  auto res_header = res.response_header();
+
+  // When obtaining response headers
+  std::cout << res_header[content_length] << "\n";
+  std::cout << res_header[set_cookie] << "\n";
+}
+```
+
+This makes the header name specified lower case (HTTP/2 and HTTP/3 only allows lowercase header names).
+
+This object name is defined by lowercasing the original header name and replacing the `-` with `_` (not all header names are defined).
+
+In addition, when setting request headers, values can also be specified by `=`.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+#include "http_deaders.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
+
+  auto res = chttpp::post("https://example.com", 
+                          "post data",
+                          { .headers = {
+                              user_agent = "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)",
+                              content_type = text/plain,
+                              content_language = "ja-JP"
+                            }
+                          });
+}
+```
 
 ### List of Configurations
 
