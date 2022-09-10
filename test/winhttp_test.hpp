@@ -174,6 +174,19 @@ void underlying_test() {
       ut::expect(str == L"/path/path/path?param=value");
     }
     {
+      // アンカーは取り除かれる
+      const std::wstring_view url = L"https://example.com/path/path/path?param1=value1#anchor";
+      chttpp::vector_t<std::pair<std::string_view, std::string_view>> query = { {"param2", "value2"}, {"param3", "value3"}, {"param4", "value4"} };
+
+      ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
+
+      ut::expect((::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component) == TRUE) >> ut::fatal);
+
+      auto str = chttpp::underlying::terse::build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, query);
+
+      ut::expect(str == L"/path/path/path?param1=value1&param2=value2&param3=value3&param4=value4");
+    }
+    {
       // クエリが無いならそのまま
       const std::wstring_view url = L"https://example.com/path/path/path";
       chttpp::vector_t<std::pair<std::string_view, std::string_view>> query{};

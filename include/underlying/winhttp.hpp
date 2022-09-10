@@ -98,7 +98,13 @@ namespace chttpp::underlying::terse {
   inline auto build_path_and_query(std::wstring_view path, std::wstring_view org_query, const vector_t<std::pair<std::string_view, std::string_view>>& params) -> wstring_t {
     wstring_t new_path;
 
-    // TODO : アンカーの削除（org_queryはアンカーを含みうる）
+    // アンカー削除
+    // アンカーとはURLの最後にくっついてる#xxxのこと、ページ内ジャンプとかフォームの送信とかで生成される
+    // アンカーはリクエストURLの一部ではなくブラウザ以外で意味がない
+    if (const auto pos = org_query.find_last_of('#'); pos != std::wstring_view::npos) {
+      org_query = org_query.substr(0, pos);
+    }
+
     if (params.empty()) {
       new_path.reserve(path.length() + org_query.length() + 1);
       
