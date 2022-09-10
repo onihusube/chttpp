@@ -787,6 +787,8 @@ int main() {
 
   };
 
+// 一時的に無効化
+#ifndef _MSC_VER
   "http auth"_test = [to_json] {
     using namespace chttpp::mime_types;
     {
@@ -928,6 +930,8 @@ int main() {
       ut::expect(obj.at("data").get<std::string>() == "proxy test");
     }
   };
+
+#endif
 
   underlying_test();
   http_result_test();

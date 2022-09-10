@@ -203,21 +203,21 @@ namespace chttpp::underlying::terse {
     }
 
     // パラメータを設定したパスとクエリの構成
-    //auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
+    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
     if constexpr (is_get) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"GET", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"GET", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_head) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"HEAD", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"HEAD", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_opt) {
       // OPTIONSリクエストの対象を指定する
       LPCWSTR target = (url_component.dwUrlPathLength == 0) ? L"*" : url_component.lpszUrlPath;
       request.reset(::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_trace) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else {
       static_assert([] { return false; }(), "not implemented.");
     }
@@ -372,16 +372,18 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
+    // パラメータを設定したパスとクエリの構成
+    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
+
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
-
     if constexpr (is_post) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"POST", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_put) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_del) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"DELETE", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"DELETE", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else {
       static_assert([] { return false; }(), "not implemented.");
     }
