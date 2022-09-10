@@ -9,6 +9,7 @@
 #include <functional>
 #include <format>
 #include <numeric>
+#include <execution>
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -94,6 +95,62 @@ namespace chttpp::underlying::terse {
     return { std::move(converted_str), res == 0 };
   }
 
+  inline auto build_path_and_query(std::wstring_view path, std::wstring_view org_query, const vector_t<std::pair<std::string_view, std::string_view>>& params) -> wstring_t {
+    wstring_t new_path;
+
+    // TODO : アンカーの削除（org_queryはアンカーを含みうる）
+    if (params.empty()) {
+      new_path.reserve(path.length() + org_query.length() + 1);
+      
+      new_path.append(path);
+      new_path.append(org_query);
+
+      return new_path;
+    }
+
+    const std::size_t param_len = std::accumulate(params.begin(), params.end(), 0ull, [](std::size_t acc, const auto& pair) {
+      return acc + pair.first.length() + 1 + pair.second.length() + 1;
+    });
+
+    new_path.reserve(path.length() + org_query.length() + param_len);
+
+    new_path.append(path);
+
+    // org_queryは?を含んでいる
+    if (org_query.empty()) {
+      new_path.append(L"?");
+    } else {
+      new_path.append(org_query);
+      new_path.append(L"&");
+    }
+
+    string_t buffer{};
+    for (auto& p : params) {
+      // name=value& を追記していく（URLエンコードをどうするか？
+      buffer.append(p.first);
+      buffer.append("=");
+      buffer.append(p.second);
+      buffer.append("&");
+    }
+    // 一番最後の&を取り除く
+    buffer.pop_back();
+
+    // クエリ部分をまとめてwchar_t変換
+    {
+      // クエリ部分の変換後の長さ（\0を含む長さが得られる）
+      const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, buffer.data(), static_cast<int>(buffer.length()), nullptr, 0);
+      // パス部分の今の（元の）長さ
+      const auto path_len = new_path.length();
+      // クエリ部分を追加可能なように拡張
+      new_path.resize(new_path.length() + converted_len);
+      // 変換後文字列を直接書き込み
+      int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, buffer.data(), static_cast<int>(buffer.length()), new_path.data() + path_len, static_cast<int>(converted_len));
+
+      assert(res == converted_len);
+    }
+
+    return new_path;
+  }
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
@@ -129,7 +186,7 @@ namespace chttpp::underlying::terse {
       }
     }
 
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1};
+    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
 
     if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
       return http_result{ ::GetLastError() };
@@ -145,8 +202,11 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
+    // パラメータを設定したパスとクエリの構成
+    //auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
+
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
+    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
     if constexpr (is_get) {
       request.reset(::WinHttpOpenRequest(connect.get(), L"GET", url_component.lpszUrlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
@@ -313,7 +373,7 @@ namespace chttpp::underlying::terse {
     }
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_REFRESH;
+    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
 
     if constexpr (is_post) {
