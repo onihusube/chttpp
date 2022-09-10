@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <unordered_map>
+#include <numeric>
 
 #include <curl/curl.h>
 
@@ -115,12 +116,46 @@ namespace chttpp::detail {
     // 1行分のヘッダの読み取り・変換・格納は共通処理へ
     parse_response_header_oneline(headers, header_str);
   }
+
+  inline auto rebuild_url(CURLU* hurl, const vector_t<std::pair<std::string_view, std::string_view>>& params, string_t& buffer) -> char* {
+    for (const auto& p : params) {
+      // name=value の形にしてから追記
+      buffer.append(p.first);
+      buffer.append("=");
+      buffer.append(p.second);
+
+      // URLエンコード（=を除く）と&付加はしてくれる
+      curl_url_set(hurl, CURLUPART_QUERY, buffer.c_str(), CURLU_APPENDQUERY | CURLU_URLENCODE);
+
+      buffer.clear();
+    }
+
+    // 認証情報が含まれる場合に削除する
+    // basic認証実装時はこの前で設定する必要がある
+    curl_url_set(hurl, CURLUPART_USER, nullptr, 0);
+    curl_url_set(hurl, CURLUPART_PASSWORD, nullptr, 0);
+
+    // アンカーの削除（これはブラウザでのみ意味があり通常リクエストの一部ではない）
+    curl_url_set(hurl, CURLUPART_FRAGMENT, nullptr, 0);
+
+    char *purl = nullptr;
+    // 編集後urlの取得
+    const auto res = curl_url_get(hurl, CURLUPART_URL, &purl, 0);
+    
+    if (res != CURLUcode::CURLUE_OK) {
+      return nullptr;
+    }
+
+    return purl;
+  }
 }
 
 namespace chttpp::underlying::terse {
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
   using unique_slist = std::unique_ptr<curl_slist, decltype([](curl_slist* p) noexcept { curl_slist_free_all(p); })>;
+  using unique_curlurl = std::unique_ptr<CURLU, decltype([](CURLU* p) noexcept { curl_url_cleanup(p); })>;
+  using unique_curlchar = std::unique_ptr<char, decltype([](char* p) noexcept { curl_free(p); })>;
 
   inline void unique_slist_append(unique_slist& plist, const char* value) noexcept {
     auto ptr = plist.release();
@@ -141,7 +176,7 @@ namespace chttpp::underlying::terse {
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  inline auto request_impl(std::string_view url, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get   = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head  = std::same_as<detail::tag::head_t, MethodTag>;
@@ -154,10 +189,62 @@ namespace chttpp::underlying::terse {
       return http_result{CURLE_FAILED_INIT};
     }
 
+    // 使い回し用ローカルバッファ
+    string_t buffer;
+    {
+      const std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
+      buffer.reserve(init_len);
+    }
+
+    // URLの編集（パラメータ追加など）
+    unique_curlurl hurl{curl_url()};
+    if (not hurl) {
+      return http_result{CURLE_FAILED_INIT};
+    }
+    assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
+
+    // 認証情報の取得とセット
+    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+    // configに指定された方を優先する
+    if (not cfg.auth.username.empty()) {
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
+    } else {
+      // 指定されない場合、URLに含まれているものを使用する
+      char* user = nullptr;
+      char* pw = nullptr;
+
+      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+        // あるものとする？
+        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+        // RAII
+        unique_curlchar userptr{user};
+        unique_curlchar pwptr{pw};
+
+        // とりあえずbasic認証
+        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
+        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
+      }
+    }
+
+    // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
+    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
+
+    if (purl == nullptr) {
+      // エラーコードの変換については要検討
+      return http_result{CURLcode::CURLE_URL_MALFORMAT};
+    }
+
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
@@ -171,16 +258,42 @@ namespace chttpp::underlying::terse {
       curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
     }
 
+    // タイムアウトの指定
+    {
+      const long timeout = cfg.timeout.count();
+
+      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
+      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+    }
+
+    // Proxyの指定
+    if (not cfg.proxy.url.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+      
+      if (not cfg.proxy.auth.username.empty()) {
+        // 仮定
+        assert(not cfg.proxy.auth.password.empty());
+
+        // とりあえずbasic認証のみ考慮
+        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
+        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
+      }
+    }
+
     unique_slist req_header_list{};
     {
-  
       constexpr std::string_view separater = ": ";
-      string_t header_buffer{};
-      header_buffer.reserve(100);
 
-      for (const auto &[name, value] : req_headers) {
-        // key: name となるようにコピー
-        header_buffer.append(name);
+      auto& header_buffer = buffer;
+      assert(header_buffer.empty());
+
+      auto& req_headers = cfg.headers;
+
+      for (const auto &[key, value] : req_headers) {
+        // key: value となるようにコピー
+        header_buffer.append(key);
         if (value.empty()) {
           // 中身が空のヘッダを追加する
           header_buffer.append(";");
@@ -215,8 +328,8 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
 
     if (url.starts_with("https")) {
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 0L);
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
     }
 
     const CURLcode curl_status = curl_easy_perform(session.get());
@@ -232,7 +345,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method MethodTag>
-  inline auto request_impl(std::string_view url, std::string_view mime, std::span<const char> req_body, const vector_t<std::pair<std::string_view, std::string_view>>& req_headers, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url, std::span<const char> req_body, detail::request_config&& cfg, MethodTag) -> http_result {
     // メソッド判定
     [[maybe_unused]]
     constexpr bool is_post  = std::same_as<detail::tag::post_t, MethodTag>;
@@ -247,10 +360,62 @@ namespace chttpp::underlying::terse {
       return http_result{CURLE_FAILED_INIT};
     }
 
+    // 使い回し用ローカルバッファ
+    string_t buffer;
+    {
+      const std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
+      buffer.reserve(init_len);
+    }
+
+    // URLの編集（パラメータ追加など）
+    unique_curlurl hurl{curl_url()};
+    if (not hurl) {
+      return http_result{CURLE_FAILED_INIT};
+    }
+    assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
+
+    // 認証情報の取得とセット
+    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+    // configに指定された方を優先する
+    if (not cfg.auth.username.empty()) {
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
+    } else {
+      // 指定されない場合、URLに含まれているものを使用する
+      char* user = nullptr;
+      char* pw = nullptr;
+
+      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+        // あるものとする？
+        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+        // RAII
+        unique_curlchar userptr{user};
+        unique_curlchar pwptr{pw};
+
+        // とりあえずbasic認証
+        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
+        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
+      }
+    }
+
+    // 編集後URLへのポインタ
+    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
+
+    if (purl == nullptr) {
+      // エラーコードの変換については要検討
+      return http_result{CURLcode::CURLE_URL_MALFORMAT};
+    }
+
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, url.data());
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
     curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
@@ -267,15 +432,42 @@ namespace chttpp::underlying::terse {
       static_assert([]{return false;}(), "not implemented.");
     }
 
+    // タイムアウトの指定
+    {
+      const long timeout = cfg.timeout.count();
+
+      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
+      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+    }
+
+    // Proxyの指定
+    if (not cfg.proxy.url.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+
+      if (not cfg.proxy.auth.username.empty()) {
+        // 仮定
+        assert(not cfg.proxy.auth.password.empty());
+
+        // とりあえずbasic認証のみ考慮
+        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
+        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
+      }
+    }
+
     unique_slist req_header_list{};
     {
       constexpr std::string_view separater = ": ";
-      string_t header_buffer{};
-      header_buffer.reserve(100);
 
-      for (const auto &[name, value] : req_headers) {
-        // key: name となるようにコピー
-        header_buffer.append(name);
+      auto &header_buffer = buffer;
+      assert(header_buffer.empty());
+
+      auto& req_headers = cfg.headers;
+
+      for (const auto &[key, value] : req_headers) {
+        // key: value となるようにコピー
+        header_buffer.append(key);
         if (value.empty()) {
           // 中身が空のヘッダを追加するときのcurlの作法
           header_buffer.append(";");
@@ -292,11 +484,10 @@ namespace chttpp::underlying::terse {
       const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type"; }, &std::pair<std::string_view, std::string_view>::first);
 
       if (not set_content_type) {
-        constexpr std::string_view name_str = "Content-Type: ";
-        std::string_view mime_str{mime};
+        constexpr std::string_view content_type = "Content-Type: ";
 
-        header_buffer.append(name_str);
-        header_buffer.append(mime_str);
+        header_buffer.append(content_type);
+        header_buffer.append(cfg.content_type);
 
         unique_slist_append(req_header_list, header_buffer.c_str());
       }
@@ -320,8 +511,8 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
 
     if (url.starts_with("https")) {
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 0L);
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
     }
 
     const CURLcode curl_status = curl_easy_perform(session.get());

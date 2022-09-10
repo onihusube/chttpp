@@ -509,7 +509,7 @@ namespace chttpp::detail::inline config {
   struct request_config_for_get {
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
-    std::chrono::milliseconds timeout{ 10000 };
+    std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
   };
@@ -518,7 +518,7 @@ namespace chttpp::detail::inline config {
     std::string_view content_type = "text/plain";
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
-    std::chrono::milliseconds timeout{ 10000 };
+    std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
   };

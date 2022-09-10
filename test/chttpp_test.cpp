@@ -1,6 +1,7 @@
 //#define CHTTPP_NOT_GLOBAL_INIT_CURL
 #include "chttpp.hpp"
 #include "mime_types.hpp"
+#include "http_headers.hpp"
 
 #include <type_traits>
 #include <cassert>
@@ -338,6 +339,10 @@ int main() {
       ut::expect(mime2 == "audio/ogg"sv);
       constexpr auto mime3 = application/ogg;
       ut::expect(mime3 == "application/ogg"sv);
+      constexpr auto mime4 = application/octet_stream;
+      ut::expect(mime4 == "application/octet-stream"sv);
+      constexpr auto mime5 = application/json;
+      ut::expect(mime5 == "application/json"sv);
     }
     {
       //constexpr auto mime = video/３gpp;
@@ -359,6 +364,32 @@ int main() {
 
   };
 
+  "predefinde header"_test = [] {
+    using namespace chttpp::headers;
+    using namespace chttpp::mime_types;
+
+    // 全部はテストせず、基本的or複雑な一部のみチェック（header_baseの動作がバグってないことを確かめるのみ）
+    static_assert(std::string_view{content_length} == "content-length");
+    static_assert(std::string_view{content_type} == "content-type");
+    static_assert(std::string_view{user_agent} == "user-agent");
+    static_assert(std::string_view{etag} == "etag");
+    static_assert(std::string_view{access_control_allow_origin} == "access-control-allow-origin");
+
+    using P = std::pair<std::string_view, std::string_view>;
+    {
+      constexpr auto p = content_type = "text/plain";
+
+      static_assert(P{p}.first == "content-type");
+      static_assert(P{p}.second == "text/plain");
+    }
+    {
+      constexpr auto p = content_type = text/plain;
+      
+      static_assert(P{p}.first == "content-type");
+      static_assert(P{p}.second == "text/plain");
+    }
+  };
+
   // jsonレスポンスをpicojsonのvalueオブジェクトへ変換する
   const auto to_json = [](std::string_view str_view) -> picojson::value {
     picojson::value result{};
@@ -372,7 +403,7 @@ int main() {
   };
 
 
-  "ters_get"_test = [] {
+  "ters_get"_test = [to_json] {
     {
       auto result = chttpp::get("https://example.com");
 
@@ -413,6 +444,45 @@ int main() {
       const auto &headers = result.response_header();
       ut::expect(headers.size() >= 11_ull);
     }
+    {
+      auto result = chttpp::get("https://httpbin.org/get", { .params = {
+                                                                {"param1", "value1"},
+                                                                {"param2", "value2"},
+                                                                {"param3", "value3"}
+                                                              }
+                                                           });
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      auto res_json = result | to_json;
+
+      // jsonデコードとその結果チェック
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      const auto &obj = res_json.get<picojson::value::object>();
+      ut::expect(obj.contains("args") >> ut::fatal);
+
+      // 送ったパラメータのチェック
+      ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/get?param1=value1&param2=value2&param3=value3");
+    }
+    {
+      auto result = chttpp::get("https://httpbin.org/get?param1=value1", { .params = {
+                                                                              {"param2", "value2"},
+                                                                              {"param3", "value3"}
+                                                                            }
+                                                                         });
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      auto res_json = result | to_json;
+
+      // jsonデコードとその結果チェック
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      const auto &obj = res_json.get<picojson::value::object>();
+      ut::expect(obj.contains("url") >> ut::fatal);
+
+      // 送ったパラメータのチェック
+      ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/get?param1=value1&param2=value2&param3=value3");
+    }
   };
 
   "terse post"_test = [to_json]
@@ -420,57 +490,86 @@ int main() {
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
 
-    auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", {.content_type = text/plain });
-
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect(result.status_code() == 200_us);
-    // std::cout << result.response_body();
-    /*
-    なんかこんな感じのが得られるはず
     {
-      "args": {},
-      "data": "field1=value1&field2=value2",
-      "files": {},
-      "form": {},
-      "headers": {
-        "Accept": "＊/＊",
-        "Accept-Encoding": "deflate, gzip",
-        "Content-Length": "27",
-        "Content-Type": "text/plain",
-        "Host": "httpbin.org",
-        "X-Amzn-Trace-Id": "Root=1-61d7ed99-4ce197f010a8866b75072a7e"
-      },
-      "json": null,
-      "origin": "www.xxx.yyy.zzz",
-      "url": "https://httpbin.org/post"
+      auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .content_type = text/plain });
+
+      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_us);
+      // std::cout << result.response_body();
+      /*
+      なんかこんな感じのが得られるはず
+      {
+        "args": {},
+        "data": "field1=value1&field2=value2",
+        "files": {},
+        "form": {},
+        "headers": {
+          "Accept": "＊/＊",
+          "Accept-Encoding": "deflate, gzip",
+          "Content-Length": "27",
+          "Content-Type": "text/plain",
+          "Host": "httpbin.org",
+          "X-Amzn-Trace-Id": "Root=1-61d7ed99-4ce197f010a8866b75072a7e"
+        },
+        "json": null,
+        "origin": "www.xxx.yyy.zzz",
+        "url": "https://httpbin.org/post"
+      }
+      */
+
+      auto res_json = result | to_json;
+
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+
+      ut::expect(std::ranges::size(obj) == 8_ull);
+      ut::expect(obj.contains("data") >> ut::fatal);
+      ut::expect(obj.contains("url") >> ut::fatal);
+      ut::expect(obj.contains("headers") >> ut::fatal);
+
+      // json要素のチェック
+      ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
+      ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+
+      const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+      //ut::expect(std::ranges::size(headers) == 6_ull);
+      ut::expect(headers.contains("Content-Length"));
+      ut::expect(headers.contains("Content-Type"));
+      ut::expect(headers.contains("User-Agent"));
+
+      ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+      ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
+      ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
     }
-    */
+    {
+      // リクエストボディとURLパラメータの同時送信
+      auto result = chttpp::post("https://httpbin.org/post", "post data", { .content_type = text/plain,
+                                                                            .params = {
+                                                                              {"param1", "value1"},
+                                                                              {"param2", "value2"},
+                                                                              {"param3", "value3"}
+                                                                            }
+                                                                          });
 
-    auto res_json = result | to_json;
+      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_us);
 
-    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+      auto res_json = result | to_json;
 
-    const auto &obj = res_json.get<picojson::value::object>();
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
-    ut::expect(std::ranges::size(obj) == 8_ull);
-    ut::expect(obj.contains("data") >> ut::fatal);
-    ut::expect(obj.contains("url") >> ut::fatal);
-    ut::expect(obj.contains("headers") >> ut::fatal);
+      const auto &obj = res_json.get<picojson::value::object>();
+      ut::expect(obj.contains("data") >> ut::fatal);
+      ut::expect(obj.contains("url") >> ut::fatal);
 
-    // json要素のチェック
-    ut::expect(obj.at("data").get<std::string>() == "field1=value1&field2=value2");
-    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+      // リクエストボディのチェック
+      ut::expect(obj.at("data").get<std::string>() == "post data");
 
-    const auto &headers = obj.at("headers").get<picojson::value::object>();
-
-    //ut::expect(std::ranges::size(headers) == 6_ull);
-    ut::expect(headers.contains("Content-Length"));
-    ut::expect(headers.contains("Content-Type"));
-    ut::expect(headers.contains("User-Agent"));
-
-    ut::expect(headers.at("Content-Length").get<std::string>() == "27");
-    ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain");
-    ut::expect(headers.at("User-Agent").get<std::string>() == chttpp::detail::default_UA);
+      // 送ったパラメータのチェック
+      ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post?param1=value1&param2=value2&param3=value3");
+    }
   };
 
   "terse post header"_test = [to_json] {
@@ -663,14 +762,171 @@ int main() {
   };
 
   "timeout"_test = []{
-    auto res = chttpp::get("https://httpbin.org/delay/5", { .timeout = 100ms });
+    {
+      auto res = chttpp::get("https://httpbin.org/delay/5", { .timeout = 100ms });
 
-    ut::expect(bool(res) == false >> ut::fatal);
+      ut::expect((not res.has_response()) >> ut::fatal);
 
 #ifdef _MSC_VER
-    ut::expect(res.error() == 12002);
+      ut::expect(res.error() == 12002);
+#else
+      ut::expect(res.error() == CURLE_OPERATION_TIMEDOUT);
 #endif
+    }
+    {
+      auto res = chttpp::post("https://httpbin.org/delay/5", "post", { .timeout = 100ms });
 
+      ut::expect((not res.has_response()) >> ut::fatal);
+
+#ifdef _MSC_VER
+      ut::expect(res.error() == 12002);
+#else
+      ut::expect(res.error() == CURLE_OPERATION_TIMEDOUT);
+#endif
+    }
+
+  };
+
+  "http auth"_test = [to_json] {
+    using namespace chttpp::mime_types;
+    {
+      auto res = chttpp::get("https://httpbin.org/basic-auth/authtest_user/authtest_pw", { .auth = {
+                                                                                             .username = "authtest_user",
+                                                                                             .password = "authtest_pw"
+                                                                                           }
+                                                                                         });
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+
+      //std::cout << res.response_body() << "\n";
+/*
+こんなのが帰ってくる
+{
+  "authenticated": true, 
+  "user": "authtest_user"
+}
+*/
+
+      auto res_json = res | to_json;
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+
+      ut::expect(obj.at("authenticated").get<bool>());
+      ut::expect(obj.at("user").get<std::string>() == "authtest_user");
+    }
+    {
+      auto res = chttpp::get("https://authtest_user:authtest_pw@httpbin.org/basic-auth/authtest_user/authtest_pw");
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+    }
+    // POSTリクエスト時の認証はhttpbinだとテストできない（405が帰ってくる）
+    {
+      // 参考 : https://softmoco.com/basics/how-to-make-http-request-basic-auth-json.php
+      auto res = chttpp::post("https://softmoco.com/getItemInfo.php", R"({ "itemCode": "ABC" })",
+                              { .content_type = application/json,
+                                .auth = {
+                                   .username = "APIUser",
+                                   .password = "APIPassword123"
+                                }
+                              });
+
+      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.status_code() == 200_us);
+
+      //std::cout << res.response_body() << "\n";
+/*
+こんなのが帰ってくる
+{
+  "success":true,
+  "message":"ItemCode:ABC found.",
+  "item":{
+     "itemCode":"ABC",
+     "itemName":"ABC Item Name",
+     "unitPrice":150
+  }
+}
+*/
+
+      auto res_json = res | to_json;
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+
+      ut::expect(obj.at("success").get<bool>());
+      ut::expect(obj.at("message").get<std::string>() == "ItemCode:ABC found.");
+    }
+  };
+
+  "proxy"_test = [to_json] {
+    // Free Proxy List の稼働率90%以上のものの中から選択
+    // https://www.freeproxylists.net/ja/?c=&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=90
+    // 公開proxyサイトの比較
+    // https://www.softwaretestinghelp.com/free-http-and-https-proxies/
+
+    // Proxy経由のアクセスには4パターンありえる
+    // 1. httpアクセス  : httpプロクシ  -> 普通のプロクシ
+    // 2. httpsアクセス : httpプロクシ  -> トンネルモード（CONNECTによる中継）
+    // 3. httpアクセス  : httpsプロクシ -> ありえない？
+    // 4. httpsアクセス : httpsプロクシ -> いわゆる中間者攻撃のような状態のプロクシ
+
+    // 4のテストにはmitmproxyのような串が必要だが、そんなもの公開して提供してる人がいるんだろうか？
+
+    // 1. http proxy による httpアクセス
+    {
+      auto result = chttpp::get("http://example.com", { .timeout = 2000ms, .proxy = { .url = "http://165.154.235.178:80" } });
+
+      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_ull);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 11_ull);
+    }
+    // 2. http proxy による httpsアクセス
+    {
+      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .url = "http://140.227.80.237:3180" } });
+
+      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_ull);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 11_ull);
+    }
+
+    // socks proxy による httpアクセス
+    // httpsアクセスはCURLE_PEER_FAILED_VERIFICATIONでうまくいかない・・・
+    {
+      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .url = "socks5://192.111.139.163:19404" } });
+
+      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.response_body().length() >= 648_ull);
+
+      const auto &headers = result.response_header();
+      ut::expect(headers.size() >= 11_ull);
+    }
+    using namespace chttpp::mime_types;
+    using namespace std::string_view_literals;
+    // postのテスト
+    {
+      auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .url = "http://140.227.80.237:3180" } });
+
+      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_us);
+
+      auto res_json = result | to_json;
+
+      ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+      const auto &obj = res_json.get<picojson::value::object>();
+      ut::expect(obj.contains("data") >> ut::fatal);
+      // json要素のチェック
+      ut::expect(obj.at("data").get<std::string>() == "proxy test");
+    }
   };
 
   underlying_test();
