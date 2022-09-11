@@ -787,8 +787,6 @@ int main() {
 
   };
 
-// 一時的に無効化
-#ifndef _MSC_VER
   "http auth"_test = [to_json] {
     using namespace chttpp::mime_types;
     {
@@ -862,6 +860,8 @@ int main() {
     }
   };
 
+// 一時的に無効化
+#ifndef _MSC_VER
   "proxy"_test = [to_json] {
     // Free Proxy List の稼働率90%以上のものの中から選択
     // https://www.freeproxylists.net/ja/?c=&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=90

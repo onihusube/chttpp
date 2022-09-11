@@ -274,6 +274,8 @@ chttpp::post("url", data, {
                           })
 ```
 
+All configs can be omitted, but not reordered.
+
 ### Consumption of request results
 
 The type of the request result is `http_result<E>`, a monadic type (`E` is the error code type of the underlying library).
