@@ -158,6 +158,66 @@ namespace chttpp::underlying::terse {
     return new_path;
   }
 
+  inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_t& auth_buf) {
+    std::wstring_view user, pw;
+
+    // 設定で指定された方を優先
+    if (not auth.username.empty()) {
+      // ユーザー名とパスワードのwchar_t変換
+      {
+        // ユーザー名の長さ
+        const std::size_t user_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), nullptr, 0);
+        // パスワードの長さ
+        const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), nullptr, 0);
+
+        // \0を1つ含むようにリサイズ
+        auth_buf.resize(user_len + pw_len + 1);
+
+        // ユーザー名の変換
+        int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
+        // パスワードの変換
+        int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
+
+        assert(res_user == user_len);
+        assert(res_pw == pw_len);
+        // パスワードは空でもいい、その場合0になる？
+        assert(1ull < pw_len);
+
+        auth_buf[user_len] = L'\0';
+
+        // \0を含まない範囲を参照させる
+        user = std::wstring_view{ auth_buf.data(), user_len };
+        pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
+      }
+    } else if (url_component.dwUserNameLength != 0) {
+      // URLにユーザー名とパスワードが含まれている場合
+      // null終端のためにいったんバッファにコピー
+
+      // \0を1つ含むようにリサイズ
+      auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
+      auth_buf.append(url_component.lpszUserName, url_component.dwUserNameLength);
+      auth_buf.append(1, L'\0');
+      auth_buf.append(url_component.lpszPassword, url_component.dwPasswordLength);
+
+      user = std::wstring_view{ auth_buf.data(), url_component.dwUserNameLength };
+      pw = std::wstring_view{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength };
+    } else {
+      // 認証なし
+      return true;
+    }
+
+    // パスワードは空でもいいらしい
+    assert(not user.empty());
+
+    // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
+    // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
+
+    const bool res = ::WinHttpSetCredentials(req_handle, WINHTTP_AUTH_TARGET_SERVER, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
+
+    return res;
+  }
+
+
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
   auto request_impl(std::wstring_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
@@ -233,65 +293,10 @@ namespace chttpp::underlying::terse {
     }
 
     // 認証情報の取得とセット
-    wstring_t auth_buf{};
-    do {
-      std::wstring_view user, pw;
-
-      // 設定で指定された方を優先
-      if (not cfg.auth.username.empty()) {
-        // ユーザー名とパスワードのwchar_t変換
-        {
-          // ユーザー名の長さ
-          const std::size_t user_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cfg.auth.username.data(), static_cast<int>(cfg.auth.username.length()), nullptr, 0);
-          // パスワードの長さ
-          const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cfg.auth.password.data(), static_cast<int>(cfg.auth.password.length()), nullptr, 0);
-
-          // \0を1つ含むようにリサイズ
-          auth_buf.resize(user_len + pw_len + 1);
-
-          // ユーザー名の変換
-          int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cfg.auth.username.data(), static_cast<int>(cfg.auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
-          // パスワードの変換
-          int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cfg.auth.password.data(), static_cast<int>(cfg.auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
-
-          assert(res_user == user_len);
-          assert(res_pw == pw_len);
-          // パスワードは空でもいい、その場合0になる？
-          assert(1ull < pw_len);
-
-          auth_buf[user_len] = L'\0';
-
-          // \0を含まない範囲を参照させる
-          user = std::wstring_view{ auth_buf.data(), user_len };
-          pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
-        }
-      } else if (url_component.dwUserNameLength != 0) {
-        // URLにユーザー名とパスワードが含まれている場合
-        // null終端のためにいったんバッファにコピー
-
-        // \0を1つ含むようにリサイズ
-        auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
-        auth_buf.append(url_component.lpszUserName, url_component.dwUserNameLength);
-        auth_buf.append(1, L'\0');
-        auth_buf.append(url_component.lpszPassword, url_component.dwPasswordLength);
-
-        user = std::wstring_view{ auth_buf.data(), url_component.dwUserNameLength };
-        pw = std::wstring_view{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength};
-      } else {
-        break;
-      }
-
-      // パスワードは空でもいいらしい
-      assert(not user.empty());
-
-      // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
-      // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
-
-      if (not ::WinHttpSetCredentials(request.get(), WINHTTP_AUTH_TARGET_SERVER, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr)) {
-        return http_result{ ::GetLastError() };
-      }
-    } while (false);
-    
+    wstring_t auth_buf{};    
+    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf)) {
+      return http_result{ ::GetLastError() };
+    }
 
     if constexpr (is_get or is_opt) {
       // レスポンスデータを自動で解凍する
@@ -456,6 +461,12 @@ namespace chttpp::underlying::terse {
     }
 
     if (not request) {
+      return http_result{ ::GetLastError() };
+    }
+
+    // 認証情報の取得とセット
+    wstring_t auth_buf{};
+    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf)) {
       return http_result{ ::GetLastError() };
     }
 
