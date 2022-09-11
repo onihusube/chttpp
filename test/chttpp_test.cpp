@@ -860,8 +860,6 @@ int main() {
     }
   };
 
-// 一時的に無効化
-#ifndef _MSC_VER
   "proxy"_test = [to_json] {
     // Free Proxy List の稼働率90%以上のものの中から選択
     // https://www.freeproxylists.net/ja/?c=&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=90
@@ -904,12 +902,17 @@ int main() {
     {
       auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .url = "socks5://192.111.139.163:19404" } });
 
+#ifndef _MSC_VER
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto& headers = result.response_header();
       ut::expect(headers.size() >= 11_ull);
+#else
+      // Winhttpはそのままだとsocksプロクシに対応できない
+      ut::expect(result.has_response() == false);
+#endif
     }
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
@@ -931,7 +934,6 @@ int main() {
     }
   };
 
-#endif
 
   underlying_test();
   http_result_test();

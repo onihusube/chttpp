@@ -158,7 +158,7 @@ namespace chttpp::underlying::terse {
     return new_path;
   }
 
-  inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_t& auth_buf) {
+  inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_t& auth_buf, int target) {
     std::wstring_view user, pw;
 
     // 設定で指定された方を優先
@@ -212,7 +212,7 @@ namespace chttpp::underlying::terse {
     // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
     // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
 
-    const bool res = ::WinHttpSetCredentials(req_handle, WINHTTP_AUTH_TARGET_SERVER, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
+    const bool res = ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
 
     return res;
   }
@@ -227,7 +227,43 @@ namespace chttpp::underlying::terse {
     constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
     constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
 
-    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0)};
+    // Proxyの設定（アドレスのみ）と初期化
+    wstring_t prxy_buf{};
+
+    hinet session = [&]() -> hinet {
+      if (cfg.proxy.url.empty()) {
+        return hinet{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
+      } else {
+        // WinHttpSetOptionでプロクシを設定する場合は、ここの第二引数をWINHTTP_ACCESS_TYPE_NO_PROXYにしておかなければならない
+        // なぜここで設定しないのか？ -> ここでのプロクシはおそらく普通のhttpプロクシしか対応してない（ドキュメントではCERN type proxies for HTTPのみと指定されている
+        //                          -> httpsをトンネルするタイプのプロクシを使用できないと思われる
+        hinet hsession{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
+
+        // Proxyの設定（アドレスのみ）
+        auto [converted_url, failed] = char_to_wchar(cfg.proxy.url);
+        prxy_buf = std::move(converted_url);
+
+        if (failed) {
+          return nullptr;
+        }
+
+        ::WINHTTP_PROXY_INFO prxy_info{
+          .dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+          .lpszProxy = prxy_buf.data(),
+          .lpszProxyBypass = const_cast<wchar_t*>(L"<local>") // ??
+        };
+
+        // プロクシアドレスの設定
+        if (not ::WinHttpSetOption(hsession.get(), WINHTTP_OPTION_PROXY, &prxy_info, sizeof(::WINHTTP_PROXY_INFO))) {
+          return nullptr;
+        }
+
+        // 暗黙ムーブ
+        return hsession;
+      }
+
+      //std::unreachable();
+    }();
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -293,9 +329,23 @@ namespace chttpp::underlying::terse {
     }
 
     // 認証情報の取得とセット
-    wstring_t auth_buf{};    
-    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf)) {
+    wstring_t auth_buf{};
+    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
+    }
+
+    // プロクシ認証情報の設定
+    wstring_t prxy_auth_buf{};
+    if (not cfg.proxy.url.empty()) {
+      // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
+      ::URL_COMPONENTS prxy_url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1 };
+      if (not ::WinHttpCrackUrl(prxy_buf.data(), static_cast<DWORD>(prxy_buf.length()), 0, &prxy_url_component)) {
+        return http_result{ ::GetLastError() };
+      }
+
+      if (not common_authentication_setting(request.get(), cfg.proxy.auth, prxy_url_component, prxy_auth_buf, WINHTTP_AUTH_TARGET_PROXY)) {
+        return http_result{ ::GetLastError() };
+      }
     }
 
     if constexpr (is_get or is_opt) {
@@ -403,7 +453,7 @@ namespace chttpp::underlying::terse {
     constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
     constexpr bool is_del = std::same_as<Tag, detail::tag::delete_t>;
 
-    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_NAME, 0) };
+    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -466,7 +516,7 @@ namespace chttpp::underlying::terse {
 
     // 認証情報の取得とセット
     wstring_t auth_buf{};
-    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf)) {
+    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
     }
 
