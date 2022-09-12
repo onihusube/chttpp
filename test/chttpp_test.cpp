@@ -876,7 +876,7 @@ int main() {
 
     // 1. http proxy による httpアクセス
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 2000ms, .proxy = { .url = "http://165.154.235.178:80" } });
+      auto result = chttpp::get("http://example.com", { .timeout = 2000ms, .proxy = { .address = "165.154.235.178:80" } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_i);
@@ -887,7 +887,7 @@ int main() {
     }
     // 2. http proxy による httpsアクセス
     {
-      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .url = "http://140.227.80.237:3180" } });
+      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .protocol = chttpp::cfg::proxy_protocol::http } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_i);
@@ -900,7 +900,7 @@ int main() {
     // socks proxy による httpアクセス
     // httpsアクセスはCURLE_PEER_FAILED_VERIFICATIONでうまくいかない・・・
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .url = "socks5://192.111.139.163:19404" } });
+      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .protocol = chttpp::cfg::proxy_protocol::socks5 } });
 
 #ifndef _MSC_VER
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
@@ -918,7 +918,7 @@ int main() {
     using namespace std::string_view_literals;
     // postのテスト
     {
-      auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .url = "http://140.227.80.237:3180" } });
+      auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .address = "140.227.80.237:3180" } });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_us);

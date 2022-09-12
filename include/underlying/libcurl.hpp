@@ -267,8 +267,8 @@ namespace chttpp::underlying::terse {
     }
 
     // Proxyの指定
-    if (not cfg.proxy.url.empty()) {
-      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+    if (not cfg.proxy.address.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.address.data()));
       
       if (not cfg.proxy.auth.username.empty()) {
         // 仮定
@@ -441,8 +441,8 @@ namespace chttpp::underlying::terse {
     }
 
     // Proxyの指定
-    if (not cfg.proxy.url.empty()) {
-      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.url.data()));
+    if (not cfg.proxy.address.empty()) {
+      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.address.data()));
 
       if (not cfg.proxy.auth.username.empty()) {
         // 仮定

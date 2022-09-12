@@ -490,10 +490,21 @@ namespace chttpp::detail {
 
 namespace chttpp::detail::inline config {
 
-  enum class authentication_scheme {
-    basic,
-    //digest,
-  };
+  inline namespace enums {
+    enum class authentication_scheme {
+      basic,
+      //digest,
+    };
+
+    enum class proxy_protocol {
+      http,
+      https,
+      socks4,
+      socks4a,
+      socks5,
+      socks5h,
+    };
+  }
 
   struct authorization_config {
     std::string_view username = "";
@@ -502,7 +513,8 @@ namespace chttpp::detail::inline config {
   };
 
   struct proxy_config {
-    std::string_view url = "";
+    std::string_view address = "";
+    proxy_protocol protocol = proxy_protocol::http;
     authorization_config auth{};
   };
 
@@ -522,6 +534,10 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
     proxy_config proxy{};
   };
+}
+
+namespace chttpp {
+  namespace cfg = chttpp::detail::config::enums;
 }
 
 namespace chttpp::detail::tag {
