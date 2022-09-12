@@ -265,7 +265,8 @@ chttpp::post("url", data, {
                             },
                             // Proxy settings
                             .proxy = {
-                              .url = "proxy address",
+                              .url = "address:port",
+                              .protocol = chttpp::cfg::proxy_protocol::http
                               .auth = {
                                 .username = "proxy username",
                                 .password = "proxy password"
