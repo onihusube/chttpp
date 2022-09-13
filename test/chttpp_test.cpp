@@ -934,6 +934,28 @@ int main() {
     }
   };
 
+  "http version"_test = []
+  {
+    using namespace chttpp::headers;
+    {
+      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http11 });
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      const auto ver = result.response_header(HTTP_ver);
+      ut::expect(ver == "HTTP/1.1 200 OK") << ver;
+    }
+    {
+      using namespace chttpp::mime_types;
+
+      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http11 });
+
+      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_us);
+      const auto ver = result.response_header(HTTP_ver);
+      ut::expect(ver == "HTTP/1.1 200 OK") << ver;
+    }
+  };
 
   underlying_test();
   http_result_test();

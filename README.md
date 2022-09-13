@@ -253,7 +253,9 @@ chttpp::post("url", data, {
                             // Content-Type header value (Only requests with body)
                             .content_type = ..., 
                             // Request headers
-                            .headers = { {"header name", "value"}, {..., ...}, ... }, 
+                            .headers = { {"header name", "value"}, {..., ...}, ... },
+                            // HTTP ver (HTTP1.1 or HTTP/2)
+                            .version = chttpp::get::http_version::http2,
                             // URL parameter
                             .params = { {"param name", "param value"}, {..., ...}, ... },
                             // timeout in milliseconds (Use udl in chrono)

@@ -491,6 +491,12 @@ namespace chttpp::detail {
 namespace chttpp::detail::inline config {
 
   inline namespace enums {
+    enum class http_version {
+      http11,
+      http2,
+      //http3
+    };
+
     enum class authentication_scheme {
       basic,
       //digest,
@@ -520,6 +526,7 @@ namespace chttpp::detail::inline config {
 
   struct request_config_for_get {
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    http_version version = http_version::http2;
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
@@ -529,6 +536,7 @@ namespace chttpp::detail::inline config {
   struct request_config {
     std::string_view content_type = "text/plain";
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    http_version version = http_version::http2;
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};

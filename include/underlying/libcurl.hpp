@@ -285,7 +285,22 @@ namespace chttpp::underlying::terse {
     header_t headers;
 
     curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
-    curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    {
+      // HTTP versionの指定
+      using enum cfg::http_version;
+      switch (cfg.version)
+      {
+      case http11:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        break;
+      case http2:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+        break;
+      default:
+        assert(false);
+        break;
+      }
+    }
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
@@ -445,7 +460,22 @@ namespace chttpp::underlying::terse {
     header_t headers;
 
     curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
-    curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+    {
+      // HTTP versionの指定
+      using enum cfg::http_version;
+      switch (cfg.version)
+      {
+      case http11:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        break;
+      case http2:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+        break;
+      default:
+        assert(false);
+        break;
+      }
+    }
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
