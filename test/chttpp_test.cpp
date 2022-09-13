@@ -876,10 +876,10 @@ int main() {
 
     // 1. http proxy による httpアクセス
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 2000ms, .proxy = { .address = "165.154.235.178:80" } });
+      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "165.154.235.178:80" } });
 
-      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.has_response() >> ut::fatal) << " : " << result.error_message();
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -887,10 +887,10 @@ int main() {
     }
     // 2. http proxy による httpsアクセス
     {
-      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .protocol = chttpp::cfg::proxy_protocol::http } });
+      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg::proxy_scheme::http } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -900,11 +900,11 @@ int main() {
     // socks proxy による httpアクセス
     // httpsアクセスはCURLE_PEER_FAILED_VERIFICATIONでうまくいかない・・・
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .protocol = chttpp::cfg::proxy_protocol::socks5 } });
+      auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg::proxy_scheme::socks5 } });
 
 #ifndef _MSC_VER
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto& headers = result.response_header();
@@ -921,7 +921,7 @@ int main() {
       auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .address = "140.227.80.237:3180" } });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us);
+      ut::expect(result.status_code() == 200_us) << result.status_code();
 
       auto res_json = result | to_json;
 

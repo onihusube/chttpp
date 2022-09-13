@@ -496,7 +496,7 @@ namespace chttpp::detail::inline config {
       //digest,
     };
 
-    enum class proxy_protocol {
+    enum class proxy_scheme {
       http,
       https,
       socks4,
@@ -514,7 +514,7 @@ namespace chttpp::detail::inline config {
 
   struct proxy_config {
     std::string_view address = "";
-    proxy_protocol protocol = proxy_protocol::http;
+    proxy_scheme scheme = proxy_scheme::http;
     authorization_config auth{};
   };
 

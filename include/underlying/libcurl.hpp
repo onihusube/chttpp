@@ -174,6 +174,46 @@ namespace chttpp::underlying::terse {
   }
 
 
+  inline void common_proxy_setting(CURL* session, const detail::proxy_config& prxy_cfg) {
+    // アドレス（address:port）設定
+    curl_easy_setopt(session, CURLOPT_PROXY, const_cast<char*>(prxy_cfg.address.data()));
+    // スキーム（プロトコル）設定
+    const ::curl_proxytype scheme = [&] {
+      using enum cfg::proxy_scheme;
+      switch (prxy_cfg.scheme)
+      {
+      case http:
+        return curl_proxytype::CURLPROXY_HTTP;
+      case https:
+        return curl_proxytype::CURLPROXY_HTTPS;
+      case socks4:
+        return curl_proxytype::CURLPROXY_SOCKS4;
+      case socks4a:
+        return curl_proxytype::CURLPROXY_SOCKS4A;
+      case socks5:
+        return curl_proxytype::CURLPROXY_SOCKS5;
+      case socks5h:
+        return curl_proxytype::CURLPROXY_SOCKS5_HOSTNAME;
+      default:
+        assert(false);
+        return curl_proxytype::CURLPROXY_HTTP;
+      }
+    }();
+    curl_easy_setopt(session, CURLOPT_PROXYTYPE, scheme);
+
+    if (not prxy_cfg.auth.username.empty()) {
+      // 仮定
+      assert(not prxy_cfg.auth.password.empty());
+
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session, CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
+
+      curl_easy_setopt(session, CURLOPT_PROXYUSERNAME, const_cast<char*>(prxy_cfg.auth.username.data()));
+      curl_easy_setopt(session, CURLOPT_PROXYPASSWORD, const_cast<char*>(prxy_cfg.auth.password.data()));
+    }
+  }
+
+
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
   inline auto request_impl(std::string_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
@@ -268,18 +308,7 @@ namespace chttpp::underlying::terse {
 
     // Proxyの指定
     if (not cfg.proxy.address.empty()) {
-      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.address.data()));
-      
-      if (not cfg.proxy.auth.username.empty()) {
-        // 仮定
-        assert(not cfg.proxy.auth.password.empty());
-
-        // とりあえずbasic認証のみ考慮
-        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
-
-        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
-        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
-      }
+      common_proxy_setting(session.get(), cfg.proxy);
     }
 
     unique_slist req_header_list{};
@@ -442,18 +471,7 @@ namespace chttpp::underlying::terse {
 
     // Proxyの指定
     if (not cfg.proxy.address.empty()) {
-      curl_easy_setopt(session.get(), CURLOPT_PROXY, const_cast<char*>(cfg.proxy.address.data()));
-
-      if (not cfg.proxy.auth.username.empty()) {
-        // 仮定
-        assert(not cfg.proxy.auth.password.empty());
-
-        // とりあえずbasic認証のみ考慮
-        curl_easy_setopt(session.get(), CURLOPT_PROXYAUTH, CURLAUTH_BASIC);
-
-        curl_easy_setopt(session.get(), CURLOPT_PROXYUSERNAME, const_cast<char*>(cfg.proxy.auth.username.data()));
-        curl_easy_setopt(session.get(), CURLOPT_PROXYPASSWORD, const_cast<char*>(cfg.proxy.auth.password.data()));
-      }
+      common_proxy_setting(session.get(), cfg.proxy);
     }
 
     unique_slist req_header_list{};
