@@ -21,7 +21,7 @@ void http_config_test() {
   test_req("https://example.com", {.headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"},
                                                {content_type, "text/plain"},
                                                {content_language, "ja-JP"}}});
-  test_req("https://example.com", {.version = chttpp::cfg::http_version::http11});
+  test_req("https://example.com", {.version = chttpp::cfg::http_version::http1_1});
   test_req("https://example.com", {.params = {{"param1", "value1"}, {"param2", "value2"}}, .timeout = 1000ms});
   test_req("https://example.com", {.params = {{"param1", "value1"}, {"param2", "value2"}}, .auth = {.username = "test", .password = "pw"}});
   test_req("https://example.com", {.content_type = application/json, .proxy = {.address = "localhost:7777", .auth = {.username = "prxy_user", .password = "prxy_pw"}}});

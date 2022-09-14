@@ -938,7 +938,7 @@ int main() {
   {
     using namespace chttpp::headers;
     {
-      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http11 });
+      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code() == 200_i);
@@ -948,7 +948,7 @@ int main() {
     {
       using namespace chttpp::mime_types;
 
-      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http11 });
+      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_us);

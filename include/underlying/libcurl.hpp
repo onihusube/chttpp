@@ -290,11 +290,11 @@ namespace chttpp::underlying::terse {
       using enum cfg::http_version;
       switch (cfg.version)
       {
-      case http11:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-        break;
       case http2:
         curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+        break;
+      case http1_1:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         break;
       default:
         assert(false);
@@ -465,11 +465,11 @@ namespace chttpp::underlying::terse {
       using enum cfg::http_version;
       switch (cfg.version)
       {
-      case http11:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-        break;
       case http2:
         curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+        break;
+      case http1_1:
+        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         break;
       default:
         assert(false);

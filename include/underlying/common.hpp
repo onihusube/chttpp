@@ -492,7 +492,7 @@ namespace chttpp::detail::inline config {
 
   inline namespace enums {
     enum class http_version {
-      http11,
+      http1_1,
       http2,
       //http3
     };
