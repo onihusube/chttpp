@@ -529,10 +529,10 @@ namespace chttpp::underlying::terse {
         header_buffer.clear();
       }
 
-      const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type"; }, &std::pair<std::string_view, std::string_view>::first);
+      const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
       if (not set_content_type) {
-        constexpr std::string_view content_type = "Content-Type: ";
+        constexpr std::string_view content_type = "content-type: ";
 
         header_buffer.append(content_type);
         header_buffer.append(cfg.content_type);
