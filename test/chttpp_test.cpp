@@ -36,6 +36,8 @@ namespace chttpp_test {
     auto as_byte_seq() const -> std::span<const char> {
       return { reinterpret_cast<const char*>(this->v1.data()), sizeof(int) * this->v1.size()};
     }
+
+    static constexpr std::string_view ContentType = "video/mp4";
   };
 
   struct wrap_vec2 {
@@ -46,7 +48,10 @@ namespace chttpp_test {
       return {reinterpret_cast<const char *>(self.v2.data()), sizeof(int) * self.v2.size()};
     }
   };
-};
+}
+
+template <>
+inline constexpr std::string_view chttpp::traits::query_content_type<chttpp_test::wrap_vec2> = "application/x-www-form-urlencoded";
 
 int main() {
   using namespace boost::ut::literals;
@@ -291,6 +296,59 @@ int main() {
       chttpp::cpo::load_byte_seq(fl, sp);
 
       ut::expect(std::ranges::equal(fl, vec));
+    }
+  };
+
+  "fetch_content_type"_test = []
+  {
+    {
+      std::string str = "test";
+
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      std::wstring str = L"test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      std::string_view str = "test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      ut::expect(chttpp::traits::query_content_type<decltype("test")> == "text/plain") << chttpp::traits::query_content_type<decltype("test")>;
+    }
+    {
+      const char *str = "test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      ut::expect(chttpp::traits::query_content_type<decltype(vec)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(vec)>;
+    }
+    {
+      double d = 3.14;
+
+      ut::expect(chttpp::traits::query_content_type<decltype(d)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(d)>;
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span sp1 = vec;
+
+      ut::expect(chttpp::traits::query_content_type<decltype(sp1)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(sp1)>;
+    }
+    {
+      using chttpp_test::wrap_vec1;
+
+      wrap_vec1 wv{.v1 = {1, 2, 3, 4}, .v2 = {}};
+
+      ut::expect(chttpp::traits::query_content_type<decltype(wv)> == "video/mp4") << chttpp::traits::query_content_type<decltype(wv)>;
+    }
+    {
+      using chttpp_test::wrap_vec2;
+
+      wrap_vec2 wv{.v1 = {}, .v2 = {1, 2, 3, 4}};
+
+      ut::expect(chttpp::traits::query_content_type<decltype(wv)> == "application/x-www-form-urlencoded") << chttpp::traits::query_content_type<decltype(wv)>;
     }
   };
 

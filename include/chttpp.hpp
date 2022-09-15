@@ -268,6 +268,39 @@ namespace chttpp {
   }
 }
 
+namespace chttpp::inline traits {
+
+  /**
+   * @brief content-typeヘッダの値を自動取得する
+   * @tparam T リクエストボディに指定する型
+   * @details リクエストボディの型から取得する、カスタマイズのためには部分特殊化するか、静的メンバ変数ContentTypeを定義する
+   */
+  template<typename T>
+  inline constexpr std::string_view query_content_type = []{ static_assert([]{return false;}(), "Primary template is ill-formed"); }();
+
+  /**
+   * @brief デフォルト
+   */
+  template<byte_serializable T>
+  inline constexpr std::string_view query_content_type<T> = "application/octet_stream";
+
+  /**
+   * @brief 文字列
+   */
+  template<byte_serializable T>
+    requires detail::string_like<T>
+  inline constexpr std::string_view query_content_type<T> = "text/plain";
+
+  /**
+   * @brief カスタマイズポイント2、静的メンバ変数ContentTypeから取得
+   */
+  template<byte_serializable T>
+    requires requires {
+      { T::ContentType } -> std::convertible_to<std::string_view>;
+    }
+  inline constexpr std::string_view query_content_type<T> = T::ContentType;
+}
+
 namespace chttpp::detail {
 
   template<typename MethodTag>
@@ -286,13 +319,13 @@ namespace chttpp::detail {
   struct terse_req_impl<MethodTag> {
 
     template<byte_serializable Body>
-    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = { .content_type = query_content_type<std::remove_cvref_t<Body>> }) const -> http_result {
       // ここ、request_bodyの完全転送の必要あるかな・・・？
       return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
 
     template<byte_serializable Body>
-    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = { .content_type = query_content_type<std::remove_cvref_t<Body>> }) const -> http_result {
       return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
   };
