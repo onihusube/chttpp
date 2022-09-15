@@ -529,6 +529,7 @@ namespace chttpp::underlying::terse {
         header_buffer.clear();
       }
 
+      // Content-Type指定はヘッダ設定を優先する
       const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
       if (not set_content_type) {

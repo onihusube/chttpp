@@ -102,7 +102,7 @@ int main() {
   chttpp::post("https://example.com", sp, { .content_type = application/octet_stream });    // ok
 
   std::string json = R"({ id : 1, json : "test json"})";
-  chttpp::post("https://example.com", str, { .content_type = application/json });           // ok
+  chttpp::post("https://example.com", json, { .content_type = application/json });          // ok
 
   std::string_view strview = json;
   chttpp::post("https://example.com", strview, { .content_type = application/json });       // ok
@@ -143,6 +143,59 @@ public:
 int main() {
   Test dat = ...;
   chttpp::post("https://example.com", dat, { .content_type = application/octet_stream }); // ok
+}
+```
+
+#### Automatic setting of `Content-Type`
+
+`content_type` can be omitted, in which case it is automatically obtained from the request body type.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+int main() {
+  std::vector vec = {1, 2, 3, 4};
+  chttpp::post("https://example.com", vec);   // content_type = application/octet_stream
+
+  std::span<const int> sp = vec;
+  chttpp::post("https://example.com", sp);    // content_type = application/octet_stream
+
+  std::string json = R"({ id : 1, json : "test json"})";
+  chttpp::post("https://example.com", str);   // content_type = text/plain
+}
+```
+
+Default mimetype may be of little use.
+
+This is done by the `chttpp::query_content_type` variable template, which can also be customized to specify the appropriate mimetype.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+class Test {
+  std::vector<char> m_bytes;
+
+public:
+
+  ...
+
+  friend auto as_byte_seq(const Test& self) -> std::span<const char> {
+    return self.m_bytes;
+  }
+
+  // Static member variable `ContentType`
+  static constexpr std::string_view ContentType = video/mp4;
+};
+
+// or partial specilization (one or the other!)
+template<>
+inline cosntexpr std::string_view chttpp::query_content_type<Test> = video/mp4;
+
+int main() {
+  Test dat = ...;
+  chttpp::post("https://example.com", dat); // content_type = video/mp4
 }
 ```
 

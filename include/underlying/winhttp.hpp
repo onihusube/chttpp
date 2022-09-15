@@ -532,9 +532,13 @@ namespace chttpp::underlying::terse {
 
     // Content-Typeヘッダの追加
     // ヘッダ指定されたものを優先する
-    std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
-    if (i == headers.end()) {
-      headers.emplace_back("Content-Type", cfg.content_type);
+    {
+      std::input_or_output_iterator auto i = std::ranges::find_if(headers, 
+                                                                  [](const auto& header) { return header == "Content-Type" or header == "content-type"; },
+                                                                  &std::pair<std::string_view, std::string_view>::first);
+      if (i == headers.end()) {
+        headers.emplace_back("Content-Type", cfg.content_type);
+      }
     }
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）

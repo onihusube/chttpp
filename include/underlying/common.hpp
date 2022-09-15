@@ -534,7 +534,7 @@ namespace chttpp::detail::inline config {
   };
 
   struct request_config {
-    std::string_view content_type = "text/plain";
+    std::string_view content_type = "";
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     http_version version = http_version::http2;
     vector_t<std::pair<std::string_view, std::string_view>> params{};

@@ -319,13 +319,21 @@ namespace chttpp::detail {
   struct terse_req_impl<MethodTag> {
 
     template<byte_serializable Body>
-    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = { .content_type = query_content_type<std::remove_cvref_t<Body>> }) const -> http_result {
+    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+      // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
+      if (cfg.content_type.empty()) {
+        cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
+      }
       // ここ、request_bodyの完全転送の必要あるかな・・・？
       return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
 
     template<byte_serializable Body>
-    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = { .content_type = query_content_type<std::remove_cvref_t<Body>> }) const -> http_result {
+    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+      // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
+      if (cfg.content_type.empty()) {
+        cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
+      }
       return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
     }
   };
