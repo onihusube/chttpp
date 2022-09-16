@@ -322,6 +322,9 @@ int main() {
       ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
     }
     {
+      ut::expect(chttpp::traits::query_content_type<const char*> == "text/plain") << chttpp::traits::query_content_type<const char*>;
+    }
+    {
       std::vector vec = {1, 2, 3, 4};
       ut::expect(chttpp::traits::query_content_type<decltype(vec)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(vec)>;
     }

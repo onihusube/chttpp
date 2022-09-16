@@ -355,7 +355,7 @@ int main() {
                   std::cout << std::string_view(body.data(), body.size()) << '\n';
 
                   // headers is std::unordered_map<std::string, std::string>
-                  for (auto [name, value] : headers) {
+                  for (const auto& [name, value] : headers) {
                     std::cout << name << " : " << value << '\n';
                   }
 
@@ -377,7 +377,7 @@ Errors in the underlying library can be handled by `.catch_error()`.
 int main() {
   using namespace chttpp::mime_types;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/mp4 })
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain })
               .then([](auto&& http_res) { 
                 // Not called on errors in the underlying library.
               })

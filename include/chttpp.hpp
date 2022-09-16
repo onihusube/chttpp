@@ -42,6 +42,12 @@ namespace chttpp {
     template<character T, std::size_t N>
     inline constexpr bool is_character_literal_v<const T(&)[N]> = true;
 
+    template<character T, std::size_t N>
+    inline constexpr bool is_character_literal_v<const T[N]> = true;
+
+    template<character T, std::size_t N>
+    inline constexpr bool is_character_literal_v<T[N]> = true;
+
     template<typename T>
     inline constexpr bool is_specialization_of_string_view_v = false;
 
