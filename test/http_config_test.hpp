@@ -31,8 +31,8 @@ void http_config_test() {
                                    .headers = { user_agent = "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)",
                                                 content_type = text/plain,
                                                 content_language = "ja-JP" },
-                                   .version = chttpp::cfg::http_version::http2,
                                    .params = {{"param1", "value1"}, {"param2", "value2"}},
+                                   .version = chttpp::cfg::http_version::http2,
                                    .timeout = 1000ms,
                                    .auth = {.username = "test", .password = "pw"},
                                    .proxy = {.address = "localhost:7777", .scheme = chttpp::cfg::proxy_scheme::http, .auth = {.username = "prxy_user", .password = "prxy_pw"}}

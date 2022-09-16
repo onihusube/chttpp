@@ -307,10 +307,10 @@ chttpp::post("url", data, {
                             .content_type = ..., 
                             // Request headers
                             .headers = { {"header name", "value"}, {..., ...}, ... },
-                            // HTTP ver (HTTP1.1 or HTTP/2)
-                            .version = chttpp::cfg::http_version::http2,
                             // URL parameter
                             .params = { {"param name", "param value"}, {..., ...}, ... },
+                            // HTTP ver (HTTP1.1 or HTTP/2)
+                            .version = chttpp::cfg::http_version::http2,
                             // timeout in milliseconds (Use udl in chrono)
                             .timeout = 1000ms,
                             // HTTP Authentication settings (Basic authentication)

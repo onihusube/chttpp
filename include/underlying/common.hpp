@@ -185,7 +185,7 @@ namespace chttpp::detail {
     template<std::invocable<T&&> F>
     auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> try {
       using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
-      
+
       return std::visit(overloaded{
           [&](T &&value) {
             return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
@@ -488,8 +488,8 @@ namespace chttpp::detail::inline config {
 
   struct request_config_for_get {
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    http_version version = http_version::http2;
     vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
@@ -498,8 +498,8 @@ namespace chttpp::detail::inline config {
   struct request_config {
     std::string_view content_type = "";
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    http_version version = http_version::http2;
     vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
