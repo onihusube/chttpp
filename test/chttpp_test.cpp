@@ -36,6 +36,8 @@ namespace chttpp_test {
     auto as_byte_seq() const -> std::span<const char> {
       return { reinterpret_cast<const char*>(this->v1.data()), sizeof(int) * this->v1.size()};
     }
+
+    static constexpr std::string_view ContentType = "video/mp4";
   };
 
   struct wrap_vec2 {
@@ -46,7 +48,10 @@ namespace chttpp_test {
       return {reinterpret_cast<const char *>(self.v2.data()), sizeof(int) * self.v2.size()};
     }
   };
-};
+}
+
+template <>
+inline constexpr std::string_view chttpp::traits::query_content_type<chttpp_test::wrap_vec2> = "application/x-www-form-urlencoded";
 
 int main() {
   using namespace boost::ut::literals;
@@ -291,6 +296,62 @@ int main() {
       chttpp::cpo::load_byte_seq(fl, sp);
 
       ut::expect(std::ranges::equal(fl, vec));
+    }
+  };
+
+  "fetch_content_type"_test = []
+  {
+    {
+      std::string str = "test";
+
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      std::wstring str = L"test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      std::string_view str = "test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      ut::expect(chttpp::traits::query_content_type<decltype("test")> == "text/plain") << chttpp::traits::query_content_type<decltype("test")>;
+    }
+    {
+      const char *str = "test";
+      ut::expect(chttpp::traits::query_content_type<decltype(str)> == "text/plain") << chttpp::traits::query_content_type<decltype(str)>;
+    }
+    {
+      ut::expect(chttpp::traits::query_content_type<const char*> == "text/plain") << chttpp::traits::query_content_type<const char*>;
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      ut::expect(chttpp::traits::query_content_type<decltype(vec)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(vec)>;
+    }
+    {
+      double d = 3.14;
+
+      ut::expect(chttpp::traits::query_content_type<decltype(d)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(d)>;
+    }
+    {
+      std::vector vec = {1, 2, 3, 4};
+      std::span sp1 = vec;
+
+      ut::expect(chttpp::traits::query_content_type<decltype(sp1)> == "application/octet_stream") << chttpp::traits::query_content_type<decltype(sp1)>;
+    }
+    {
+      using chttpp_test::wrap_vec1;
+
+      wrap_vec1 wv{.v1 = {1, 2, 3, 4}, .v2 = {}};
+
+      ut::expect(chttpp::traits::query_content_type<decltype(wv)> == "video/mp4") << chttpp::traits::query_content_type<decltype(wv)>;
+    }
+    {
+      using chttpp_test::wrap_vec2;
+
+      wrap_vec2 wv{.v1 = {}, .v2 = {1, 2, 3, 4}};
+
+      ut::expect(chttpp::traits::query_content_type<decltype(wv)> == "application/x-www-form-urlencoded") << chttpp::traits::query_content_type<decltype(wv)>;
     }
   };
 
@@ -876,10 +937,10 @@ int main() {
 
     // 1. http proxy による httpアクセス
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 2000ms, .proxy = { .address = "165.154.235.178:80" } });
+      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "165.154.235.178:80" } });
 
-      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.has_response() >> ut::fatal) << " : " << result.error_message();
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -887,10 +948,10 @@ int main() {
     }
     // 2. http proxy による httpsアクセス
     {
-      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .protocol = chttpp::cfg::proxy_protocol::http } });
+      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg::proxy_scheme::http } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -900,10 +961,10 @@ int main() {
     // socks proxy による httpアクセス
     // httpsアクセスはCURLE_PEER_FAILED_VERIFICATIONでうまくいかない・・・
     {
-      auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .protocol = chttpp::cfg::proxy_protocol::socks5 } });
+      auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg::proxy_scheme::socks5 } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200_i) << result.status_code();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto& headers = result.response_header();
@@ -916,7 +977,7 @@ int main() {
       auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .address = "140.227.80.237:3180" } });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us);
+      ut::expect(result.status_code() == 200_us) << result.status_code();
 
       auto res_json = result | to_json;
 
@@ -929,6 +990,28 @@ int main() {
     }
   };
 
+  "http version"_test = []
+  {
+    using namespace chttpp::headers;
+    {
+      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http1_1 });
+
+      ut::expect(bool(result) >> ut::fatal);
+      ut::expect(result.status_code() == 200_i);
+      const auto ver = result.response_header(HTTP_ver);
+      ut::expect(ver == "HTTP/1.1 200 OK") << ver;
+    }
+    {
+      using namespace chttpp::mime_types;
+
+      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http1_1 });
+
+      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(result.status_code() == 200_us);
+      const auto ver = result.response_header(HTTP_ver);
+      ut::expect(ver == "HTTP/1.1 200 OK") << ver;
+    }
+  };
 
   underlying_test();
   http_result_test();

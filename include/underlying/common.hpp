@@ -170,26 +170,36 @@ namespace chttpp::detail {
     std::variant<T, E, std::exception_ptr> outcome;
     using V = std::variant<T, E, std::exception_ptr>;
 
+    then_impl(T&& value)
+      : outcome{std::in_place_index<0>, std::forward<T>(value)}
+    {}
+
+    then_impl(E&& err)
+      : outcome{std::in_place_index<1>, std::forward<E>(err)}
+    {}
+
+    then_impl(std::exception_ptr&& exptr)
+      : outcome{std::in_place_index<2>, std::move(exptr)}
+    {}
+
     template<std::invocable<T&&> F>
     auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> try {
       using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
-      using V2 = typename ret_then_t::V;
 
       return std::visit(overloaded{
           [&](T &&value) {
-            return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
+            return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
           },
           [](E &&err) {
-            return ret_then_t{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+            return ret_then_t{ std::move(err)};
           },
           [](std::exception_ptr &&exptr) {
-            return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+            return ret_then_t{ std::move(exptr)};
           }}, std::move(this->outcome));
     } catch (...) {
       using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
-      using V2 = typename ret_then_t::V;
 
-      return ret_then_t{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
+      return ret_then_t{std::current_exception()};
     }
 
     template<std::invocable<E&&> F>
@@ -197,31 +207,29 @@ namespace chttpp::detail {
     auto catch_error(F&& func) && noexcept -> then_impl<T, void_to_monostate<std::invoke_result_t<F, E&&>>> try {
       using ret_t = std::invoke_result_t<F, E&&>;
       using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
-      using V2 = typename ret_then_t::V;
 
       return std::visit(overloaded{
           [&](E &&err) {
             if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
               std::invoke(std::forward<F>(func), std::move(err));
-              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::monostate{}}};
+              return ret_then_t{ std::monostate{}};
             } else {
-              return ret_then_t{.outcome = V2{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
+              return ret_then_t{ std::invoke(std::forward<F>(func), std::move(err))};
             }
           },
           [](T&& v) {
-            return ret_then_t{ .outcome = V2{std::in_place_index<0>, std::move(v)} };
+            return ret_then_t{ std::move(v)};
           },
           [](std::exception_ptr &&exptr) {
-            return ret_then_t{ .outcome = V2{std::in_place_index<2>, std::move(exptr)} };
+            return ret_then_t{ std::move(exptr)};
           }
         }, std::move(this->outcome));
 
     } catch (...) {
       using ret_t = std::invoke_result_t<F, E&&>;
       using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
-      using V2 = typename ret_then_t::V;
 
-      return ret_then_t{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
+      return ret_then_t{ std::current_exception()};
     }
 
     template<std::invocable<const std::exception_ptr&> F>
@@ -229,24 +237,20 @@ namespace chttpp::detail {
         {std::invoke(std::forward<F>(f), exptr)} -> std::same_as<void>;
       }
     auto catch_exception(F&& func) && noexcept -> then_impl try {
-      using V2 = typename then_impl::V;
-
       return std::visit(overloaded{
           [](T&& v) {
-            return then_impl{ .outcome = V2{std::in_place_index<0>, std::move(v)} };
+            return then_impl{std::move(v)};
           },
           [](E &&err) {
-            return then_impl{ .outcome = V2{std::in_place_index<1>, std::move(err)} };
+            return then_impl{std::move(err)};
           },
           [&](std::exception_ptr &&exptr) {
             std::invoke(std::forward<F>(func), exptr);
-            return then_impl{.outcome = V2{std::in_place_index<2>, std::move(exptr)}};
+            return then_impl{std::move(exptr)};
           }
         }, std::move(this->outcome));
     } catch (...) {
-      using V2 = typename then_impl::V;
-
-      return then_impl{.outcome = V2{std::in_place_index<2>, std::current_exception()}};
+      return then_impl{std::current_exception()};
     }
   };
 }
@@ -382,76 +386,34 @@ namespace chttpp::detail {
     }
 
     template<std::invocable<http_response&&> F>
-    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err> try {
-      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err>;
-      using V = typename ret_then_t::V;
+    auto then(F&& func) && noexcept {
+      using ret_then_t = then_impl<http_response, Err>;
 
+      // これnoexceptか・・・？
       return std::visit(overloaded{
-          [&](http_response&& value) {
-            return ret_then_t{ .outcome = V{std::in_place_index<0>, std::invoke(std::forward<F>(func), std::move(value))} };
-          },
-          [](Err &&err) {
-            return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
-          },
-          [](std::exception_ptr &&exptr) {
-            return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
-          }}, std::move(this->m_either));
-    } catch (...) {
-      using V = typename then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response&&>>, Err>::V;
-      return then_impl<std::remove_cvref_t<std::invoke_result_t<F, http_response &&>>, Err>{ .outcome = V{ std::in_place_index<2>, std::current_exception() } };
+        [](http_response&& value) {
+          return ret_then_t{ std::move(value)} ;
+        },
+        [](Err&& err) {
+          return ret_then_t{ std::move(err)} ;
+        },
+      }, std::move(this->m_either)).then(std::forward<F>(func));
     }
-    
+
     template<std::invocable<Err&&> F>
-    auto catch_error(F&& func) && noexcept -> then_impl<http_response, void_to_monostate<std::invoke_result_t<F, Err&&>>> try {
-      using ret_t = std::invoke_result_t<F, Err&&>;
-      using ret_then_t = then_impl<http_response, void_to_monostate<ret_t>>;
-      using V = typename ret_then_t::V;
+    auto catch_error(F&& func) && noexcept {
+      using ret_then_t = then_impl<http_response, Err>;
 
+      // これnoexceptか・・・？
       return std::visit(overloaded{
-          [&](Err&& err) {
-            if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
-              std::invoke(std::forward<F>(func), std::move(err));
-              return ret_then_t{.outcome = V{std::in_place_index<1>, std::monostate{}}};
-            } else {
-              return ret_then_t{.outcome = V{std::in_place_index<1>, std::invoke(std::forward<F>(func), std::move(err))}};
-            }
-          },
-          [&](std::exception_ptr&& exptr) {
-            return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
-          },
-          [](http_response&& httpres) {
-            return ret_then_t{ .outcome = V{std::in_place_index<0>, std::move(httpres)} };
-          }}, std::move(this->m_either));
-    } catch (...) {
-      using ret_t = std::invoke_result_t<F, Err&&>;
-      using ret_then_t = then_impl<http_response, void_to_monostate<ret_t>>;
-      using V = typename ret_then_t::V;
-
-      return ret_then_t{.outcome = V{std::in_place_index<2>, std::current_exception()}};
+        [](http_response&& value) {
+          return ret_then_t{ std::move(value)};
+        },
+        [](Err&& err) {
+          return ret_then_t{ std::move(err)};
+        },
+      }, std::move(this->m_either)).catch_error(std::forward<F>(func));
     }
-
-    /*template<std::invocable<const std::exception_ptr&> F>
-    auto catch_exception(F&& func) && noexcept -> then_impl<http_response, Err> try {
-      using ret_then_t = then_impl<http_response, Err>;
-      using V = typename ret_then_t::V;
-
-      return std::visit(overloaded{
-          [&](Err&& err) {
-            return ret_then_t{ .outcome = V{std::in_place_index<1>, std::move(err)} };
-          },
-          [&](std::exception_ptr&& exptr) {
-            std::invoke(std::forward<F>(func), exptr);
-            return ret_then_t{ .outcome = V{std::in_place_index<2>, std::move(exptr)} };
-          },
-          [](http_response&& httpres) {
-            return ret_then_t{ .outcome = V{std::in_place_index<0>, std::move(httpres)} };
-          }}, std::move(this->m_either));
-    } catch (...) {
-      using ret_then_t = then_impl<http_response, Err>;
-      using V = typename ret_then_t::V;
-
-      return ret_then_t{.outcome = V{std::in_place_index<2>, std::current_exception()}};
-    }*/
 
     /**
      * @brief 結果を文字列として任意の継続処理を実行する
@@ -491,12 +453,18 @@ namespace chttpp::detail {
 namespace chttpp::detail::inline config {
 
   inline namespace enums {
+    enum class http_version {
+      http1_1,
+      http2,
+      //http3
+    };
+
     enum class authentication_scheme {
       basic,
       //digest,
     };
 
-    enum class proxy_protocol {
+    enum class proxy_scheme {
       http,
       https,
       socks4,
@@ -514,22 +482,24 @@ namespace chttpp::detail::inline config {
 
   struct proxy_config {
     std::string_view address = "";
-    proxy_protocol protocol = proxy_protocol::http;
+    proxy_scheme scheme = proxy_scheme::http;
     authorization_config auth{};
   };
 
   struct request_config_for_get {
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
   };
 
   struct request_config {
-    std::string_view content_type = "text/plain";
+    std::string_view content_type = "";
     vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};

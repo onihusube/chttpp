@@ -128,6 +128,8 @@ namespace chttpp::headers {
     HEADER(set_cookie);
     HEADER(vary);
     HEADER(www_authenticate);
+
+    inline constexpr chttpp::headers::detail::header_base HTTP_ver{"HTTP Ver"};
   }
 
 #undef REQ_HEADER
