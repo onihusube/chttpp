@@ -95,6 +95,70 @@ namespace chttpp::underlying::terse {
     return { std::move(converted_str), res == 0 };
   }
 
+  inline auto init_winhttp_session(const detail::proxy_config& proxy_conf) -> hinet {
+    if (proxy_conf.address.empty()) {
+      return hinet{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
+    } else {
+      // WinHttpSetOptionでプロクシを設定する場合は、ここの第二引数をWINHTTP_ACCESS_TYPE_NO_PROXYにしておかなければならない
+      // なぜここで設定しないのか？ -> ここでのプロクシはおそらく普通のhttpプロクシしか対応してない（ドキュメントではCERN type proxies for HTTPのみと指定されている
+      //                          -> httpsをトンネルするタイプのプロクシを使用できないと思われる（未確認）
+      hinet hsession{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
+
+      wstring_t prxy_buf{};
+      // WINHTTP_PROXY_INFO構造体に格納するためのプロクシアドレスの構成
+      {
+        using enum cfg::proxy_protocol;
+
+        switch (proxy_conf.protocol) {
+        case http:
+          prxy_buf.append(L"http://");
+          break;
+        case https:
+          prxy_buf.append(L"https://");
+          break;
+        case socks4: [[fallthrough]];
+        case socks4a: [[fallthrough]];
+        case socks5: [[fallthrough]];
+        case socks5h:
+          // socksプロクシの場合はsocks=address:port、とする
+          // どうやらバージョン指定はいらないらしい（未確認
+          prxy_buf.append(L"socks=");
+          break;
+        default: std::unreachable();
+        };
+
+        // アドレス:ポートの部分の変換後長さ。\0を含まない
+        const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, proxy_conf.address.data(), static_cast<int>(proxy_conf.address.length()), nullptr, 0);
+
+        const auto scheme_len = prxy_buf.length();
+
+        // 構成後の長さに合うようにリサイズ
+        prxy_buf.resize(scheme_len + converted_len);
+
+        // スキーム文字列の後ろに追記
+        int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, proxy_conf.address.data(), static_cast<int>(proxy_conf.address.length()), prxy_buf.data() + scheme_len, static_cast<int>(converted_len));
+
+        assert(res == converted_len);
+      }
+
+      ::WINHTTP_PROXY_INFO prxy_info{
+        .dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+        .lpszProxy = prxy_buf.data(),
+        .lpszProxyBypass = const_cast<wchar_t*>(L"<local>") // これ大丈夫なんすか？？
+      };
+
+      // プロクシアドレスの設定
+      if (not ::WinHttpSetOption(hsession.get(), WINHTTP_OPTION_PROXY, &prxy_info, sizeof(::WINHTTP_PROXY_INFO))) {
+        return nullptr;
+      }
+
+      // 暗黙ムーブ
+      return hsession;
+    }
+
+    //std::unreachable();
+  }
+
   inline auto build_path_and_query(std::wstring_view path, std::wstring_view org_query, const vector_t<std::pair<std::string_view, std::string_view>>& params) -> wstring_t {
     wstring_t new_path;
 
@@ -216,54 +280,30 @@ namespace chttpp::underlying::terse {
 
     return res;
   }
+  
+  inline bool proxy_authntication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_t& buf) {
+    // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
+    // とりあえずnot suport
+    /*
+    ::URL_COMPONENTS prxy_url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1 };
+    if (not ::WinHttpCrackUrl(prxy_buf.data(), static_cast<DWORD>(prxy_buf.length()), 0, &prxy_url_component)) {
+      return http_result{ ::GetLastError() };
+    }*/
+
+    return common_authentication_setting(req_handle, auth, {}, buf, WINHTTP_AUTH_TARGET_PROXY);
+  }
 
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  auto request_impl(std::wstring_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url, detail::request_config_for_get&& conf, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
     constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
     constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
 
-    // Proxyの設定（アドレスのみ）と初期化
-    wstring_t prxy_buf{};
-
-    hinet session = [&]() -> hinet {
-      if (cfg.proxy.url.empty()) {
-        return hinet{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
-      } else {
-        // WinHttpSetOptionでプロクシを設定する場合は、ここの第二引数をWINHTTP_ACCESS_TYPE_NO_PROXYにしておかなければならない
-        // なぜここで設定しないのか？ -> ここでのプロクシはおそらく普通のhttpプロクシしか対応してない（ドキュメントではCERN type proxies for HTTPのみと指定されている
-        //                          -> httpsをトンネルするタイプのプロクシを使用できないと思われる
-        hinet hsession{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_NO_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
-
-        // Proxyの設定（アドレスのみ）
-        auto [converted_url, failed] = char_to_wchar(cfg.proxy.url);
-        prxy_buf = std::move(converted_url);
-
-        if (failed) {
-          return nullptr;
-        }
-
-        ::WINHTTP_PROXY_INFO prxy_info{
-          .dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY,
-          .lpszProxy = prxy_buf.data(),
-          .lpszProxyBypass = const_cast<wchar_t*>(L"<local>") // ??
-        };
-
-        // プロクシアドレスの設定
-        if (not ::WinHttpSetOption(hsession.get(), WINHTTP_OPTION_PROXY, &prxy_info, sizeof(::WINHTTP_PROXY_INFO))) {
-          return nullptr;
-        }
-
-        // 暗黙ムーブ
-        return hsession;
-      }
-
-      //std::unreachable();
-    }();
+    hinet session = init_winhttp_session(conf.proxy);
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -271,7 +311,7 @@ namespace chttpp::underlying::terse {
 
     // タイムアウトの設定
     {
-      const int timeout = static_cast<int>(cfg.timeout.count());
+      const int timeout = static_cast<int>(conf.timeout.count());
 
       // セッション全体ではなく各点でのタイムアウト指定になる
       // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
@@ -305,7 +345,7 @@ namespace chttpp::underlying::terse {
     }
 
     // パラメータを設定したパスとクエリの構成
-    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
+    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, conf.params);
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
@@ -330,20 +370,14 @@ namespace chttpp::underlying::terse {
 
     // 認証情報の取得とセット
     wstring_t auth_buf{};
-    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
+    if (not common_authentication_setting(request.get(), conf.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
     }
 
     // プロクシ認証情報の設定
     wstring_t prxy_auth_buf{};
-    if (not cfg.proxy.url.empty()) {
-      // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
-      ::URL_COMPONENTS prxy_url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1 };
-      if (not ::WinHttpCrackUrl(prxy_buf.data(), static_cast<DWORD>(prxy_buf.length()), 0, &prxy_url_component)) {
-        return http_result{ ::GetLastError() };
-      }
-
-      if (not common_authentication_setting(request.get(), cfg.proxy.auth, prxy_url_component, prxy_auth_buf, WINHTTP_AUTH_TARGET_PROXY)) {
+    if (not conf.proxy.address.empty()) {
+      if (not proxy_authntication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -358,7 +392,7 @@ namespace chttpp::underlying::terse {
 
     LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
     std::wstring send_header_buf{};
-    auto& headers = cfg.headers;
+    auto& headers = conf.headers;
 
     if (not headers.empty()) {
 
@@ -447,13 +481,13 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method Tag>
-  auto request_impl(std::wstring_view url, std::span<const char> req_dody, detail::request_config&& cfg, Tag) -> http_result {
+  auto request_impl(std::wstring_view url, std::span<const char> req_dody, detail::request_config&& conf, Tag) -> http_result {
 
     constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
     constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
     constexpr bool is_del = std::same_as<Tag, detail::tag::delete_t>;
 
-    hinet session{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
+    hinet session = init_winhttp_session(conf.proxy);
 
     if (not session) {
       return http_result{ ::GetLastError() };
@@ -461,7 +495,7 @@ namespace chttpp::underlying::terse {
 
     // タイムアウトの設定
     {
-      const int timeout = static_cast<int>(cfg.timeout.count());
+      const int timeout = static_cast<int>(conf.timeout.count());
 
       // セッション全体ではなく各点でのタイムアウト指定になる
       // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
@@ -495,7 +529,7 @@ namespace chttpp::underlying::terse {
     }
 
     // パラメータを設定したパスとクエリの構成
-    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, cfg.params);
+    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, conf.params);
 
     // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
@@ -516,8 +550,16 @@ namespace chttpp::underlying::terse {
 
     // 認証情報の取得とセット
     wstring_t auth_buf{};
-    if (not common_authentication_setting(request.get(), cfg.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
+    if (not common_authentication_setting(request.get(), conf.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
+    }
+
+    // プロクシ認証情報の設定
+    wstring_t prxy_auth_buf{};
+    if (not conf.proxy.address.empty()) {
+      if (not proxy_authntication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
+        return http_result{ ::GetLastError() };
+      }
     }
 
     {
@@ -528,13 +570,13 @@ namespace chttpp::underlying::terse {
       }
     }
 
-    auto& headers = cfg.headers;
+    auto& headers = conf.headers;
 
     // Content-Typeヘッダの追加
     // ヘッダ指定されたものを優先する
     std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
     if (i == headers.end()) {
-      headers.emplace_back("Content-Type", cfg.content_type);
+      headers.emplace_back("Content-Type", conf.content_type);
     }
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）

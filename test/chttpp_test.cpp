@@ -902,17 +902,12 @@ int main() {
     {
       auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .protocol = chttpp::cfg::proxy_protocol::socks5 } });
 
-#ifndef _MSC_VER
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code() == 200_i);
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto& headers = result.response_header();
       ut::expect(headers.size() >= 11_ull);
-#else
-      // Winhttpはそのままだとsocksプロクシに対応できない
-      ut::expect(result.has_response() == false);
-#endif
     }
     using namespace chttpp::mime_types;
     using namespace std::string_view_literals;
