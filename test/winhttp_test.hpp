@@ -83,7 +83,7 @@ void underlying_test() {
 
       {
         const auto httpver = result.response_header("HTTP Ver");
-        ut::expect(httpver == "HTTP/1.1 200 "sv); // なぜか後ろにスペースが入る
+        ut::expect(httpver == "HTTP/1.1 200 OK"sv) << httpver;
       }
       {
         const auto clen = result.response_header("content-type");
@@ -125,7 +125,7 @@ void underlying_test() {
 
       {
         const auto httpver = result.response_header("HTTP Ver");
-        ut::expect(httpver == "HTTP/1.1 200 "sv); // なぜか後ろにスペースが入る
+        ut::expect(httpver == "HTTP/1.1 200 OK"sv) << httpver;
       }
       {
         const auto clen = result.response_header("content-type");

@@ -293,7 +293,7 @@ namespace chttpp::underlying::terse {
     return common_authentication_setting(req_handle, auth, {}, buf, WINHTTP_AUTH_TARGET_PROXY);
   }
 
-  inline bool http_ver_setting(HINTERNET session_handle, cfg::http_version ver) {
+  inline auto http_ver_setting(HINTERNET session_handle, cfg::http_version ver) -> std::pair<bool, std::wstring_view> {
     using enum cfg::http_version;
 
     switch (ver)
@@ -302,22 +302,21 @@ namespace chttpp::underlying::terse {
       {
         // HTTP2を常に使用する
         DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-        return ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt));
+        return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt)), L"HTTP/2"};
       }
 #ifdef WINHTTP_PROTOCOL_FLAG_HTTP3
     case http3 :
       {
         // HTTP2を常に使用する
         DWORD http3_opt = WINHTTP_PROTOCOL_FLAG_HTTP3;
-        return ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt));
+        return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt)), L"HTTP/3" };
       }
 #endif // WINHTTP_PROTOCOL_FLAG_HTTP3
     case http1_1:
       // 1.1はデフォルト
-      return true;
+      return {true, L"HTTP/1.1"};
     default:
       std::unreachable();
-      return false;
     }
   }
 
@@ -348,7 +347,8 @@ namespace chttpp::underlying::terse {
     }
 
     // HTTPバージョンの設定
-    if (not http_ver_setting(session.get(), conf.version)) {
+    const auto [versioning_completed, http_ver_str] = http_ver_setting(session.get(), conf.version);
+    if (not versioning_completed) {
       return http_result{ ::GetLastError() };
     }
 
@@ -375,15 +375,15 @@ namespace chttpp::underlying::terse {
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
     if constexpr (is_get) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"GET", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"GET", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_head) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"HEAD", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"HEAD", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_opt) {
       // OPTIONSリクエストの対象を指定する
       LPCWSTR target = (url_component.dwUrlPathLength == 0) ? L"*" : url_component.lpszUrlPath;
-      request.reset(::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_trace) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else {
       static_assert([] { return false; }(), "not implemented.");
     }
@@ -529,7 +529,8 @@ namespace chttpp::underlying::terse {
     }
 
     // HTTPバージョンの設定
-    if (not http_ver_setting(session.get(), conf.version)) {
+    const auto [versioning_completed, http_ver_str] = http_ver_setting(session.get(), conf.version);
+    if (not versioning_completed) {
       return http_result{ ::GetLastError() };
     }
 
@@ -556,11 +557,11 @@ namespace chttpp::underlying::terse {
     const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
     hinet request{};
     if constexpr (is_post) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_put) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_del) {
-      request.reset(::WinHttpOpenRequest(connect.get(), L"DELETE", path_and_query.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
+      request.reset(::WinHttpOpenRequest(connect.get(), L"DELETE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else {
       static_assert([] { return false; }(), "not implemented.");
     }
