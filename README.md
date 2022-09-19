@@ -299,8 +299,6 @@ int main() {
 
 ### List of Configurations
 
-※Some are still under development.
-
 ```cpp
 chttpp::post("url", data, {
                             // Content-Type header value (Only requests with body)
