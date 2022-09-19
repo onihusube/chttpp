@@ -24,24 +24,28 @@ namespace chttpp {
 
   template<>
   inline auto http_result::error_to_string() const -> string_t {
-    // pmr::stringに対応するために内部実装を直接使用
-    // 詳細 : https://github.com/microsoft/STL/blob/main/stl/inc/system_error
-    //return std::system_category().message(HRESULT_FROM_WIN32(std::get<1>(this->m_either)));
-    const auto winec_to_hresult = HRESULT_FROM_WIN32(std::get<1>(this->m_either));
-    const std::_System_error_message message(static_cast<unsigned long>(winec_to_hresult));
-    if (message._Length == 0) {
-      static constexpr char unknown_err[] = "unknown error";
-      constexpr size_t unknown_err_length = sizeof(unknown_err) - 1;
-      return string_t(unknown_err, unknown_err_length);
-      /*
-      return string_t{"unknown error"};
-      のようにしないのは、文字列とその長さの計算を確実にコンパイル時に終わらせるためだと思われる
-      文字列リテラルを与えると長さの計算が実行時になりうる
-      また、この長さならSSOも期待できるため、std::stringの構築を固定長コピーに落とせる
-      */
+    constexpr ::std::size_t max_len = 192;
+    string_t str{};
+    str.resize(max_len);
+
+    const DWORD err = this->error();
+
+    if (const ::std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, str.data(), max_len, nullptr); len == 0) {
+      // 失敗（対応する文字列表現が見つからないとき）
+      const auto [_, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} (see https://learn.microsoft.com/en-us/windows/win32/winhttp/error-messages).", err);
+
+      assert(msglen <= max_len);
+      // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
+      str.resize(msglen);
     } else {
-      return string_t(message._Str, message._Length);
+      // lenは終端\0を含まない長さ
+      assert(len <= max_len);
+      // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
+      str.resize(len);
     }
+
+    // 暗黙ムーブ
+    return str;
   }
 
 }
