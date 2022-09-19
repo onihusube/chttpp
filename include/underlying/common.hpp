@@ -456,7 +456,9 @@ namespace chttpp::detail::inline config {
     enum class http_version {
       http1_1,
       http2,
-      //http3
+#if defined(WINHTTP_PROTOCOL_FLAG_HTTP3) || defined(CURL_HTTP_VERSION_3)
+      http3,
+#endif
     };
 
     enum class authentication_scheme {

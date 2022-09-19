@@ -107,9 +107,9 @@ namespace chttpp::underlying::terse {
       wstring_t prxy_buf{};
       // WINHTTP_PROXY_INFO構造体に格納するためのプロクシアドレスの構成
       {
-        using enum cfg::proxy_protocol;
+        using enum cfg::proxy_scheme;
 
-        switch (proxy_conf.protocol) {
+        switch (proxy_conf.scheme) {
         case http:
           prxy_buf.append(L"http://");
           break;
@@ -293,6 +293,33 @@ namespace chttpp::underlying::terse {
     return common_authentication_setting(req_handle, auth, {}, buf, WINHTTP_AUTH_TARGET_PROXY);
   }
 
+  inline bool http_ver_setting(HINTERNET session_handle, cfg::http_version ver) {
+    using enum cfg::http_version;
+
+    switch (ver)
+    {
+    case http2: 
+      {
+        // HTTP2を常に使用する
+        DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
+        return ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt));
+      }
+#ifdef WINHTTP_PROTOCOL_FLAG_HTTP3
+    case http3 :
+      {
+        // HTTP2を常に使用する
+        DWORD http3_opt = WINHTTP_PROTOCOL_FLAG_HTTP3;
+        return ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt));
+      }
+#endif // WINHTTP_PROTOCOL_FLAG_HTTP3
+    case http1_1:
+      // 1.1はデフォルト
+      return true;
+    default:
+      std::unreachable();
+      return false;
+    }
+  }
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
@@ -320,12 +347,9 @@ namespace chttpp::underlying::terse {
       }
     }
 
-    {
-      // HTTP2を常に使用する
-      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-        return http_result{ ::GetLastError() };
-      }
+    // HTTPバージョンの設定
+    if (not http_ver_setting(session.get(), conf.version)) {
+      return http_result{ ::GetLastError() };
     }
 
     ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
@@ -504,12 +528,9 @@ namespace chttpp::underlying::terse {
       }
     }
 
-    {
-      // HTTP2を常に使用する
-      DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-      if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-        return http_result{ ::GetLastError() };
-      }
+    // HTTPバージョンの設定
+    if (not http_ver_setting(session.get(), conf.version)) {
+      return http_result{ ::GetLastError() };
     }
 
     ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1 };
@@ -574,13 +595,9 @@ namespace chttpp::underlying::terse {
 
     // Content-Typeヘッダの追加
     // ヘッダ指定されたものを優先する
-    {
-      std::input_or_output_iterator auto i = std::ranges::find_if(headers, 
-                                                                  [](const auto& header) { return header == "Content-Type" or header == "content-type"; },
-                                                                  &std::pair<std::string_view, std::string_view>::first);
-      if (i == headers.end()) {
-        headers.emplace_back("Content-Type", cfg.content_type);
-      }
+    std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
+    if (i == headers.end()) {
+      headers.emplace_back("Content-Type", conf.content_type);
     }
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
