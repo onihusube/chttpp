@@ -159,6 +159,11 @@ namespace chttpp::detail {
 	template<typename... Fs>
 	overloaded(Fs&&...) -> overloaded<Fs...>;
 
+  template <typename F, typename R, typename... Args>
+  concept invocable_r =
+    std::invocable<F, Args...> and
+    std::same_as<R, std::invoke_result_t<F, Args...>>;
+
   /**
    * @brief `T`がvoidならmonostateに変換する
    */
@@ -166,6 +171,7 @@ namespace chttpp::detail {
   using void_to_monostate = std::conditional_t<std::same_as<std::remove_cvref_t<T>, void>, std::monostate, std::remove_cvref_t<T>>;
 
   template<typename T, typename E>
+    requires (not std::same_as<T, E>)
   struct then_impl {
     std::variant<T, E, std::exception_ptr> outcome;
     using V = std::variant<T, E, std::exception_ptr>;
@@ -183,23 +189,44 @@ namespace chttpp::detail {
     {}
 
     template<std::invocable<T&&> F>
-    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> try {
+      requires (not std::same_as<void, std::invoke_result_t<F, T&&>>)
+    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> {
       using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
 
-      return std::visit(overloaded{
-          [&](T &&value) {
-            return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
+      try {
+        return std::visit(overloaded{
+            [&](T &&value) {
+              return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
+            },
+            [](E &&err) {
+              return ret_then_t{ std::move(err)};
+            },
+            [](std::exception_ptr &&exptr) {
+              return ret_then_t{ std::move(exptr)};
+            }}, std::move(this->outcome));
+      } catch (...) {
+        return ret_then_t{std::current_exception()};
+      }
+    }
+
+    /**
+     * @brief 戻り値型がvoidの時のオーバーロード、現在のオブジェクトをそのままリターン
+     */
+    template <invocable_r<void, const T&> F>
+    auto then(F&& func) && noexcept try {      
+      // 左辺値で呼び出し
+      std::visit(overloaded{
+          [&](T& value) {
+            std::invoke(std::forward<F>(func), value);
           },
-          [](E &&err) {
-            return ret_then_t{ std::move(err)};
-          },
-          [](std::exception_ptr &&exptr) {
-            return ret_then_t{ std::move(exptr)};
-          }}, std::move(this->outcome));
+          [](auto&&) noexcept {}
+        }, this->outcome);
+
+      return *this;
     } catch (...) {
-      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
-
-      return ret_then_t{std::current_exception()};
+      // 実質、Tを保持している場合にのみここに来るはず
+      this->outcome.template emplace<2>(std::current_exception());
+      return *this;
     }
 
     template<std::invocable<E&&> F>
@@ -268,8 +295,17 @@ namespace chttpp::detail {
     std::same_as<CharT, char16_t> or
     std::same_as<CharT, char32_t>;
 
+  struct enable_move_only {
+    enable_move_only() = default;
 
-  struct http_response {
+    enable_move_only(const enable_move_only &) = delete;
+    enable_move_only& operator=(const enable_move_only&) = delete;
+
+    enable_move_only(enable_move_only&&) = default;
+    enable_move_only& operator=(enable_move_only&&) = default;
+  };
+
+  struct http_response/* : enable_move_only*/ {
     vector_t<char> body;
     header_t headers;
     std::uint16_t status_code;

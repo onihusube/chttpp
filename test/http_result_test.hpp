@@ -48,6 +48,22 @@ void http_result_test() {
       });
   };
 
+  "then void"_test = []
+  {
+    hr_ok().then([](const http_response& hr) {
+        ut::expect(hr.body.empty());
+      }).then([](http_response&& hr) {
+        ut::expect(hr.headers.size() == 1_ull);
+        return hr;
+      }).then([](const http_response& hr) {
+        ut::expect(hr.status_code == 200_i);
+      }).catch_error([](const auto&) {
+        ut::expect(false);
+      }).catch_exception([](const auto&) {
+        ut::expect(false);
+      });
+  };
+
   "catch_exception"_test = []
   {
     int count = 0;
