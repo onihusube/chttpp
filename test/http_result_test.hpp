@@ -8,7 +8,7 @@
 #include <boost/ut.hpp>
 
 auto hr_ok() -> chttpp::http_result {
-  return chttpp::http_result{chttpp::detail::http_response{.body{}, .headers = { {"host", "http_result test"} }, .status_code = 200}};
+  return chttpp::http_result{chttpp::detail::http_response{{}, {}, { {"host", "http_result test"} }, 200}};
 }
 
 auto hr_err() -> chttpp::http_result {
@@ -29,6 +29,9 @@ void http_result_test() {
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
   using chttpp::detail::http_response;
+
+  static_assert(not std::copyable<http_response>);
+  static_assert(std::movable<http_response>);
 
   "then"_test = []
   {
@@ -116,8 +119,11 @@ void http_result_test() {
       ++count;
     }).catch_exception([](const auto&) {
       ut::expect(false);
-    }).then([](auto&& hr) {
+    }).then([](http_response&& hr) {
+    //}).then([](auto&& hr) {
+    // ↑こう書くと何してもreturnでコピーされるのは何故？？？
       ut::expect(false);
+      
       return hr;
     });
 

@@ -390,7 +390,7 @@ namespace chttpp::underlying::terse {
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
-    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
+    return http_result{chttpp::detail::http_response{{}, std::move(body), std::move(headers), static_cast<std::uint16_t>(http_status)}};
   }
 
   template<detail::tag::has_reqbody_method MethodTag>
@@ -578,7 +578,7 @@ namespace chttpp::underlying::terse {
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
-    return http_result{chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code = static_cast<std::uint16_t>(http_status)}};
+    return http_result{chttpp::detail::http_response{{}, std::move(body), std::move(headers), static_cast<std::uint16_t>(http_status)}};
   }
 
   inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {

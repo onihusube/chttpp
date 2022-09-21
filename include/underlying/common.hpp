@@ -177,16 +177,19 @@ namespace chttpp::detail {
     using V = std::variant<T, E, std::exception_ptr>;
 
     then_impl(T&& value)
-      : outcome{std::in_place_index<0>, std::forward<T>(value)}
+      : outcome{std::in_place_index<0>, std::move(value)}
     {}
 
     then_impl(E&& err)
-      : outcome{std::in_place_index<1>, std::forward<E>(err)}
+      : outcome{std::in_place_index<1>, std::move(err)}
     {}
 
     then_impl(std::exception_ptr&& exptr)
       : outcome{std::in_place_index<2>, std::move(exptr)}
     {}
+
+    then_impl(then_impl&&) = default;
+    then_impl& operator=(then_impl &&) = default;
 
     template<std::invocable<T&&> F>
       requires (not std::same_as<void, std::invoke_result_t<F, T&&>>)
@@ -213,7 +216,7 @@ namespace chttpp::detail {
      * @brief 戻り値型がvoidの時のオーバーロード、現在のオブジェクトをそのままリターン
      */
     template <invocable_r<void, const T&> F>
-    auto then(F&& func) && noexcept try {      
+    auto then(F&& func) && noexcept -> then_impl&& try {
       // 左辺値で呼び出し
       std::visit(overloaded{
           [&](T& value) {
@@ -222,11 +225,12 @@ namespace chttpp::detail {
           [](auto&&) noexcept {}
         }, this->outcome);
 
-      return *this;
+      // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
+      return std::move(*this);
     } catch (...) {
       // 実質、Tを保持している場合にのみここに来るはず
       this->outcome.template emplace<2>(std::current_exception());
-      return *this;
+      return std::move(*this);
     }
 
     template<std::invocable<E&&> F>
@@ -305,7 +309,7 @@ namespace chttpp::detail {
     enable_move_only& operator=(enable_move_only&&) = default;
   };
 
-  struct http_response/* : enable_move_only*/ {
+  struct http_response : enable_move_only {
     vector_t<char> body;
     header_t headers;
     std::uint16_t status_code;
@@ -335,8 +339,8 @@ namespace chttpp::detail {
       : m_either{std::move(that.m_either)}
     {}
 
-    basic_result(const basic_result& that) = delete;
-    basic_result &operator=(const basic_result &) = delete;
+    basic_result(const basic_result&) = delete;
+    basic_result &operator=(const basic_result&) = delete;
 
     explicit operator bool() const noexcept {
       return m_either.index() == 0;
