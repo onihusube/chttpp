@@ -308,14 +308,12 @@ namespace chttpp::underlying::terse {
         DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
         return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt)), L"HTTP/2"};
       }
-#ifdef WINHTTP_PROTOCOL_FLAG_HTTP3
-    case http3 :
+    /*case http3 :
       {
         // HTTP2を常に使用する
         DWORD http3_opt = WINHTTP_PROTOCOL_FLAG_HTTP3;
         return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt)), L"HTTP/3" };
-      }
-#endif // WINHTTP_PROTOCOL_FLAG_HTTP3
+      }*/
     case http1_1:
       // 1.1はデフォルト
       return {true, L"HTTP/1.1"};

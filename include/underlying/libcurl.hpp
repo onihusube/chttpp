@@ -293,11 +293,9 @@ namespace chttpp::underlying::terse {
       case http2:
         curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
         break;
-#ifdef CURL_HTTP_VERSION_3
-      case http3:
+      /*case http3:
         curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
-        break;
-#endif
+        break;*/
       case http1_1:
         curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         break;
