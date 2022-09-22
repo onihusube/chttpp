@@ -121,7 +121,8 @@ void http_result_test() {
       ut::expect(false);
     }).then([](http_response&& hr) {
     //}).then([](auto&& hr) {
-    // ↑こう書くと何してもreturnでコピーされるのは何故？？？
+    // ↑こう書くと、then()のオーバーロード解決において一瞬const http_response&が考慮され
+    // この関数本体がインスタンス化され、returnでコピーができないことからハードエラー
       ut::expect(false);
       
       return hr;

@@ -70,7 +70,7 @@ namespace chttpp::inline types {
 
 }
 
-namespace chttpp::inline concepts {
+namespace chttpp::detail::inline concepts {
   template <typename T>
   concept fundamental_type_with_substance =
     std::is_scalar_v<T> and
@@ -550,6 +550,7 @@ namespace chttpp::detail::inline config {
 
 namespace chttpp {
   namespace cfg = chttpp::detail::config::enums;
+  using chttpp::detail::http_response;
 }
 
 namespace chttpp::detail::tag {

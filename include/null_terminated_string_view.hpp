@@ -4,22 +4,19 @@
 #include <ranges>
 #include <compare>
 
-namespace chttpp {
+namespace chttpp::detail {
 
-  namespace detail {
-
-    /**
-     * @brief コンパイル時文字列のnull終端判定を行う
-     * @param str 文字列の先頭ポインタ
-     * @param N 文字列のnullを含む長さ
-     */
-    template<typename CharT>
-    consteval auto check_null_terminate(const CharT* str, std::size_t N) -> std::basic_string_view<CharT> {
-      if (str[N - 1] != CharT{}) {
-        throw "The string is not null-terminated!";
-      }
-      return {str, N - 1};
+  /**
+   * @brief コンパイル時文字列のnull終端判定を行う
+   * @param str 文字列の先頭ポインタ
+   * @param N 文字列のnullを含む長さ
+   */
+  template<typename CharT>
+  consteval auto check_null_terminate(const CharT* str, std::size_t N) -> std::basic_string_view<CharT> {
+    if (str[N - 1] != CharT{}) {
+      throw "The string is not null-terminated!";
     }
+    return {str, N - 1};
   }
 
   /**
@@ -44,11 +41,11 @@ namespace chttpp {
 
     template<std::size_t N>
     consteval basic_null_terminated_string_view(const CharT(&str_literal)[N])
-      : m_view(detail::check_null_terminate(str_literal, N))
+      : m_view(check_null_terminate(str_literal, N))
     {}
 
     consteval basic_null_terminated_string_view(std::basic_string_view<CharT> str_view)
-      : m_view(detail::check_null_terminate(str_view.data(), str_view.size() + 1))
+      : m_view(check_null_terminate(str_view.data(), str_view.size() + 1))
     {}
 
     basic_null_terminated_string_view(const basic_null_terminated_string_view&) = default;

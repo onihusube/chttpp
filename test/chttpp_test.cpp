@@ -112,7 +112,7 @@ int main() {
 #ifndef _MSC_VER
   "null_terminated_string_view"_test = [] {
     using namespace std::string_literals;
-    using chttpp::nt_string_view;
+    using chttpp::detail::nt_string_view;
 
     // ほぼstring_viewの性質を受け継ぐ
     static_assert(std::is_trivially_copyable_v<nt_string_view>);
