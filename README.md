@@ -6,6 +6,21 @@ The underlying libraries are winhttp (Windows) or lbcurl (Linux, Mac).
 
 Non-Windows platforms require libcurl installation.
 
+## Getting Started
+
+1. Clone this repository or copy `include` directory (recursively).
+2. Add `include` directory to your project's include path.
+3. Add `#include <chttpp.hpp>` or `import <chttpp.hpp>` to the source code you wish to use.
+4. In addition, Non-Windows platforms require libcurl installation.
+
+### Compliler
+
+- GCC 12.1 or later
+    - `-std=c++2a`
+- MSVC 2022 or later
+    - `/std:c++latest`
+- Clang ??
+
 ## Example
 
 ### GET request
