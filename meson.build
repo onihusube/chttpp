@@ -49,6 +49,6 @@ elif cppcompiler == 'gcc'
 endif
 
 # subprojectとして構築時は依存オブジェクトの宣言だけしとく
-chttpp_dep = declare_dependency(include_directories : include_directories('include'), cpp_args : options, dependencies : dep_libs)
+chttpp_dep = declare_dependency(include_directories : include_directories('include'), compile_args : options, dependencies : dep_libs)
 
 endif
