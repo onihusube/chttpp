@@ -12,9 +12,7 @@ auto hr_ok() -> chttpp::http_result {
 }
 
 auto hr_err() -> chttpp::http_result {
-  using E = chttpp::http_result::error_type;
-
-  return chttpp::http_result{E{}};
+  return chttpp::http_result{::chttpp::underlying::lib_error_code_tratis::no_error_value};
 }
 
 decltype(auto) hr_exptr() {
@@ -106,12 +104,12 @@ void http_result_test() {
   };
 
   "catch_error"_test = [] {
-    using err_t = chttpp::http_result::error_type;
+    constexpr auto err_v = ::chttpp::underlying::lib_error_code_tratis::no_error_value;
 
     int count = 0;
 
     hr_err().catch_error([&](auto e) -> int {
-      ut::expect(e == err_t{});
+      ut::expect(e == err_v);
       ++count;
       return -11;
     }).catch_error([&](int e) {

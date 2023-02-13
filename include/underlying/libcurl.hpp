@@ -16,7 +16,20 @@
 
 #include <curl/curl.h>
 
-#include "common.hpp"
+namespace chttpp::underlying {
+  struct lib_error_code_tratis {
+    using errc = ::CURLcode;
+
+    static constexpr ::CURLcode no_error_value = ::CURLE_OK;
+
+    static auto error_to_string(::CURLcode ec) -> string_t {
+      return {curl_easy_strerror(ec)};
+    }
+  };
+}
+
+#include "error_code.hpp"
+#include "http_result.hpp"
 
 #ifndef CHTTPP_NOT_GLOBAL_INIT_CURL
 
@@ -93,15 +106,6 @@ namespace chttpp {
 
 #endif
 
-namespace chttpp {
-  using http_result = detail::basic_result<::CURLcode>;
-
-  template<>
-  inline auto http_result::error_to_string() const -> string_t {
-    return {curl_easy_strerror(this->error())};
-  }
-}
-
 namespace chttpp::detail {
 
   void parse_response_header_on_curl(header_t& headers, const char *data_ptr, std::size_t data_len) {
@@ -151,6 +155,8 @@ namespace chttpp::detail {
 }
 
 namespace chttpp::underlying::terse {
+
+  using ::chttpp::detail::http_result;
 
   using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
   using unique_slist = std::unique_ptr<curl_slist, decltype([](curl_slist* p) noexcept { curl_slist_free_all(p); })>;

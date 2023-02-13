@@ -17,38 +17,39 @@
 #include <winhttp.h>
 #pragma comment(lib, "Winhttp.lib")
 
-#include "common.hpp"
+namespace chttpp::underlying {
+  struct lib_error_code_tratis {
+    using errc = DWORD;
 
-namespace chttpp {
-  using http_result = detail::basic_result<DWORD>;
+    static constexpr DWORD no_error_value = ERROR_SUCCESS;
 
-  template<>
-  inline auto http_result::error_to_string() const -> string_t {
-    constexpr ::std::size_t max_len = 192;
-    string_t str{};
-    str.resize(max_len);
+    static auto error_to_string(DWORD err) -> string_t {
+      constexpr std::size_t max_len = 192;
+      string_t str{};
+      str.resize(max_len);
 
-    const DWORD err = this->error();
+      if (const std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, str.data(), max_len, nullptr); len == 0) {
+        // 失敗（対応する文字列表現が見つからないとき）
+        const auto [_, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} (see https://learn.microsoft.com/en-us/windows/win32/winhttp/error-messages).", err);
 
-    if (const ::std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, str.data(), max_len, nullptr); len == 0) {
-      // 失敗（対応する文字列表現が見つからないとき）
-      const auto [_, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} (see https://learn.microsoft.com/en-us/windows/win32/winhttp/error-messages).", err);
+        assert(msglen <= max_len);
+        // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
+        str.resize(msglen);
+      } else {
+        // lenは終端\0を含まない長さ
+        assert(len <= max_len);
+        // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
+        str.resize(len);
+      }
 
-      assert(msglen <= max_len);
-      // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
-      str.resize(msglen);
-    } else {
-      // lenは終端\0を含まない長さ
-      assert(len <= max_len);
-      // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
-      str.resize(len);
+      // 暗黙ムーブ
+      return str;
     }
-
-    // 暗黙ムーブ
-    return str;
-  }
-
+  };
 }
+
+#include "error_code.hpp"
+#include "http_result.hpp"
 
 namespace chttpp::detail {
 
