@@ -28,7 +28,7 @@ namespace chttpp::underlying {
   };
 }
 
-#include "error_code.hpp"
+#include "status_code.hpp"
 #include "http_result.hpp"
 
 #ifndef CHTTPP_NOT_GLOBAL_INIT_CURL
@@ -394,7 +394,7 @@ namespace chttpp::underlying::terse {
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
-    return http_result{chttpp::detail::http_response{{}, std::move(body), std::move(headers), static_cast<std::uint16_t>(http_status)}};
+    return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
   }
 
   template<detail::tag::has_reqbody_method MethodTag>
@@ -430,7 +430,7 @@ namespace chttpp::underlying::terse {
     // 認証情報の取得とセット
     // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
     // configに指定された方を優先する
-    if (not cfg.auth.username.empty()) {
+    if (cfg.auth.scheme !=  detail::config::authentication_scheme::none) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
       
@@ -443,7 +443,10 @@ namespace chttpp::underlying::terse {
 
       if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
         // あるものとする？
-        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+        {
+          auto status = curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0);
+          assert(status == CURLUE_OK);
+        }
 
         // RAII
         unique_curlchar userptr{user};
@@ -582,7 +585,7 @@ namespace chttpp::underlying::terse {
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
-    return http_result{chttpp::detail::http_response{{}, std::move(body), std::move(headers), static_cast<std::uint16_t>(http_status)}};
+    return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
   }
 
   inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {

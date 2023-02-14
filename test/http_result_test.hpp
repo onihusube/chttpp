@@ -8,7 +8,7 @@
 #include <boost/ut.hpp>
 
 auto hr_ok() -> chttpp::http_result {
-  return chttpp::http_result{chttpp::detail::http_response{{}, {}, { {"host", "http_result test"} }, 200}};
+  return chttpp::http_result{chttpp::detail::http_response{ {}, {}, { {"host", "http_result test"} }, chttpp::detail::http_status_code{200} }};
 }
 
 auto hr_err() -> chttpp::http_result {
@@ -40,7 +40,7 @@ void http_result_test() {
         ut::expect(hr.headers.size() == 1_ull);
         return hr;
       }).then([](http_response&& hr) {
-        ut::expect(hr.status_code == 200_i);
+        ut::expect(hr.status_code.OK());
         return hr;
       }).catch_error([](const auto&) {
         ut::expect(false);
@@ -57,7 +57,7 @@ void http_result_test() {
         ut::expect(hr.headers.size() == 1_ull);
         return hr;
       }).then([](const http_response& hr) {
-        ut::expect(hr.status_code == 200_i);
+        ut::expect(hr.status_code.OK());
       }).catch_error([](const auto&) {
         ut::expect(false);
       }).catch_exception([](const auto&) {

@@ -48,7 +48,7 @@ namespace chttpp::underlying {
   };
 }
 
-#include "error_code.hpp"
+#include "status_code.hpp"
 #include "http_result.hpp"
 
 namespace chttpp::detail {
@@ -504,7 +504,7 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
+    return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
   }
 
   template<detail::tag::has_reqbody_method Tag>
@@ -669,7 +669,7 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }
 
-    return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code = static_cast<std::uint16_t>(status_code)} };
+    return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
   }
 
 

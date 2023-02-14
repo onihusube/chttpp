@@ -10,6 +10,7 @@
 #include <cassert>
 
 #include "common.hpp"
+#include "status_code.hpp"
 
 namespace chttpp::detail {
 
@@ -37,7 +38,8 @@ namespace chttpp::detail {
   struct http_response : enable_move_only {
     vector_t<char> body;
     header_t headers;
-    std::uint16_t status_code;
+    //std::uint16_t status_code;
+    http_status_code status_code;
   };
 
   class http_result {
@@ -72,7 +74,7 @@ namespace chttpp::detail {
       return m_either.index() == 0;
     }
 
-    auto status_code() const -> std::uint16_t {
+    auto status_code() const -> http_status_code {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       return response.status_code;

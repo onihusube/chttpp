@@ -26,6 +26,7 @@ namespace ut = boost::ut;
 
 #include "http_result_test.hpp"
 #include "http_config_test.hpp"
+#include "status_code_test.hpp"
 
 namespace chttpp_test {
 
@@ -363,7 +364,7 @@ int main() {
 
     ut::expect(bool(result));
     const auto status_code = result.status_code();
-    ut::expect(200 <= status_code and status_code < 300);
+    ut::expect(status_code.is_successful());
 
     const auto allow = result.response_header("allow");
     ut::expect(5_ull < allow.size());
@@ -472,7 +473,7 @@ int main() {
       auto result = chttpp::get("https://example.com");
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
       
       const auto &headers = result.response_header();
@@ -482,7 +483,7 @@ int main() {
       auto result = chttpp::get("http://example.com");
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -492,7 +493,7 @@ int main() {
       auto result = chttpp::get(L"https://example.com");
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -502,7 +503,7 @@ int main() {
       auto result = chttpp::get("https://example.com", { .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}} });
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -517,7 +518,7 @@ int main() {
                                                            });
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       auto res_json = result | to_json;
 
       // jsonデコードとその結果チェック
@@ -536,7 +537,7 @@ int main() {
                                                                          });
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       auto res_json = result | to_json;
 
       // jsonデコードとその結果チェック
@@ -558,7 +559,7 @@ int main() {
       auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .content_type = text/plain });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
       // std::cout << result.response_body();
       /*
       なんかこんな感じのが得られるはず
@@ -618,7 +619,7 @@ int main() {
                                                                           });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us);
+      ut::expect(result.status_code() == 200) << result.status_code().value();
 
       auto res_json = result | to_json;
 
@@ -643,7 +644,7 @@ int main() {
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}} });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect((result.status_code() == 200_us) >> ut::fatal) << result.status_code();
+    ut::expect((result.status_code() == 200) >> ut::fatal) << result.status_code().value();
 
     auto res_json = result | to_json;
 
@@ -683,7 +684,7 @@ int main() {
                                                                                           });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect(result.status_code() == 200_us);
+    ut::expect(result.status_code() == 200) << result.status_code().value();
 
     auto res_json = result | to_json;
 
@@ -724,7 +725,7 @@ int main() {
     auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", {.content_type = text/html });
 
     ut::expect(bool(result) >> ut::fatal);
-    ut::expect(result.status_code() == 200_us);
+    ut::expect(result.status_code() == 200) << result.status_code().value();
 /*
 なんかこんな感じのが得られるはず
 {
@@ -779,7 +780,7 @@ int main() {
     auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", {.content_type = text/plain });
 
     ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect(result.status_code() == 200_us);
+    ut::expect(result.status_code() == 200) << result.status_code().value();
 /*
 なんかこんな感じのが得られるはず
 {
@@ -861,7 +862,7 @@ int main() {
                                                                                          });
 
       ut::expect(res.has_response() >> ut::fatal);
-      ut::expect(res.status_code() == 200_us);
+      ut::expect(res.status_code() == 200) << res.status_code().value();
 
       //std::cout << res.response_body() << "\n";
 /*
@@ -884,7 +885,7 @@ int main() {
       auto res = chttpp::get("https://authtest_user:authtest_pw@httpbin.org/basic-auth/authtest_user/authtest_pw");
 
       ut::expect(res.has_response() >> ut::fatal);
-      ut::expect(res.status_code() == 200_us);
+      ut::expect(res.status_code().OK()) << res.status_code().value();
     }
     // POSTリクエスト時の認証はhttpbinだとテストできない（405が帰ってくる）
     {
@@ -893,12 +894,13 @@ int main() {
                               { .content_type = application/json,
                                 .auth = {
                                    .username = "APIUser",
-                                   .password = "APIPassword123"
+                                   .password = "APIPassword123",
+                                   .scheme = chttpp::cfg::authentication_scheme::basic
                                 }
                               });
 
-      ut::expect(res.has_response() >> ut::fatal);
-      ut::expect(res.status_code() == 200_us);
+      ut::expect(res.has_response() >> ut::fatal) << res.error_message();
+      ut::expect(res.status_code().OK()) << res.status_code().value();
 
       //std::cout << res.response_body() << "\n";
 /*
@@ -943,7 +945,7 @@ int main() {
       auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "165.154.235.178:80" } });
 
       ut::expect(result.has_response() >> ut::fatal) << " : " << result.error_message();
-      ut::expect(result.status_code() == 200_i) << result.status_code();
+      ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -954,7 +956,7 @@ int main() {
       auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg::proxy_scheme::http } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i) << result.status_code();
+      ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto &headers = result.response_header();
@@ -967,7 +969,7 @@ int main() {
       auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg::proxy_scheme::socks5 } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_i) << result.status_code();
+      ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
       const auto& headers = result.response_header();
@@ -980,7 +982,7 @@ int main() {
       auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .address = "140.227.80.237:3180" } });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us) << result.status_code();
+      ut::expect(result.status_code().OK()) << result.status_code().value();
 
       auto res_json = result | to_json;
 
@@ -1000,7 +1002,7 @@ int main() {
       auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal);
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code().OK()) << result.status_code().value();
       const auto ver = result.response_header(HTTP_ver);
       ut::expect(ver == "HTTP/1.1 200 OK") << ver;
     }
@@ -1010,7 +1012,7 @@ int main() {
       auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
-      ut::expect(result.status_code() == 200_us);
+      ut::expect(result.status_code().OK()) << result.status_code().value();
       const auto ver = result.response_header(HTTP_ver);
       ut::expect(ver == "HTTP/1.1 200 OK") << ver;
     }
@@ -1019,4 +1021,5 @@ int main() {
   underlying_test();
   http_result_test();
   http_config_test();
+  status_code_test();
 }

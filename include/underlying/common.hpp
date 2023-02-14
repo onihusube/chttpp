@@ -296,6 +296,7 @@ namespace chttpp::detail::inline config {
     };
 
     enum class authentication_scheme {
+      none,
       basic,
       //digest,
     };
@@ -313,7 +314,7 @@ namespace chttpp::detail::inline config {
   struct authorization_config {
     std::string_view username = "";
     std::string_view password = "";
-    authentication_scheme scheme = authentication_scheme::basic;
+    authentication_scheme scheme = authentication_scheme::none;
   };
 
   struct proxy_config {
