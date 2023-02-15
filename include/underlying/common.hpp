@@ -344,7 +344,27 @@ namespace chttpp::detail::inline config {
 }
 
 namespace chttpp {
-  namespace cfg = chttpp::detail::config::enums;
+  // 設定用列挙値の簡易アクセス用の名前空間を定義
+
+  // なるべく短く元の列挙型にアクセス
+  namespace cfg {
+    using namespace chttpp::detail::config::enums;
+  }
+
+  // 認証周りの設定
+  namespace cfg_auth {
+    using enum chttpp::detail::config::enums::authentication_scheme;
+  }
+
+  // httpバージョンの設定
+  namespace cfg_ver {
+    using enum chttpp::detail::config::enums::http_version;
+  }
+
+  // プロクシ周りの設定
+  namespace cfg_prxy {
+    using enum chttpp::detail::config::enums::proxy_scheme;
+  }
 }
 
 namespace chttpp::detail::tag {

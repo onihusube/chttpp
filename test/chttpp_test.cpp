@@ -953,7 +953,7 @@ int main() {
     }
     // 2. http proxy による httpsアクセス
     {
-      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg::proxy_scheme::http } });
+      auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg_prxy::http } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
@@ -966,7 +966,7 @@ int main() {
     // socks proxy による httpアクセス
     // httpsアクセスはCURLE_PEER_FAILED_VERIFICATIONでうまくいかない・・・
     {
-      auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg::proxy_scheme::socks5 } });
+      auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg_prxy::socks5 } });
 
       ut::expect(result.has_response() >> ut::fatal) << result.error_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
@@ -999,7 +999,7 @@ int main() {
   {
     using namespace chttpp::headers;
     {
-      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg::http_version::http1_1 });
+      auto result = chttpp::get("https://example.com", { .version = chttpp::cfg_ver::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code().OK()) << result.status_code().value();
@@ -1009,7 +1009,7 @@ int main() {
     {
       using namespace chttpp::mime_types;
 
-      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg::http_version::http1_1 });
+      auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg_ver::http1_1 });
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
