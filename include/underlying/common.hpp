@@ -188,49 +188,69 @@ namespace chttpp::detail {
       : outcome{std::in_place_index<2>, std::move(exptr)}
     {}
 
+    /**
+     * @brief TとEが同じ型になりうる場合に状態を区別して構築する
+     * @brief 主にmonostateで構築する時に使用することを想定
+     */
+    template<typename V, std::size_t I>
+    then_impl(std::in_place_index_t<I>, V&& value)
+      : outcome{ std::in_place_index<I>, std::forward<V>(value) }
+    {}
+
     then_impl(then_impl&&) = default;
     then_impl& operator=(then_impl &&) = default;
 
     template<std::invocable<T&&> F>
-      requires (not std::same_as<void, std::invoke_result_t<F, T&&>>)
-    auto then(F&& func) && noexcept -> then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E> {
-      using ret_then_t = then_impl<std::remove_cvref_t<std::invoke_result_t<F, T&&>>, E>;
+      requires (not std::same_as<T, std::monostate>)
+    auto then(F&& func) && noexcept -> decltype(auto) {
+      using ret_t = std::invoke_result_t<F, T&&>;
+      constexpr bool is_return_type_void = std::same_as<void, std::remove_cvref_t<ret_t>>;
 
-      try {
-        return std::visit(overloaded{
-            [&](T &&value) {
-              return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
-            },
-            [](E &&err) {
-              return ret_then_t{ std::move(err)};
-            },
-            [](std::exception_ptr &&exptr) {
-              return ret_then_t{ std::move(exptr)};
-            }}, std::move(this->outcome));
-      } catch (...) {
-        return ret_then_t{std::current_exception()};
+      // 戻り値型voidかつ、const T&で呼び出し可能な場合
+      if constexpr (is_return_type_void and std::invocable<F, const T&>) {
+        try {
+          // 左辺値で呼び出し
+          std::visit(overloaded{
+              [&](T& value) {
+                std::invoke(std::forward<F>(func), value);
+              },
+              [](auto&&) noexcept {}
+            }, this->outcome);
+
+          // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
+          return std::move(*this);
+        } catch (...) {
+          // 実質、Tを保持している場合にのみここに来るはず
+          this->outcome.template emplace<2>(std::current_exception());
+          return std::move(*this);
+        }
+      } else {
+        // T&&から呼び出し可能な場合
+        using ret_then_t = then_impl<void_to_monostate<ret_t>, E>;
+
+        try {
+          return std::visit(overloaded{
+              [&](T&& value) {
+                if constexpr (is_return_type_void) {
+                  // 戻り値型voidの場合
+                  // ムーブして渡すため、後続でのTの使用が安全ではなくなることから、monostateで置換する
+                  std::invoke(std::forward<F>(func), std::move(value));
+                  return ret_then_t{ std::in_place_index<0>, std::monostate{} };
+                } else {
+                  return ret_then_t{ std::invoke(std::forward<F>(func), std::move(value))};
+                }
+              },
+              [](E&& err) {
+                return ret_then_t{ std::move(err)};
+              },
+              [](std::exception_ptr&& exptr) {
+                return ret_then_t{ std::move(exptr)};
+              }
+            }, std::move(this->outcome));
+        } catch (...) {
+          return ret_then_t{ std::current_exception() };
+        }
       }
-    }
-
-    /**
-     * @brief 戻り値型がvoidの時のオーバーロード、現在のオブジェクトをそのままリターン
-     */
-    template <invocable_r<void, const T&> F>
-    auto then(F&& func) && noexcept -> then_impl&& try {
-      // 左辺値で呼び出し
-      std::visit(overloaded{
-          [&](T& value) {
-            std::invoke(std::forward<F>(func), value);
-          },
-          [](auto&&) noexcept {}
-        }, this->outcome);
-
-      // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
-      return std::move(*this);
-    } catch (...) {
-      // 実質、Tを保持している場合にのみここに来るはず
-      this->outcome.template emplace<2>(std::current_exception());
-      return std::move(*this);
     }
 
     template<std::invocable<E&&> F>
@@ -243,7 +263,7 @@ namespace chttpp::detail {
           [&](E &&err) {
             if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
               std::invoke(std::forward<F>(func), std::move(err));
-              return ret_then_t{ std::monostate{}};
+              return ret_then_t{ std::in_place_index<1>, std::monostate{}};
             } else {
               return ret_then_t{ std::invoke(std::forward<F>(func), std::move(err))};
             }

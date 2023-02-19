@@ -63,6 +63,14 @@ void http_result_test() {
       }).catch_exception([](const auto&) {
         ut::expect(false);
       });
+
+      // どっちの引数宣言も通ることを確認
+      // ただしこれができるのはthne()に渡す関数の戻り値型がvoidの時のみ
+      hr_ok().then([](auto&&) {
+        ut::expect(true);
+      }).then([](http_response&&) {
+        ut::expect(true);
+      });
   };
 
   "catch_exception"_test = []
