@@ -75,7 +75,7 @@ void underlying_test() {
       auto result = chttpp::get(L"https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.error_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
       const auto& headers = result.response_header();
@@ -94,7 +94,7 @@ void underlying_test() {
       auto result = chttpp::get(L"http://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.error_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
       const auto& headers = result.response_header();
@@ -104,7 +104,7 @@ void underlying_test() {
       auto result = chttpp::get("https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.error_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
       const auto& headers = result.response_header();
@@ -117,7 +117,7 @@ void underlying_test() {
       auto result = chttpp::head(L"https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200_i);
+      ut::expect(result.status_code() == 200) << result.error_message();
       ut::expect(result.response_body().length() == 0_ull);
 
       const auto& headers = result.response_header();

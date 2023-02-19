@@ -104,6 +104,7 @@ void http_result_test() {
   };
 
   "catch_error"_test = [] {
+    [[maybe_unused]]
     constexpr auto err_v = ::chttpp::underlying::lib_error_code_tratis::no_error_value;
 
     int count = 0;

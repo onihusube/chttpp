@@ -356,3 +356,23 @@ namespace chttpp {
   inline constexpr detail::terse_req_impl<detail::tag::put_t> put{};
   inline constexpr detail::terse_req_impl<detail::tag::delete_t> delete_{};
 }
+
+namespace chttpp {
+
+  class agent {
+    string_t m_base_url;
+    detail::request_config m_cfg;
+
+  public:
+
+    agent(std::string_view base_url, detail::request_config cfg)
+      : m_base_url(base_url)
+      , m_cfg{std::move(cfg)}
+    {}
+
+    template<typename Method>
+    auto request(Method, std::string_view url_path) {
+
+    }
+  };
+}
