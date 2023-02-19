@@ -47,6 +47,15 @@ void http_result_test() {
       }).catch_exception([](const auto&) {
         ut::expect(false);
       });
+  
+      // どっちの引数宣言も通ることを確認
+      hr_ok().then([](auto&& hr) {
+        ut::expect(true);
+        return hr;
+      }).then([](http_response&& hr) {
+        ut::expect(true);
+        return hr;
+      });
   };
 
   "then void"_test = []
@@ -65,7 +74,6 @@ void http_result_test() {
       });
 
       // どっちの引数宣言も通ることを確認
-      // ただしこれができるのはthne()に渡す関数の戻り値型がvoidの時のみ
       hr_ok().then([](auto&&) {
         ut::expect(true);
       }).then([](http_response&&) {
@@ -126,10 +134,7 @@ void http_result_test() {
       ++count;
     }).catch_exception([](const auto&) {
       ut::expect(false);
-    }).then([](http_response&& hr) {
-    //}).then([](auto&& hr) {
-    // ↑こう書くと、then()のオーバーロード解決において一瞬const http_response&が考慮され
-    // この関数本体がインスタンス化され、returnでコピーができないことからハードエラー
+    }).then([](auto&& hr) {
       ut::expect(false);
       
       return hr;

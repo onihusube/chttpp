@@ -207,22 +207,24 @@ namespace chttpp::detail {
       constexpr bool is_return_type_void = std::same_as<void, std::remove_cvref_t<ret_t>>;
 
       // 戻り値型voidかつ、const T&で呼び出し可能な場合
-      if constexpr (is_return_type_void and std::invocable<F, const T&>) {
-        try {
-          // 左辺値で呼び出し
-          std::visit(overloaded{
-              [&](T& value) {
-                std::invoke(std::forward<F>(func), value);
-              },
-              [](auto&&) noexcept {}
-            }, this->outcome);
+      if constexpr (is_return_type_void) {
+        if constexpr (std::invocable<F, const T&>) {
+          try {
+            // 左辺値で呼び出し
+            std::visit(overloaded{
+                [&](T& value) {
+                  std::invoke(std::forward<F>(func), value);
+                },
+                [](auto&&) noexcept {}
+              }, this->outcome);
 
-          // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
-          return std::move(*this);
-        } catch (...) {
-          // 実質、Tを保持している場合にのみここに来るはず
-          this->outcome.template emplace<2>(std::current_exception());
-          return std::move(*this);
+            // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
+            return std::move(*this);
+          } catch (...) {
+            // 実質、Tを保持している場合にのみここに来るはず
+            this->outcome.template emplace<2>(std::current_exception());
+            return std::move(*this);
+          }
         }
       } else {
         // T&&から呼び出し可能な場合
@@ -251,6 +253,20 @@ namespace chttpp::detail {
           return ret_then_t{ std::current_exception() };
         }
       }
+/*
+* この関数をオーバーロードで分けずにif constexprで内部分岐しているのは
+* std::invocable<F, const T&>のチェックを必要になるギリギリまで遅延させるため
+* オーバーロードで分けてそれをチェックするとhttp_responseを受けてそのまま返すような関数を渡したときにエラーになる
+chttpp::get(...).then([](auto&& hr) {
+  ut::expect(true);
+  return hr;  // コピーが発生しエラー
+});
+* この場合、std::invocable<F, const T&>のチェックでauto&& -> const http_response&となり、returnでhrがconstのためコピーされるがコピー禁止のためエラーになる
+* そして、この場合はSFINAE的な動作はせずにハードエラーとなる
+* これを回避するため、関数のインターフェースの制約はhttp_response&&で呼び出し可能であることを要求しておき
+* そのうえで、戻り値型がvoidであるときのみstd::invocable<F, const T&>のチェックを行っている
+* このようにconst左辺値呼び出し可能性チェックを遅延させることで、上記のような場合に不要なインスタンス化を回避する
+*/
     }
 
     template<std::invocable<E&&> F>
