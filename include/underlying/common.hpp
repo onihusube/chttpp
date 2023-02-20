@@ -204,27 +204,25 @@ namespace chttpp::detail {
       requires (not std::same_as<T, std::monostate>)
     auto then(F&& func) && noexcept -> decltype(auto) {
       using ret_t = std::invoke_result_t<F, T&&>;
-      constexpr bool is_return_type_void = std::same_as<void, std::remove_cvref_t<ret_t>>;
 
       // 戻り値型voidかつ、const T&で呼び出し可能な場合
-      if constexpr (is_return_type_void) {
-        if constexpr (std::invocable<F, const T&>) {
-          try {
-            // 左辺値で呼び出し
-            std::visit(overloaded{
-                [&](T& value) {
-                  std::invoke(std::forward<F>(func), value);
-                },
-                [](auto&&) noexcept {}
-              }, this->outcome);
+      // std::conjunctionを利用しているのは、短絡評価を行うため（invocable<F, const T&>の評価を遅延させたい）
+      if constexpr (std::conjunction_v<std::is_same<void, std::remove_cvref_t<ret_t>>, std::is_invocable<F, const T&>>) {
+        try {
+          // 左辺値で呼び出し
+          std::visit(overloaded{
+              [&](T& value) {
+                std::invoke(std::forward<F>(func), value);
+              },
+              [](auto&&) noexcept {}
+            }, this->outcome);
 
-            // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
-            return std::move(*this);
-          } catch (...) {
-            // 実質、Tを保持している場合にのみここに来るはず
-            this->outcome.template emplace<2>(std::current_exception());
-            return std::move(*this);
-          }
+          // 普通にリターンすると左辺値が帰り、暗黙にコピーが起きる
+          return std::move(*this);
+        } catch (...) {
+          // 実質、Tを保持している場合にのみここに来るはず
+          this->outcome.template emplace<2>(std::current_exception());
+          return std::move(*this);
         }
       } else {
         // T&&から呼び出し可能な場合
@@ -233,7 +231,7 @@ namespace chttpp::detail {
         try {
           return std::visit(overloaded{
               [&](T&& value) {
-                if constexpr (is_return_type_void) {
+                if constexpr (std::same_as<void, std::remove_cvref_t<ret_t>>) {
                   // 戻り値型voidの場合
                   // ムーブして渡すため、後続でのTの使用が安全ではなくなることから、monostateで置換する
                   std::invoke(std::forward<F>(func), std::move(value));
@@ -253,6 +251,8 @@ namespace chttpp::detail {
           return ret_then_t{ std::current_exception() };
         }
       }
+
+      assert(false);
 /*
 * この関数をオーバーロードで分けずにif constexprで内部分岐しているのは
 * std::invocable<F, const T&>のチェックを必要になるギリギリまで遅延させるため
