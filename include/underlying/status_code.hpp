@@ -32,7 +32,10 @@ namespace chttpp::detail {
     }
 
     [[nodiscard]]
-    friend bool operator==(const error_code &self, errc ec) noexcept {
+    friend bool operator==(error_code, error_code) = default;
+
+    [[nodiscard]]
+    friend bool operator==(error_code self, errc ec) noexcept {
       return self.m_ec == ec;
     }
   };
@@ -124,7 +127,10 @@ namespace chttpp::detail {
     }
 
     [[nodiscard]]
-    friend bool operator==(const http_status_code& self, std::integral auto num) noexcept {
+    friend bool operator==(http_status_code, http_status_code) = default;
+
+    [[nodiscard]]
+    friend bool operator==(http_status_code self, std::integral auto num) noexcept {
       return std::cmp_equal(self.m_code, num);
     }
   };
