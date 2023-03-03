@@ -101,11 +101,11 @@ void underlying_test() {
   };
 
   "rebuild_url"_test = [] {
-    using chttpp::detail::rebuild_url;
+    using chttpp::underlying::terse::rebuild_url;
+    using chttpp::underlying::terse::string_buffer;
     using chttpp::underlying::terse::unique_curlurl;
     using chttpp::underlying::terse::unique_curlchar;
     using chttpp::types::vector_t;
-    using chttpp::types::string_t;
 
     {
       unique_curlurl hurl{::curl_url()};
@@ -115,7 +115,7 @@ void underlying_test() {
 
       const std::string_view url = "https://example.com";
       vector_t<std::pair<std::string_view, std::string_view>> params = { {"param", "value"} };
-      string_t buffer{};
+      string_buffer buffer{};
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
@@ -131,7 +131,7 @@ void underlying_test() {
 
       const std::string_view url = "https://example.com/path/path?param1=value1";
       vector_t<std::pair<std::string_view, std::string_view>> params = { {"param2", "value2"}, {"param3", "value3"} };
-      string_t buffer{};
+      string_buffer buffer{};
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
@@ -147,7 +147,7 @@ void underlying_test() {
 
       const std::string_view url = "https://user:pass@example.com/path#anchor";
       vector_t<std::pair<std::string_view, std::string_view>> params = {{"param", "value"}};
-      string_t buffer{};
+      string_buffer buffer{};
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
@@ -163,7 +163,7 @@ void underlying_test() {
 
       const std::string_view url = "https://example.com/path";
       vector_t<std::pair<std::string_view, std::string_view>> params = {};
-      string_t buffer{};
+      string_buffer buffer{};
 
       ut::expect((::curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK) >> ut::fatal);
 
