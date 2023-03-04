@@ -312,6 +312,8 @@ namespace chttpp::detail {
   template<typename MethodTag>
   struct terse_req_impl {
 
+    using tag_t = MethodTag;
+
     auto operator()(nt_string_view URL, request_config_for_get cfg = {}) const -> http_result {
       return chttpp::underlying::terse::request_impl(URL, std::move(cfg), MethodTag{});
     }
@@ -323,6 +325,8 @@ namespace chttpp::detail {
 
   template<detail::tag::has_reqbody_method MethodTag>
   struct terse_req_impl<MethodTag> {
+
+    using tag_t = MethodTag;
 
     template<byte_serializable Body>
     auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
@@ -345,7 +349,7 @@ namespace chttpp::detail {
   };
 }
 
-namespace chttpp {
+namespace chttpp::inline method_object {
 
   inline constexpr detail::terse_req_impl<detail::tag::get_t> get{};
   inline constexpr detail::terse_req_impl<detail::tag::head_t> head{};
@@ -359,20 +363,37 @@ namespace chttpp {
 
 namespace chttpp {
 
+  template<typename CharT>
+    requires requires {
+      requires std::is_same_v<CharT, char> or std::is_same_v<CharT, wchar_t>;
+    }
   class agent {
-    string_t m_base_url;
+    using string = basic_string_t<CharT>;
+    using string_view = std::basic_string_view<CharT>;
+
+    string m_base_url;
     detail::request_config m_cfg;
 
   public:
 
-    agent(std::string_view base_url, detail::request_config cfg)
+    agent(string_view base_url, detail::request_config cfg)
       : m_base_url(base_url)
       , m_cfg{std::move(cfg)}
     {}
 
-    template<typename Method>
-    auto request(Method, std::string_view url_path) {
+    template<auto Method>
+    auto request(string_view url_path) {
+      using tag = decltype(Method)::tag_t;
 
+      const string full_url = m_base_url + string(url_path);
+
+      return chttpp::underlying::terse::request_impl(full_url, m_cfg, tag{});
     }
   };
+
+  template<typename... Args>
+  agent(std::string_view, detail::request_config, Args&&...) -> agent<char>;
+
+  template<typename... Args>
+  agent(std::wstring_view, detail::request_config, Args&&...) -> agent<wchar_t>;
 }
