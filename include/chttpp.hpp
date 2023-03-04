@@ -335,7 +335,7 @@ namespace chttpp::detail {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
       // ここ、request_bodyの完全転送の必要あるかな・・・？
-      return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }
 
     template<byte_serializable Body>
@@ -344,7 +344,7 @@ namespace chttpp::detail {
       if (cfg.content_type.empty()) {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
-      return chttpp::underlying::terse::request_impl(URL, cpo::as_byte_seq(std::forward<Body>(request_body)), std::move(cfg), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
     }
   };
 }

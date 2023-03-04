@@ -120,18 +120,78 @@ namespace chttpp::detail {
     // 1行分のヘッダの読み取り・変換・格納は共通処理へ
     parse_response_header_oneline(headers, header_str);
   }
+}
 
-  inline auto rebuild_url(CURLU* hurl, const vector_t<std::pair<std::string_view, std::string_view>>& params, string_t& buffer) -> char* {
+namespace chttpp::underlying::terse {
+
+  using ::chttpp::detail::http_result;
+
+  template<typename P, auto& del>
+    requires requires(P* p) {
+      del(p);
+    }
+  struct deleter_t {
+    void operator()(P* p) const noexcept {
+      del(p);
+    }
+  };
+
+  using unique_curl = std::unique_ptr<CURL, deleter_t<CURL, curl_easy_cleanup>>;
+  using unique_slist = std::unique_ptr<curl_slist, deleter_t<curl_slist, curl_slist_free_all>>;
+  using unique_curlurl = std::unique_ptr<CURLU, deleter_t<CURLU, curl_url_cleanup>>;
+  using unique_curlchar = std::unique_ptr<char, deleter_t<char, curl_free>>;
+
+  inline void unique_slist_append(unique_slist& plist, const char* value) noexcept {
+    auto ptr = plist.release();
+    plist.reset(curl_slist_append(ptr, value));
+  }
+
+  template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
+  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* buffer_ptr) -> std::size_t {
+    auto& buffer_obj = *reinterpret_cast<T*>(buffer_ptr);
+    const std::size_t data_len = one * length;  // 第二引数(one)は常に1
+
+    reciever(buffer_obj, data_ptr, data_len);
+
+    // 返さないと失敗扱い
+    return data_len;
+  }
+
+  class string_buffer {
+    string_t m_buffer;
+  public:
+    string_buffer() {
+      // バッファの初期容量設定
+      // これはヘッダ指定の時に使いそうななんか長い文字列
+      constexpr std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
+      m_buffer.reserve(init_len);
+    }
+
+    string_buffer(string_buffer&&) = default;
+    string_buffer& operator=(string_buffer&&) & = default;
+
+    void use(std::invocable<string_t&> auto&& fun) & {
+      // 空であること
+      assert(m_buffer.empty());
+
+      std::invoke(fun, m_buffer);
+
+      // 使用後に空にする
+      m_buffer.clear();
+    }
+  };
+
+  inline auto rebuild_url(CURLU* hurl, const vector_t<std::pair<std::string_view, std::string_view>>& params, string_buffer& buffer) -> char* {
     for (const auto& p : params) {
-      // name=value の形にしてから追記
-      buffer.append(p.first);
-      buffer.append("=");
-      buffer.append(p.second);
+      buffer.use([&](auto& param_buf) {
+        // name=value の形にしてから追記
+        param_buf.append(p.first);
+        param_buf.append("=");
+        param_buf.append(p.second);
 
-      // URLエンコード（=を除く）と&付加はしてくれる
-      curl_url_set(hurl, CURLUPART_QUERY, buffer.c_str(), CURLU_APPENDQUERY | CURLU_URLENCODE);
-
-      buffer.clear();
+        // URLエンコード（=を除く）と&付加はしてくれる
+        curl_url_set(hurl, CURLUPART_QUERY, param_buf.c_str(), CURLU_APPENDQUERY | CURLU_URLENCODE);
+      });
     }
 
     // 認証情報が含まれる場合に削除する
@@ -152,33 +212,6 @@ namespace chttpp::detail {
 
     return purl;
   }
-}
-
-namespace chttpp::underlying::terse {
-
-  using ::chttpp::detail::http_result;
-
-  using unique_curl = std::unique_ptr<CURL, decltype([](CURL* p) noexcept { curl_easy_cleanup(p); })>;
-  using unique_slist = std::unique_ptr<curl_slist, decltype([](curl_slist* p) noexcept { curl_slist_free_all(p); })>;
-  using unique_curlurl = std::unique_ptr<CURLU, decltype([](CURLU* p) noexcept { curl_url_cleanup(p); })>;
-  using unique_curlchar = std::unique_ptr<char, decltype([](char* p) noexcept { curl_free(p); })>;
-
-  inline void unique_slist_append(unique_slist& plist, const char* value) noexcept {
-    auto ptr = plist.release();
-    plist.reset(curl_slist_append(ptr, value));
-  }
-
-  template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
-  auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* buffer_ptr) -> std::size_t {
-    auto& buffer_obj = *reinterpret_cast<T*>(buffer_ptr);
-    const std::size_t data_len = one * length;  // 第二引数(one)は常に1
-
-    reciever(buffer_obj, data_ptr, data_len);
-
-    // 返さないと失敗扱い
-    return data_len;
-  }
-
 
   inline void common_proxy_setting(CURL* session, const detail::proxy_config& prxy_cfg) {
     // アドレス（address:port）設定
@@ -219,68 +252,109 @@ namespace chttpp::underlying::terse {
     }
   }
 
+  struct libcurl_session_state {
+    // CURLのセッションハンドル
+    unique_curl session = nullptr;
+    // 使い回し用バッファ
+    string_buffer buffer{};
+    // CURLのURL
+    unique_curlurl hurl = nullptr;
+    // 認証情報
+    std::optional<detail::config::authorization_config> auth = std::nullopt;
+
+    // URLから抽出した認証情報の保存用
+    unique_curlchar userptr = nullptr;
+    unique_curlchar pwptr = nullptr;
+
+    libcurl_session_state() = default;
+
+    auto init(std::string_view url, const detail::config::authorization_config& auth_cfg) & -> ::CURLcode {
+      // セッションハンドル初期化
+      session.reset(curl_easy_init());
+
+      if (not session) {
+        return CURLE_FAILED_INIT;
+      }
+
+      if (url.starts_with("https")) {
+        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
+      }
+
+      hurl.reset(curl_url());
+      if (not hurl) {
+        // エラーコード要検討
+        return CURLE_FAILED_INIT;
+      }
+      // URLの読み込み
+      assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
+
+      // 認証情報の取得
+      // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+      // configに指定された方を優先する
+      if (auth_cfg.username.empty()) {
+        // 指定されない場合、URLに含まれているものを使用する
+        char* user = nullptr;
+        char* pw = nullptr;
+
+        if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+          // あるものとする？
+          assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+          // RAII
+          userptr.reset(user);
+          pwptr.reset(pw);
+
+          auto& auth_ref = this->auth.emplace();
+          // とりあえずbasic認証
+          auth_ref.scheme = cfg_auth::basic;
+          auth_ref.username = user;
+          auth_ref.password = pw;
+        }
+      } else {
+        // 明示的に指定されていればそれを優先
+        this->auth = auth_cfg;
+      }
+
+      return CURLE_OK;
+    }
+  };
+
+  template<typename... Args>
+  auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
+    libcurl_session_state session_obj;
+
+    if (auto ec = session_obj.init(url, cfg.auth); ec != CURLE_OK) {
+      return http_result{ec};
+    }
+
+    return request_impl(std::move(session_obj), std::move(cfg), std::forward<Args>(args)...);
+  }
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  inline auto request_impl(std::string_view url, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
+  inline auto request_impl(libcurl_session_state&& state, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
     // メソッド判定
-    constexpr bool is_get   = std::same_as<detail::tag::get_t, MethodTag>;
-    constexpr bool is_head  = std::same_as<detail::tag::head_t, MethodTag>;
-    constexpr bool is_opt   = std::same_as<detail::tag::options_t, MethodTag>;
-    constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
+    constexpr bool is_get   = std::is_same_v<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head  = std::is_same_v<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt   = std::is_same_v<detail::tag::options_t, MethodTag>;
+    constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
 
-    unique_curl session{curl_easy_init()};
+    auto& session = state.session;
+    auto& buffer = state.buffer;
+    auto& hurl = state.hurl;
 
-    if (not session) {
-      return http_result{CURLE_FAILED_INIT};
-    }
-
-    // 使い回し用ローカルバッファ
-    string_t buffer;
-    {
-      const std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
-      buffer.reserve(init_len);
-    }
-
-    // URLの編集（パラメータ追加など）
-    unique_curlurl hurl{curl_url()};
-    if (not hurl) {
-      return http_result{CURLE_FAILED_INIT};
-    }
-    assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
-
-    // 認証情報の取得とセット
-    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
-    // configに指定された方を優先する
-    if (not cfg.auth.username.empty()) {
+    // 認証情報の取得とセット、configに指定された方を優先する
+    if (state.auth.has_value()) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
       
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
-    } else {
-      // 指定されない場合、URLに含まれているものを使用する
-      char* user = nullptr;
-      char* pw = nullptr;
-
-      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
-        // あるものとする？
-        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
-
-        // RAII
-        unique_curlchar userptr{user};
-        unique_curlchar pwptr{pw};
-
-        // とりあえずbasic認証
-        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-
-        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
-        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
-      }
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
     }
 
     // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
-    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
+    unique_curlchar purl{rebuild_url(hurl.get(), cfg.params, buffer)};
 
     if (purl == nullptr) {
       // エラーコードの変換については要検討
@@ -339,25 +413,22 @@ namespace chttpp::underlying::terse {
     {
       constexpr std::string_view separater = ": ";
 
-      auto& header_buffer = buffer;
-      assert(header_buffer.empty());
-
       auto& req_headers = cfg.headers;
 
-      for (const auto &[key, value] : req_headers) {
-        // key: value となるようにコピー
-        header_buffer.append(key);
-        if (value.empty()) {
-          // 中身が空のヘッダを追加する
-          header_buffer.append(";");
-        } else {
-          header_buffer.append(separater);
-          header_buffer.append(value);
-        }
+      for (const auto& [key, value] : req_headers) {
+        buffer.use([&](string_t& header_buffer) {
+          // key: value となるようにコピー
+          header_buffer.append(key);
+          if (value.empty()) {
+            // 中身が空のヘッダを追加する
+            header_buffer.append(";");
+          } else {
+            header_buffer.append(separater);
+            header_buffer.append(value);
+          }
 
-        unique_slist_append(req_header_list, header_buffer.c_str());
-
-        header_buffer.clear();
+          unique_slist_append(req_header_list, header_buffer.c_str());
+        });
       }
     }
 
@@ -380,11 +451,6 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
     curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
 
-    if (url.starts_with("https")) {
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
-    }
-
     const CURLcode curl_status = curl_easy_perform(session.get());
 
     if (curl_status != CURLE_OK) {
@@ -398,70 +464,29 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method MethodTag>
-  inline auto request_impl(std::string_view url, std::span<const char> req_body, detail::request_config&& cfg, MethodTag) -> http_result {
+  inline auto request_impl(libcurl_session_state&& state, detail::request_config&& cfg, std::span<const char> req_body, MethodTag) -> http_result {
     // メソッド判定
     [[maybe_unused]]
-    constexpr bool is_post  = std::same_as<detail::tag::post_t, MethodTag>;
-    constexpr bool is_put   = std::same_as<detail::tag::put_t, MethodTag>;
-    constexpr bool is_del   = std::same_as<detail::tag::delete_t, MethodTag>;
-    constexpr bool is_patch = std::same_as<detail::tag::patch_t, MethodTag>;
+    constexpr bool is_post  = std::is_same_v<detail::tag::post_t, MethodTag>;
+    constexpr bool is_put   = std::is_same_v<detail::tag::put_t, MethodTag>;
+    constexpr bool is_del   = std::is_same_v<detail::tag::delete_t, MethodTag>;
+    constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
-    // 本編
-    unique_curl session{curl_easy_init()};
+    auto& session = state.session;
+    auto& buffer = state.buffer;
+    auto& hurl = state.hurl;
 
-    if (not session) {
-      return http_result{CURLE_FAILED_INIT};
-    }
-
-    // 使い回し用ローカルバッファ
-    string_t buffer;
-    {
-      const std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
-      buffer.reserve(init_len);
-    }
-
-    // URLの編集（パラメータ追加など）
-    unique_curlurl hurl{curl_url()};
-    if (not hurl) {
-      return http_result{CURLE_FAILED_INIT};
-    }
-    assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
-
-    // 認証情報の取得とセット
-    // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
-    // configに指定された方を優先する
-    if (cfg.auth.scheme !=  detail::config::authentication_scheme::none) {
+    // 認証情報の取得とセット、configに指定された方を優先する
+    if (state.auth.has_value()) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
       
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(cfg.auth.username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(cfg.auth.password.data()));
-    } else {
-      // 指定されない場合、URLに含まれているものを使用する
-      char* user = nullptr;
-      char* pw = nullptr;
-
-      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
-        // あるものとする？
-        {
-          auto status = curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0);
-          assert(status == CURLUE_OK);
-        }
-
-        // RAII
-        unique_curlchar userptr{user};
-        unique_curlchar pwptr{pw};
-
-        // とりあえずbasic認証
-        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-
-        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
-        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
-      }
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
     }
 
-    // 編集後URLへのポインタ
-    unique_curlchar purl{detail::rebuild_url(hurl.get(), cfg.params, buffer)};
+    // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
+    unique_curlchar purl{rebuild_url(hurl.get(), cfg.params, buffer)};
 
     if (purl == nullptr) {
       // エラーコードの変換については要検討
@@ -520,25 +545,22 @@ namespace chttpp::underlying::terse {
     {
       constexpr std::string_view separater = ": ";
 
-      auto &header_buffer = buffer;
-      assert(header_buffer.empty());
-
       auto& req_headers = cfg.headers;
 
       for (const auto &[key, value] : req_headers) {
-        // key: value となるようにコピー
-        header_buffer.append(key);
-        if (value.empty()) {
-          // 中身が空のヘッダを追加するときのcurlの作法
-          header_buffer.append(";");
-        } else {
-          header_buffer.append(separater);
-          header_buffer.append(value);
-        }
+        buffer.use([&](string_t& header_buffer) {
+          // key: value となるようにコピー
+          header_buffer.append(key);
+          if (value.empty()) {
+            // 中身が空のヘッダを追加するときのcurlの作法
+            header_buffer.append(";");
+          } else {
+            header_buffer.append(separater);
+            header_buffer.append(value);
+          }
 
-        unique_slist_append(req_header_list, header_buffer.c_str());
-
-        header_buffer.clear();
+          unique_slist_append(req_header_list, header_buffer.c_str());
+        });
       }
 
       // Content-Type指定はヘッダ設定を優先する
@@ -547,10 +569,12 @@ namespace chttpp::underlying::terse {
       if (not set_content_type) {
         constexpr std::string_view content_type = "content-type: ";
 
-        header_buffer.append(content_type);
-        header_buffer.append(cfg.content_type);
+        buffer.use([&](string_t& header_buffer) {
+          header_buffer.append(content_type);
+          header_buffer.append(cfg.content_type);
 
-        unique_slist_append(req_header_list, header_buffer.c_str());
+          unique_slist_append(req_header_list, header_buffer.c_str());
+        });
       }
     }
 
@@ -570,11 +594,6 @@ namespace chttpp::underlying::terse {
     auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
     curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
     curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
-
-    if (url.starts_with("https")) {
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
-      curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
-    }
 
     const CURLcode curl_status = curl_easy_perform(session.get());
 
