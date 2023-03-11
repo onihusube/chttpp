@@ -387,7 +387,7 @@ namespace chttpp {
 
       const string full_url = m_base_url + string(url_path);
 
-      return chttpp::underlying::terse::request_impl(full_url, m_cfg, tag{});
+      //return chttpp::underlying::terse::request_impl(full_url, m_cfg, tag{});
     }
   };
 

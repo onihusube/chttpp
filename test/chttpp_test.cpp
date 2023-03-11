@@ -1018,6 +1018,23 @@ int main() {
     }
   };
 
+  "agent"_test = [] {
+    {
+      // CTADのチェック
+      [[maybe_unused]]
+      chttpp::agent req1{ "https://example.com", {} };
+      [[maybe_unused]]
+      chttpp::agent req2{ L"https://example.com", {} };
+    }
+    using namespace chttpp::method_object;
+
+    chttpp::agent req{ "https://httpbin.org/", {} };
+
+    //[[maybe_unused]]
+    //auto result = req.request<get>("get");
+
+  };
+
   underlying_test();
   http_result_test();
   http_config_test();

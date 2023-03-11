@@ -54,6 +54,8 @@ namespace chttpp::inline types {
 
 #ifndef CHTTPP_DO_NOT_CUSTOMIZE_ALLOCATOR
   // デフォルト : polymorphic_allocatorによるアロケータカスタイマイズ
+  template<typename CharT>
+  using basic_string_t = std::pmr::basic_string<CharT>;
   using string_t = std::pmr::string;
   using wstring_t = std::pmr::wstring;
   using header_t = std::pmr::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
@@ -61,6 +63,8 @@ namespace chttpp::inline types {
   using vector_t = std::pmr::vector<T>;
 #else
   // アロケータカスタイマイズをしない
+  template<typename CharT>
+  using basic_string_t = std::basic_string<CharT>;
   using string_t = std::string;
   using wstring_t = std::string;
   using header_t = std::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
@@ -376,6 +380,10 @@ namespace chttpp::detail::inline config {
     std::chrono::milliseconds timeout{ 30000 };
     authorization_config auth{};
     proxy_config proxy{};
+
+    operator request_config_for_get() const {
+      return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
+    }
   };
 }
 

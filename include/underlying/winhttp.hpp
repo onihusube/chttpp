@@ -100,6 +100,25 @@ namespace chttpp::underlying::terse {
     return { std::move(converted_str), res == 0 };
   }
 
+  class string_buffer {
+    wstring_t m_buffer;
+  public:
+    string_buffer() = default;
+
+    string_buffer(string_buffer&&) = default;
+    string_buffer& operator=(string_buffer&&) & = default;
+
+    void use(std::invocable<wstring_t&> auto&& fun) & {
+      // 空であること
+      assert(m_buffer.empty());
+
+      std::invoke(fun, m_buffer);
+
+      // 使用後に空にする
+      m_buffer.clear();
+    }
+  };
+
   inline auto init_winhttp_session(const detail::proxy_config& proxy_conf) -> hinet {
     if (proxy_conf.address.empty()) {
       return hinet{ WinHttpOpen(detail::default_UA_w.data(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0) };
@@ -233,31 +252,30 @@ namespace chttpp::underlying::terse {
     // 設定で指定された方を優先
     if (not auth.username.empty()) {
       // ユーザー名とパスワードのwchar_t変換
-      {
-        // ユーザー名の長さ
-        const std::size_t user_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), nullptr, 0);
-        // パスワードの長さ
-        const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), nullptr, 0);
 
-        // \0を1つ含むようにリサイズ
-        auth_buf.resize(user_len + pw_len + 1);
+      // ユーザー名の長さ
+      const std::size_t user_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), nullptr, 0);
+      // パスワードの長さ
+      const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), nullptr, 0);
 
-        // ユーザー名の変換
-        int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
-        // パスワードの変換
-        int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
+      // \0を1つ含むようにリサイズ
+      auth_buf.resize(user_len + pw_len + 1);
 
-        assert(res_user == user_len);
-        assert(res_pw == pw_len);
-        // パスワードは空でもいい、その場合0になる？
-        assert(1ull < pw_len);
+      // ユーザー名の変換
+      int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
+      // パスワードの変換
+      int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
 
-        auth_buf[user_len] = L'\0';
+      assert(res_user == user_len);
+      assert(res_pw == pw_len);
+      // パスワードは空でもいい、その場合0になる？
+      assert(1ull < pw_len);
 
-        // \0を含まない範囲を参照させる
-        user = std::wstring_view{ auth_buf.data(), user_len };
-        pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
-      }
+      auth_buf[user_len] = L'\0';
+
+      // \0を含まない範囲を参照させる
+      user = std::wstring_view{ auth_buf.data(), user_len };
+      pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
     } else if (url_component.dwUserNameLength != 0) {
       // URLにユーザー名とパスワードが含まれている場合
       // null終端のためにいったんバッファにコピー
@@ -281,12 +299,10 @@ namespace chttpp::underlying::terse {
     // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
     // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
 
-    const bool res = ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
-
-    return res;
+    return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
   }
   
-  inline bool proxy_authntication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_t& buf) {
+  inline bool proxy_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_t& buf) {
     // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
     // とりあえずnot suport
     /*
@@ -298,78 +314,115 @@ namespace chttpp::underlying::terse {
     return common_authentication_setting(req_handle, auth, {}, buf, WINHTTP_AUTH_TARGET_PROXY);
   }
 
-  inline auto http_ver_setting(HINTERNET session_handle, cfg::http_version ver) -> std::pair<bool, std::wstring_view> {
-    using enum cfg::http_version;
 
-    switch (ver)
-    {
-    case http2: 
-      {
-        // HTTP2を常に使用する
-        DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-        return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt)), L"HTTP/2"};
+  struct winhttp_session_state {
+    hinet session;
+    hinet connect;
+
+    ::URL_COMPONENTS url_component;
+
+    std::wstring_view http_ver_str;
+
+    wstring_t host_name;
+    wstring_t auth_buf;
+    wstring_t prxy_auth_buf;
+
+    auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> DWORD {
+
+      // sessionの初期化
+      session = init_winhttp_session(prxy_cfg);
+
+      // タイムアウトの設定
+      const int timeout_int = static_cast<int>(timeout.count());
+
+      // セッション全体ではなく各点でのタイムアウト指定になる
+      // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
+      if (not ::WinHttpSetTimeouts(session.get(), timeout_int, timeout_int, timeout_int, timeout_int)) {
+        return ::GetLastError();
       }
-    /*case http3 :
+
+      // HTTPバージョンの設定
       {
-        // HTTP2を常に使用する
-        DWORD http3_opt = WINHTTP_PROTOCOL_FLAG_HTTP3;
-        return { ::WinHttpSetOption(session_handle, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt)), L"HTTP/3" };
-      }*/
-    case http1_1:
-      // 1.1はデフォルト
-      return {true, L"HTTP/1.1"};
-    default:
-      std::unreachable();
+        using enum cfg::http_version;
+
+        switch (version)
+        {
+        case http2:
+          {
+            // HTTP2を常に使用する
+            DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
+            http_ver_str = L"HTTP/2";
+            if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
+              return ::GetLastError();
+            }
+            break;
+          }
+        /*case http3 :
+          {
+            // HTTP3を常に使用する
+            DWORD http3_opt = WINHTTP_PROTOCOL_FLAG_HTTP3;
+            http_ver_str = L"HTTP/3";
+            if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http3_opt, sizeof(http3_opt))) {
+              return ::GetLastError();
+            }
+            break;
+          }*/
+        case http1_1:
+          // 1.1はデフォルト
+          http_ver_str = L"HTTP/1.1";
+          break;
+        default:
+          std::unreachable();
+        }
+      }
+
+      // ドメイン部分までのURL分解
+      url_component = { .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
+
+      if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
+        return ::GetLastError();
+      }
+
+      // null終端をするためにwstringに移す
+      host_name = { url_component.lpszHostName, url_component.dwHostNameLength };
+
+      // 接続ハンドルの取得
+      connect.reset(::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0));
+
+      if (not connect) {
+        return ::GetLastError();
+      }
+
+      return ERROR_SUCCESS;
     }
+
+  };
+
+
+  template<typename... Args>
+  auto request_impl(std::wstring_view url, auto&& conf, Args&&... args) -> http_result {
+    winhttp_session_state session_obj;
+
+    if (auto ec = session_obj.init(url, conf.proxy, conf.timeout, conf.version); ec != ERROR_SUCCESS) {
+      return http_result{ ec };
+    }
+
+    return request_impl(std::move(session_obj), std::move(conf), std::forward<Args>(args)...);
   }
+
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
-  auto request_impl(std::wstring_view url, detail::request_config_for_get&& conf, MethodTag) -> http_result {
+  auto request_impl(winhttp_session_state&& state, detail::request_config_for_get&& conf, MethodTag) -> http_result {
     // メソッド判定
     constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
     constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
     constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
     constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
 
-    hinet session = init_winhttp_session(conf.proxy);
-
-    if (not session) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // タイムアウトの設定
-    {
-      const int timeout = static_cast<int>(conf.timeout.count());
-
-      // セッション全体ではなく各点でのタイムアウト指定になる
-      // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
-      if (not ::WinHttpSetTimeouts(session.get(), timeout, timeout, timeout, timeout)) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    // HTTPバージョンの設定
-    const auto [versioning_completed, http_ver_str] = http_ver_setting(session.get(), conf.version);
-    if (not versioning_completed) {
-      return http_result{ ::GetLastError() };
-    }
-
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
-
-    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
-    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
-    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
-
-    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
-
-    if (not connect) {
-      return http_result{ ::GetLastError() };
-    }
+    auto& connect = state.connect;
+    auto& url_component = state.url_component;
+    auto& http_ver_str = state.http_ver_str;
 
     // パラメータを設定したパスとクエリの構成
     const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, conf.params);
@@ -404,7 +457,7 @@ namespace chttpp::underlying::terse {
     // プロクシ認証情報の設定
     wstring_t prxy_auth_buf{};
     if (not conf.proxy.address.empty()) {
-      if (not proxy_authntication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
+      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -418,11 +471,10 @@ namespace chttpp::underlying::terse {
     }
 
     LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
-    std::wstring send_header_buf{};
+    wstring_t send_header_buf;
     auto& headers = conf.headers;
 
     if (not headers.empty()) {
-
       // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
       const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
@@ -508,50 +560,15 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method Tag>
-  auto request_impl(std::wstring_view url, std::span<const char> req_dody, detail::request_config&& conf, Tag) -> http_result {
+  auto request_impl(winhttp_session_state&& state, detail::request_config&& conf, std::span<const char> req_dody, Tag) -> http_result {
 
     constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
     constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
     constexpr bool is_del = std::same_as<Tag, detail::tag::delete_t>;
 
-    hinet session = init_winhttp_session(conf.proxy);
-
-    if (not session) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // タイムアウトの設定
-    {
-      const int timeout = static_cast<int>(conf.timeout.count());
-
-      // セッション全体ではなく各点でのタイムアウト指定になる
-      // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
-      if (not ::WinHttpSetTimeouts(session.get(), timeout, timeout, timeout, timeout)) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    // HTTPバージョンの設定
-    const auto [versioning_completed, http_ver_str] = http_ver_setting(session.get(), conf.version);
-    if (not versioning_completed) {
-      return http_result{ ::GetLastError() };
-    }
-
-    ::URL_COMPONENTS url_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwHostNameLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1 };
-
-    if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // WinHttpCrackUrlはポインタ位置を合わせてくれるだけで文字列をコピーしていない
-    // したがって、バッファを指定しない場合は元の文字列のどこかを指しておりnull終端されていない
-    wstring_t host_name(url_component.lpszHostName, url_component.dwHostNameLength);
-
-    hinet connect{ ::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0) };
-
-    if (not connect) {
-      return http_result{ ::GetLastError() };
-    }
+    auto& connect = state.connect;
+    auto& url_component = state.url_component;
+    auto& http_ver_str = state.http_ver_str;
 
     // パラメータを設定したパスとクエリの構成
     const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, conf.params);
@@ -582,7 +599,7 @@ namespace chttpp::underlying::terse {
     // プロクシ認証情報の設定
     wstring_t prxy_auth_buf{};
     if (not conf.proxy.address.empty()) {
-      if (not proxy_authntication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
+      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -684,4 +701,23 @@ namespace chttpp::underlying::terse {
 
     return request_impl(converted_url, std::forward<Args>(args)...);
   }
+
+
+  template<typename CharT>
+  struct agent_base {
+    using string = basic_string_t<CharT>;
+
+    string url_head;
+    detail::request_config cfg;
+
+    wstring_t buffer{};
+
+    hinet session_handle;
+    hinet connect_handle;
+
+    agent_base(string&& str, detail::request_config&& cfg)
+      : url_head(std::move(str))
+      , cfg{std::move(cfg)}
+    {}
+  };
 }
