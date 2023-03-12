@@ -157,29 +157,7 @@ namespace chttpp::underlying::terse {
     return data_len;
   }
 
-  class string_buffer {
-    string_t m_buffer;
-  public:
-    string_buffer() {
-      // バッファの初期容量設定
-      // これはヘッダ指定の時に使いそうななんか長い文字列
-      constexpr std::size_t init_len = sizeof("User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36 Edg/106.0.1363.0");
-      m_buffer.reserve(init_len);
-    }
-
-    string_buffer(string_buffer&&) = default;
-    string_buffer& operator=(string_buffer&&) & = default;
-
-    void use(std::invocable<string_t&> auto&& fun) & {
-      // 空であること
-      assert(m_buffer.empty());
-
-      std::invoke(fun, m_buffer);
-
-      // 使用後に空にする
-      m_buffer.clear();
-    }
-  };
+  using detail::util::string_buffer;
 
   inline auto rebuild_url(CURLU* hurl, const vector_t<std::pair<std::string_view, std::string_view>>& params, string_buffer& buffer) -> char* {
     for (const auto& p : params) {

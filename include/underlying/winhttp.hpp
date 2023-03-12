@@ -86,6 +86,9 @@ namespace chttpp::underlying::terse {
 
   using hinet = std::unique_ptr<HINTERNET, hinet_deleter>;
 
+  using detail::util::string_buffer;
+  using detail::util::wstring_buffer;
+
   /**
   * @brief charの文字列をstd::wstringへ変換する
   * @param cstr 変換したい文字列
@@ -99,25 +102,6 @@ namespace chttpp::underlying::terse {
 
     return { std::move(converted_str), res == 0 };
   }
-
-  class string_buffer {
-    wstring_t m_buffer;
-  public:
-    string_buffer() = default;
-
-    string_buffer(string_buffer&&) = default;
-    string_buffer& operator=(string_buffer&&) & = default;
-
-    void use(std::invocable<wstring_t&> auto&& fun) & {
-      // 空であること
-      assert(m_buffer.empty());
-
-      std::invoke(fun, m_buffer);
-
-      // 使用後に空にする
-      m_buffer.clear();
-    }
-  };
 
   inline auto init_winhttp_session(const detail::proxy_config& proxy_conf) -> hinet {
     if (proxy_conf.address.empty()) {
@@ -246,11 +230,11 @@ namespace chttpp::underlying::terse {
     return new_path;
   }
 
-  inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_t& auth_buf, int target) {
+  inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_buffer& buffer, int target) {
     std::wstring_view user, pw;
 
     // 設定で指定された方を優先
-    if (not auth.username.empty()) {
+    if (auth.scheme != detail::authentication_scheme::none) {
       // ユーザー名とパスワードのwchar_t変換
 
       // ユーザー名の長さ
@@ -258,43 +242,45 @@ namespace chttpp::underlying::terse {
       // パスワードの長さ
       const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), nullptr, 0);
 
-      // \0を1つ含むようにリサイズ
-      auth_buf.resize(user_len + pw_len + 1);
+      buffer.use([&](wstring_t& auth_buf) {
+        // \0を1つ含むようにリサイズ
+        auth_buf.resize(user_len + pw_len + 1);
 
-      // ユーザー名の変換
-      int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
-      // パスワードの変換
-      int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
+        // ユーザー名の変換
+        int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
+        // パスワードの変換
+        int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
 
-      assert(res_user == user_len);
-      assert(res_pw == pw_len);
-      // パスワードは空でもいい、その場合0になる？
-      assert(1ull < pw_len);
+        assert(res_user == user_len);
+        assert(res_pw == pw_len);
+        // パスワードは空でもいい、その場合0になる？
+        assert(1ull < pw_len);
 
-      auth_buf[user_len] = L'\0';
+        auth_buf[user_len] = L'\0';
 
-      // \0を含まない範囲を参照させる
-      user = std::wstring_view{ auth_buf.data(), user_len };
-      pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
+        // \0を含まない範囲を参照させる
+        user = std::wstring_view{ auth_buf.data(), user_len };
+        pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
+      });
     } else if (url_component.dwUserNameLength != 0) {
       // URLにユーザー名とパスワードが含まれている場合
       // null終端のためにいったんバッファにコピー
 
-      // \0を1つ含むようにリサイズ
-      auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
-      auth_buf.append(url_component.lpszUserName, url_component.dwUserNameLength);
-      auth_buf.append(1, L'\0');
-      auth_buf.append(url_component.lpszPassword, url_component.dwPasswordLength);
 
-      user = std::wstring_view{ auth_buf.data(), url_component.dwUserNameLength };
-      pw = std::wstring_view{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength };
+      buffer.use([&](wstring_t& auth_buf) {
+        // \0を1つ含むようにリサイズ
+        auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
+        auth_buf.append(url_component.lpszUserName, url_component.dwUserNameLength);
+        auth_buf.append(1, L'\0');
+        auth_buf.append(url_component.lpszPassword, url_component.dwPasswordLength);
+
+        user = std::wstring_view{ auth_buf.data(), url_component.dwUserNameLength };
+        pw = std::wstring_view{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength };
+      });
     } else {
       // 認証なし
       return true;
     }
-
-    // パスワードは空でもいいらしい
-    assert(not user.empty());
 
     // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
     // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
@@ -302,7 +288,7 @@ namespace chttpp::underlying::terse {
     return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
   }
   
-  inline bool proxy_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_t& buf) {
+  inline bool proxy_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_buffer& buffer) {
     // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
     // とりあえずnot suport
     /*
@@ -311,7 +297,7 @@ namespace chttpp::underlying::terse {
       return http_result{ ::GetLastError() };
     }*/
 
-    return common_authentication_setting(req_handle, auth, {}, buf, WINHTTP_AUTH_TARGET_PROXY);
+    return common_authentication_setting(req_handle, auth, {}, buffer, WINHTTP_AUTH_TARGET_PROXY);
   }
 
 
@@ -322,10 +308,11 @@ namespace chttpp::underlying::terse {
     ::URL_COMPONENTS url_component;
 
     std::wstring_view http_ver_str;
-
     wstring_t host_name;
-    wstring_t auth_buf;
-    wstring_t prxy_auth_buf;
+
+    // 使いまわす共有バッファ
+    wstring_buffer buffer;
+    string_buffer char_buf;
 
     auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> DWORD {
 
@@ -449,15 +436,13 @@ namespace chttpp::underlying::terse {
     }
 
     // 認証情報の取得とセット
-    wstring_t auth_buf{};
-    if (not common_authentication_setting(request.get(), conf.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
+    if (not common_authentication_setting(request.get(), conf.auth, url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
     }
 
     // プロクシ認証情報の設定
-    wstring_t prxy_auth_buf{};
     if (not conf.proxy.address.empty()) {
-      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
+      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, state.buffer)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -478,23 +463,27 @@ namespace chttpp::underlying::terse {
       // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
       const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-      std::string tmp_buf(total_len, '\0');
-      auto pos = tmp_buf.begin();
+      bool failed = false;
 
-      // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
-      for (auto& [name, value] : headers) {
-        // name: value\r\n のフォーマット
-        pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
-      }
+      state.char_buf.use([&](string_t& tmp_buf) {
+        tmp_buf.resize(total_len, '\0');
 
-      // まとめてWCHAR文字列へ文字コード変換
-      auto&& [wstr, failed] = char_to_wchar(tmp_buf);
-      
+        auto pos = tmp_buf.begin();
+
+        // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+        for (auto& [name, value] : headers) {
+          // name: value\r\n のフォーマット
+          pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+        }
+
+        // まとめてWCHAR文字列へ文字コード変換
+        std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
+      });
+
       if (failed) {
         return http_result{ ::GetLastError() };
       }
 
-      send_header_buf = std::move(wstr);
       add_header = send_header_buf.c_str();
     }
 
@@ -591,15 +580,13 @@ namespace chttpp::underlying::terse {
     }
 
     // 認証情報の取得とセット
-    wstring_t auth_buf{};
-    if (not common_authentication_setting(request.get(), conf.auth, url_component, auth_buf, WINHTTP_AUTH_TARGET_SERVER)) {
+    if (not common_authentication_setting(request.get(), conf.auth, url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
     }
 
     // プロクシ認証情報の設定
-    wstring_t prxy_auth_buf{};
     if (not conf.proxy.address.empty()) {
-      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, prxy_auth_buf)) {
+      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, state.buffer)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -620,21 +607,28 @@ namespace chttpp::underlying::terse {
     if (i == headers.end()) {
       headers.emplace_back("Content-Type", conf.content_type);
     }
+    // この時点で、headersは空ではない
+
+    wstring_t send_header_buf;
+    bool failed = false;
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
     const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-    std::string tmp_buf(total_len, '\0');
-    auto pos = tmp_buf.begin();
+    state.char_buf.use([&](string_t& tmp_buf) {
+      tmp_buf.resize(total_len, '\0');
 
-    // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
-    for (auto& [name, value] : headers) {
-      // name: value\r\n のフォーマット
-      pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
-    }
+      auto pos = tmp_buf.begin();
 
-    // まとめてWCHAR文字列へ文字コード変換
-    auto&& [send_header_buf, failed] = char_to_wchar(tmp_buf);
+      // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+      for (auto& [name, value] : headers) {
+        // name: value\r\n のフォーマット
+        pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+      }
+
+      // まとめてWCHAR文字列へ文字コード変換
+      std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
+    });
 
     if (failed) {
       return http_result{ ::GetLastError() };

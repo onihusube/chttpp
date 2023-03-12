@@ -74,6 +74,32 @@ namespace chttpp::inline types {
 
 }
 
+namespace chttpp::detail::inline util {
+
+  template<typename CharT>
+  class basic_string_buffer {
+    basic_string_t<CharT> m_buffer;
+  public:
+    basic_string_buffer() = default;
+
+    basic_string_buffer(basic_string_buffer&&) = default;
+    basic_string_buffer& operator=(basic_string_buffer&&) & = default;
+
+    void use(std::invocable<basic_string_t<CharT>&> auto&& fun) & {
+      // 空であること
+      assert(m_buffer.empty());
+
+      std::invoke(fun, m_buffer);
+
+      // 使用後に空にする
+      m_buffer.clear();
+    }
+  };
+
+  using string_buffer = basic_string_buffer<char>;
+  using wstring_buffer = basic_string_buffer<wchar_t>;
+}
+
 namespace chttpp::detail::inline concepts {
   template <typename T>
   concept fundamental_type_with_substance =
