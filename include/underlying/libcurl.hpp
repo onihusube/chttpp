@@ -122,9 +122,10 @@ namespace chttpp::detail {
   }
 }
 
-namespace chttpp::underlying::terse {
+namespace chttpp::underlying {
 
   using ::chttpp::detail::http_result;
+  using detail::util::string_buffer;
 
   template<typename P, auto& del>
     requires requires(P* p) {
@@ -156,8 +157,6 @@ namespace chttpp::underlying::terse {
     // 返さないと失敗扱い
     return data_len;
   }
-
-  using detail::util::string_buffer;
 
   inline auto rebuild_url(CURLU* hurl, const vector_t<std::pair<std::string_view, std::string_view>>& params, string_buffer& buffer) -> char* {
     for (const auto& p : params) {
@@ -265,7 +264,10 @@ namespace chttpp::underlying::terse {
         return CURLE_FAILED_INIT;
       }
       // URLの読み込み
-      assert(curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0) == CURLUE_OK);
+      if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0); ec != CURLUE_OK) {
+        // エラーコード要検討
+        return CURLE_FAILED_INIT;
+      }
 
       // 認証情報の取得
       // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
@@ -296,18 +298,63 @@ namespace chttpp::underlying::terse {
 
       return CURLE_OK;
     }
-  };
 
-  template<typename... Args>
-  auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
-    libcurl_session_state session_obj;
+    auto init(std::string_view url_head, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+      if (auto ec = this->init(url_head, init_cfg.auth); ec != CURLE_OK) {
+        return ec;
+      }
 
-    if (auto ec = session_obj.init(url, cfg.auth); ec != CURLE_OK) {
-      return http_result{ec};
+      // とりあえずagent優先でこちらに、後で簡易リクエストの処理と統合する
+
+      {
+        // HTTP versionの指定
+        using enum cfg::http_version;
+        switch (init_cfg.version)
+        {
+        case http2:
+          curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+          break;
+        /*case http3:
+          curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
+          break;*/
+        case http1_1:
+          curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+          break;
+        default:
+          assert(false);
+          break;
+        }
+      }
+
+      // タイムアウトの指定
+      {
+        const long timeout = init_cfg.timeout.count();
+
+        curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
+        curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+      }
+
+      // Proxyの指定
+      if (not init_cfg.proxy.address.empty()) {
+        common_proxy_setting(session.get(), init_cfg.proxy);
+      }
+
+      return CURLE_OK;
     }
 
-    return request_impl(std::move(session_obj), std::move(cfg), std::forward<Args>(args)...);
-  }
+    auto init(std::wstring_view, const detail::config::agent_initial_config&) & -> ::CURLcode {
+      // 未実装
+      assert(false);
+      return CURLE_OK;
+    }
+
+  };
+}
+
+
+namespace chttpp::underlying::terse {
+
+  using namespace chttpp::underlying;
 
   template<typename MethodTag>
     requires (not detail::tag::has_reqbody_method<MethodTag>)
@@ -601,6 +648,17 @@ namespace chttpp::underlying::terse {
   }
 
   template<typename... Args>
+  auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
+    libcurl_session_state session_obj;
+
+    if (auto ec = session_obj.init(url, cfg.auth); ec != CURLE_OK) {
+      return http_result{ec};
+    }
+
+    return request_impl(std::move(session_obj), std::move(cfg), std::forward<Args>(args)...);
+  }
+
+  template<typename... Args>
   auto request_impl(std::wstring_view wchar_url, Args&&... args) -> http_result {
 
     const auto [url, length] = wchar_to_char(wchar_url);
@@ -611,4 +669,138 @@ namespace chttpp::underlying::terse {
 
     return request_impl(std::string_view{url.data(), length}, std::forward<Args>(args)...);
   }
+}
+
+namespace chttpp::underlying::agent_impl {
+
+  using namespace chttpp::underlying;
+
+  template<typename MethodTag>
+  inline auto request_impl(std::string_view, std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
+    // メソッドタイプ判定
+    constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
+
+    static_assert(not has_request_body, "currently being implemented");
+
+    // メソッド判定
+    constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head = std::is_same_v<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt = std::is_same_v<detail::tag::options_t, MethodTag>;
+    constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_post = std::is_same_v<detail::tag::post_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_put = std::is_same_v<detail::tag::put_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
+
+    auto& session = state.session;
+
+    // 認証情報の取得とセット、configに指定された方を優先する
+    if (state.auth.has_value()) {
+      // とりあえずbasic認証のみ考慮
+      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+      
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
+    }
+
+    // URLパスとパラメータのセットのために、CURLUハンドルをコピーする
+    // コピーするのと、解析し直すのと、どっちが良いのか・・・？
+    unique_curlurl hurl{curl_url_dup(state.hurl.get())};
+
+    if (hurl == nullptr) {
+      // out of memory
+      return http_result{CURLcode::CURLE_OUT_OF_MEMORY};
+    }
+
+    // URLパスをセット
+    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, url_path.data(), 0); ec != CURLUE_OK) {
+      // エラーコード要検討
+      return http_result{CURLcode::CURLE_FAILED_INIT};
+    }
+
+    // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
+    unique_curlchar purl{rebuild_url(hurl.get(), req_cfg.params, state.buffer)};
+
+    if (purl == nullptr) {
+      // エラーコードの変換については要検討
+      return http_result{CURLcode::CURLE_URL_MALFORMAT};
+    }
+
+    // フルに構成したURLをセット
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
+
+    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
+    curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
+
+    if constexpr (is_head) {
+      curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
+    } else if constexpr (is_opt) {
+      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
+    } else if constexpr (is_trace) {
+      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
+    }
+
+    vector_t<char> body{};
+    header_t headers;
+
+    unique_slist req_header_list{};
+    {
+      constexpr std::string_view separater = ": ";
+
+      auto& req_headers = cfg.headers;
+
+      for (const auto& [key, value] : req_headers) {
+        state.buffer.use([&](string_t& header_buffer) {
+          // key: value となるようにコピー
+          header_buffer.append(key);
+          if (value.empty()) {
+            // 中身が空のヘッダを追加する
+            header_buffer.append(";");
+          } else {
+            header_buffer.append(separater);
+            header_buffer.append(value);
+          }
+
+          unique_slist_append(req_header_list, header_buffer.c_str());
+        });
+      }
+    }
+
+    if (req_header_list) {
+      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
+    }
+
+    // レスポンスボディコールバックの指定
+    if constexpr (has_request_body or is_get or is_opt) { 
+      auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+        buffer.reserve(buffer.size() + data_len);
+        std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+      }>;
+      curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+      curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+    }
+
+    // レスポンスヘッダコールバックの指定
+    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
+    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
+    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
+
+    const CURLcode curl_status = curl_easy_perform(session.get());
+
+    if (curl_status != CURLE_OK) {
+      return http_result{curl_status};
+    }
+
+    long http_status;
+    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
+  }
+
+  using session_state = libcurl_session_state;
 }

@@ -21,6 +21,17 @@ namespace chttpp::detail {
   public:
     explicit error_code(errc ec) noexcept(std::is_nothrow_move_constructible_v<errc>) : m_ec(std::move(ec)) {}
 
+    error_code(const error_code&) = default;
+    error_code(error_code&&) = default;
+
+    error_code& operator=(const error_code&) & = default;
+    error_code& operator=(error_code&&) & = default;
+
+    error_code& operator=(errc ec) & {
+      m_ec = std::move(ec);
+      return *this;
+    }
+
     [[nodiscard]]
     auto message() const -> string_t {
       return ::chttpp::underlying::lib_error_code_tratis::error_to_string(m_ec);
@@ -29,6 +40,10 @@ namespace chttpp::detail {
     [[nodiscard]]
     auto value() const noexcept -> errc {
       return m_ec;
+    }
+
+    explicit operator bool() const noexcept {
+      return m_ec != ::chttpp::underlying::lib_error_code_tratis::no_error_value;
     }
 
     [[nodiscard]]

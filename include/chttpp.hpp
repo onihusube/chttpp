@@ -372,22 +372,29 @@ namespace chttpp {
     using string_view = std::basic_string_view<CharT>;
 
     string m_base_url;
-    detail::request_config m_cfg;
+    detail::agent_config m_cfg;
+    underlying::agent_impl::session_state m_state;
+    // 初期化や各種設定中に起きたエラーを記録する
+    detail::error_code m_config_ec;
 
   public:
 
-    agent(string_view base_url, detail::request_config cfg)
+    agent(string_view base_url, detail::agent_initial_config cfg = {})
       : m_base_url(base_url)
-      , m_cfg{std::move(cfg)}
+      , m_cfg{ .init_cfg = std::move(cfg) }
+      , m_state{}
+      , m_config_ec{m_state.init(base_url, m_cfg.init_cfg)}
     {}
 
     template<auto Method>
-    auto request(string_view url_path) {
+    auto request(string_view url_path, detail::agent_request_config req_cfg = {}) {
       using tag = decltype(Method)::tag_t;
 
-      const string full_url = m_base_url + string(url_path);
+      if (m_config_ec) {
+        return detail::http_result{m_config_ec};
+      }
 
-      //return chttpp::underlying::terse::request_impl(full_url, m_cfg, tag{});
+      return chttpp::underlying::agent_impl::request_impl(m_base_url, url_path, m_state, m_cfg, std::move(req_cfg), tag{});
     }
   };
 

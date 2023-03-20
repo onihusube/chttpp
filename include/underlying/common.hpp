@@ -411,6 +411,27 @@ namespace chttpp::detail::inline config {
       return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
     }
   };
+
+  struct agent_initial_config {
+    http_version version = http_version::http2;
+    std::chrono::milliseconds timeout{30000};
+    authorization_config auth{};
+    proxy_config proxy{};
+  };
+
+  struct agent_request_config {
+    std::string_view content_type = "";
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+  };
+
+  struct agent_config {
+    // コンストラクタで渡す設定
+    agent_initial_config init_cfg;
+
+    // その他のタイミングで渡される設定
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    //authorization_config auth{};
+  };
 }
 
 namespace chttpp {

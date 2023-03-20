@@ -1018,7 +1018,7 @@ int main() {
     }
   };
 
-  "agent"_test = [] {
+  "agent"_test = [to_json] {
     {
       // CTADのチェック
       [[maybe_unused]]
@@ -1030,9 +1030,24 @@ int main() {
 
     chttpp::agent req{ "https://httpbin.org/", {} };
 
-    //[[maybe_unused]]
-    //auto result = req.request<get>("get");
+    auto result = req.request<get>("get", {.params = {
+                                               {"param1", "value1"},
+                                               {"param2", "value2"},
+                                               {"param3", "value3"}}
+                                          });
 
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(result.status_code() == 200) << result.status_code().value();
+
+    auto res_json = result | to_json;
+
+    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+    const auto &obj = res_json.get<picojson::value::object>();
+    ut::expect(obj.contains("url") >> ut::fatal);
+
+    // 送ったパラメータのチェック
+    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post?param1=value1&param2=value2&param3=value3");
   };
 
   underlying_test();
