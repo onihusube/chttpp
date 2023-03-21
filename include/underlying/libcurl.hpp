@@ -676,7 +676,7 @@ namespace chttpp::underlying::agent_impl {
   using namespace chttpp::underlying;
 
   template<typename MethodTag>
-  inline auto request_impl(std::string_view, std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 

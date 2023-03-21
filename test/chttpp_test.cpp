@@ -857,7 +857,8 @@ int main() {
     {
       auto res = chttpp::get("https://httpbin.org/basic-auth/authtest_user/authtest_pw", { .auth = {
                                                                                              .username = "authtest_user",
-                                                                                             .password = "authtest_pw"
+                                                                                             .password = "authtest_pw",
+                                                                                             .scheme = chttpp::cfg_auth::basic
                                                                                            }
                                                                                          });
 

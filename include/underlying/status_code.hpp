@@ -19,6 +19,8 @@ namespace chttpp::detail {
     errc m_ec;
 
   public:
+    explicit error_code() noexcept : m_ec(::chttpp::underlying::lib_error_code_tratis::no_error_value) {}
+
     explicit error_code(errc ec) noexcept(std::is_nothrow_move_constructible_v<errc>) : m_ec(std::move(ec)) {}
 
     error_code(const error_code&) = default;

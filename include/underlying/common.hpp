@@ -77,6 +77,15 @@ namespace chttpp::inline types {
 namespace chttpp::detail::inline util {
 
   template<typename CharT>
+  struct auto_clear {
+    basic_string_t<CharT>& str;
+
+    ~auto_clear() {
+      str.clear();
+    }
+  };
+
+  template<typename CharT>
   class basic_string_buffer {
     basic_string_t<CharT> m_buffer;
   public:
@@ -85,19 +94,37 @@ namespace chttpp::detail::inline util {
     basic_string_buffer(basic_string_buffer&&) = default;
     basic_string_buffer& operator=(basic_string_buffer&&) & = default;
 
-    void use(std::invocable<basic_string_t<CharT>&> auto&& fun) & {
+    auto use(std::invocable<basic_string_t<CharT>&> auto&& fun) & {
       // 空であること
       assert(m_buffer.empty());
 
-      std::invoke(fun, m_buffer);
-
       // 使用後に空にする
-      m_buffer.clear();
+      [[maybe_unused]]
+      auto_clear raii{ m_buffer };
+
+      return std::invoke(fun, m_buffer);
     }
+
+    template<typename... CharTs>
+    friend auto use_multiple_buffer(std::invocable<basic_string_t<CharTs>&...> auto&& fun, basic_string_buffer<CharTs>&... buffers);
   };
 
   using string_buffer = basic_string_buffer<char>;
   using wstring_buffer = basic_string_buffer<wchar_t>;
+
+  template<typename F, typename... CharTs>
+  auto use_multiple_buffer_impl(F&& fun, auto_clear<CharTs>... buffers) {
+    return std::invoke(fun, buffers.str...);
+  }
+
+  template<typename... CharTs>
+  auto use_multiple_buffer(std::invocable<basic_string_t<CharTs>&...> auto&& fun, basic_string_buffer<CharTs>&... buffers) {
+    // 空であること
+    assert((buffers.m_buffer.empty() && ...));
+
+    // auto_clearで文字列バッファをラップして自動クリーンを行う（その実装の）ために、この関数を経由する必要がある
+    return use_multiple_buffer_impl(fun, auto_clear{ buffers.m_buffer }...);
+  }
 }
 
 namespace chttpp::detail::inline concepts {

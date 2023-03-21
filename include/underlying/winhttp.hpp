@@ -74,7 +74,7 @@ namespace chttpp::detail {
   }
 }
 
-namespace chttpp::underlying::terse {
+namespace chttpp::underlying {
 
   struct hinet_deleter {
     using pointer = HINTERNET;
@@ -101,6 +101,15 @@ namespace chttpp::underlying::terse {
     int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), converted_str.data(), static_cast<int>(converted_len));
 
     return { std::move(converted_str), res == 0 };
+  }
+
+  auto char_to_wchar(std::string_view cstr, wstring_t& out) -> bool {
+    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
+    
+    out.resize(converted_len);
+    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), out.data(), static_cast<int>(converted_len));
+
+    return res == 0;
   }
 
   inline auto init_winhttp_session(const detail::proxy_config& proxy_conf) -> hinet {
@@ -179,7 +188,7 @@ namespace chttpp::underlying::terse {
 
     if (params.empty()) {
       new_path.reserve(path.length() + org_query.length() + 1);
-      
+
       new_path.append(path);
       new_path.append(org_query);
 
@@ -266,7 +275,6 @@ namespace chttpp::underlying::terse {
       // URLにユーザー名とパスワードが含まれている場合
       // null終端のためにいったんバッファにコピー
 
-
       buffer.use([&](wstring_t& auth_buf) {
         // \0を1つ含むようにリサイズ
         auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
@@ -287,7 +295,7 @@ namespace chttpp::underlying::terse {
 
     return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
   }
-  
+
   inline bool proxy_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_buffer& buffer) {
     // プロクシアドレスからユーザー名とパスワード（あれば）を抽出
     // とりあえずnot suport
@@ -335,15 +343,15 @@ namespace chttpp::underlying::terse {
         switch (version)
         {
         case http2:
-          {
-            // HTTP2を常に使用する
-            DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
-            http_ver_str = L"HTTP/2";
-            if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-              return ::GetLastError();
-            }
-            break;
+        {
+          // HTTP2を常に使用する
+          DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
+          http_ver_str = L"HTTP/2";
+          if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
+            return ::GetLastError();
           }
+          break;
+        }
         /*case http3 :
           {
             // HTTP3を常に使用する
@@ -383,19 +391,26 @@ namespace chttpp::underlying::terse {
       return ERROR_SUCCESS;
     }
 
-  };
-
-
-  template<typename... Args>
-  auto request_impl(std::wstring_view url, auto&& conf, Args&&... args) -> http_result {
-    winhttp_session_state session_obj;
-
-    if (auto ec = session_obj.init(url, conf.proxy, conf.timeout, conf.version); ec != ERROR_SUCCESS) {
-      return http_result{ ec };
+    auto init(std::wstring_view url_head, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+      return this->init(url_head, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
     }
 
-    return request_impl(std::move(session_obj), std::move(conf), std::forward<Args>(args)...);
-  }
+    auto init(std::string_view url_head, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+      return buffer.use([&, this](wstring_t& converted_url) {
+          if (char_to_wchar(url_head, converted_url) == false) {
+            // 再帰的にbufferを使われると壊れるので注意
+            return this->init(converted_url, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
+          } else {
+            return ::GetLastError();
+          }
+        });
+    }
+  };
+}
+
+namespace chttpp::underlying::terse {
+
+  using namespace chttpp::underlying;
 
 
   template<typename MethodTag>
@@ -463,9 +478,7 @@ namespace chttpp::underlying::terse {
       // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
       const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-      bool failed = false;
-
-      state.char_buf.use([&](string_t& tmp_buf) {
+      const bool failed = state.char_buf.use([&](string_t& tmp_buf) {
         tmp_buf.resize(total_len, '\0');
 
         auto pos = tmp_buf.begin();
@@ -477,7 +490,8 @@ namespace chttpp::underlying::terse {
         }
 
         // まとめてWCHAR文字列へ文字コード変換
-        std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
+        //std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
+        return char_to_wchar(tmp_buf, send_header_buf);
       });
 
       if (failed) {
@@ -610,12 +624,11 @@ namespace chttpp::underlying::terse {
     // この時点で、headersは空ではない
 
     wstring_t send_header_buf;
-    bool failed = false;
 
     // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
     const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-    state.char_buf.use([&](string_t& tmp_buf) {
+    bool failed = state.char_buf.use([&](string_t& tmp_buf) {
       tmp_buf.resize(total_len, '\0');
 
       auto pos = tmp_buf.begin();
@@ -627,7 +640,7 @@ namespace chttpp::underlying::terse {
       }
 
       // まとめてWCHAR文字列へ文字コード変換
-      std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
+      return char_to_wchar(tmp_buf, send_header_buf);
     });
 
     if (failed) {
@@ -683,6 +696,16 @@ namespace chttpp::underlying::terse {
     return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
   }
 
+  template<typename... Args>
+  auto request_impl(std::wstring_view url, auto&& conf, Args&&... args) -> http_result {
+    winhttp_session_state session_obj;
+
+    if (auto ec = session_obj.init(url, conf.proxy, conf.timeout, conf.version); ec != ERROR_SUCCESS) {
+      return http_result{ ec };
+    }
+
+    return request_impl(std::move(session_obj), std::move(conf), std::forward<Args>(args)...);
+  }
 
   template<typename... Args>
   auto request_impl(std::string_view url, Args&&... args) -> http_result {
@@ -696,22 +719,236 @@ namespace chttpp::underlying::terse {
     return request_impl(converted_url, std::forward<Args>(args)...);
   }
 
+}
+
+namespace chttpp::underlying::agent_impl {
+
+  using namespace chttpp::underlying;
+
+  using session_state = winhttp_session_state;
+
+  struct dummy_buffer {};
 
   template<typename CharT>
-  struct agent_base {
-    using string = basic_string_t<CharT>;
+  struct determin_buffer;
 
-    string url_head;
-    detail::request_config cfg;
-
-    wstring_t buffer{};
-
-    hinet session_handle;
-    hinet connect_handle;
-
-    agent_base(string&& str, detail::request_config&& cfg)
-      : url_head(std::move(str))
-      , cfg{std::move(cfg)}
-    {}
+  template<>
+  struct determin_buffer<char> {
+    using type = detail::wstring_buffer;
   };
+
+  template<>
+  struct determin_buffer<wchar_t> {
+    using type = dummy_buffer;
+  };
+
+  template<typename CharT>
+  using determin_buffer_t = determin_buffer<CharT>::type;
+
+
+
+  template<typename MethodTag>
+  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
+    // メソッドタイプ判定
+    constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
+
+    static_assert(not has_request_body, "currently being implemented");
+
+    // メソッド判定
+    constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head = std::is_same_v<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt = std::is_same_v<detail::tag::options_t, MethodTag>;
+    constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_post = std::is_same_v<detail::tag::post_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_put = std::is_same_v<detail::tag::put_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
+    [[maybe_unused]]
+    constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
+
+    auto& connect = state.connect;
+
+    // ホスト名がきちんとしていないとWinHttpCrackUrl()は分解してくれない（エラーコード 12006 で失敗する）
+    hinet request{state.buffer.use([&](wstring_t& full_url) -> ::HINTERNET {
+      // パス解析のためにURLの頭はでっちあげる
+      full_url = L"http://example.com";
+
+      // ホストとパスの間の/を補う
+      if (url_path.front() != L'/') {
+        full_url.append(1, L'/');
+      }
+
+      full_url.append(url_path);
+
+      // pathの解析
+      // URL_COMPONENTSは元の文字列の一部を参照するだけなので、full_urlはこれが使用される間は生存していなければならない
+      ::URL_COMPONENTS url_path_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
+
+      if (not ::WinHttpCrackUrl(full_url.data(), static_cast<DWORD>(full_url.length()), 0, &url_path_component)) {
+        return nullptr;
+      }
+
+      // パラメータを設定したパスとクエリの構成
+      const auto path_and_query = build_path_and_query({ url_path_component.lpszUrlPath, url_path_component.dwUrlPathLength }, { url_path_component.lpszExtraInfo, url_path_component.dwExtraInfoLength }, req_cfg.params);
+
+      // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
+      const DWORD openreq_flag = ((state.url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
+
+      // HTTPバージョン文字列
+      auto& http_ver_str = state.http_ver_str;
+      
+      if constexpr (is_get) {
+        return ::WinHttpOpenRequest(connect.get(), L"GET", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_head) {
+        return ::WinHttpOpenRequest(connect.get(), L"HEAD", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_opt) {
+        // OPTIONSリクエストの対象を指定する
+        LPCWSTR target = (url_path_component.dwUrlPathLength == 0) ? L"*" : url_path_component.lpszUrlPath;
+        return ::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_trace) {
+        return ::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else {
+        static_assert([] { return false; }(), "not implemented.");
+      }
+    })};
+
+    if (not request) {
+      return http_result{ ::GetLastError() };
+    }
+
+    // 認証情報の取得とセット
+    if (not common_authentication_setting(request.get(), cfg.init_cfg.auth, state.url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
+      return http_result{ ::GetLastError() };
+    }
+
+    // プロクシ認証情報の設定
+    if (not cfg.init_cfg.proxy.address.empty()) {
+      if (not proxy_authentication_setting(request.get(), cfg.init_cfg.proxy.auth, state.buffer)) {
+        return http_result{ ::GetLastError() };
+      }
+    }
+
+    if constexpr (is_get or is_opt) {
+      // レスポンスデータを自動で解凍する
+      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
+      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
+        return http_result{ ::GetLastError() };
+      }
+    }
+
+    LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
+    wstring_t send_header_buf;
+    auto& headers = cfg.headers;
+
+    if (not headers.empty()) {
+      // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
+      const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
+
+      bool failed = state.char_buf.use([&](string_t& tmp_buf) {
+        tmp_buf.resize(total_len, '\0');
+
+        auto pos = tmp_buf.begin();
+
+        // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+        for (auto& [name, value] : headers) {
+          // name: value\r\n のフォーマット
+          pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+        }
+
+        // まとめてWCHAR文字列へ文字コード変換
+        return char_to_wchar(tmp_buf, send_header_buf);
+      });
+
+      if (failed) {
+        return http_result{ ::GetLastError() };
+      }
+
+      add_header = send_header_buf.c_str();
+    }
+
+    // リクエスト送信とレスポンスの受信
+    if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
+        not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+      return http_result{ ::GetLastError() };
+    }
+    
+    // レスポンスデータの取得
+    vector_t<char> body{};
+    if constexpr (is_get or is_opt) {
+      DWORD read_len{};
+      std::size_t total_read{};
+
+      // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
+      // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
+      do {
+        DWORD data_len{};
+        if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        // 実際にはここで止まるらしい
+        if (data_len == 0) break;
+
+        body.resize(total_read + data_len);
+
+        // WinHttpReadDataが最初に0にセットするらしいよ
+        //read_len = 0;
+        if (not ::WinHttpReadData(request.get(), body.data() + total_read, data_len, &read_len)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        total_read += read_len;
+      } while (0 < read_len);
+    }
+
+    // ステータスコードの取得
+    DWORD status_code{};
+    DWORD dowrd_len = sizeof(status_code);
+    if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
+      return http_result{ ::GetLastError() };
+    }
+
+    // レスポンスヘッダの取得
+    DWORD header_bytes{};
+    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
+    // 生ヘッダはUTF-16文字列として得られる（null終端されている）
+    // char文字列へ変換して返す（利便性及び一貫性のため）
+
+    return detail::use_multiple_buffer([&](wstring_t& header_buf, string_t& converted_header) {
+      header_buf.resize(header_bytes / sizeof(wchar_t));
+      ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
+
+      // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
+      const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
+
+      converted_header.resize(converted_len);
+
+      if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
+        return http_result{ ::GetLastError() };
+      }
+
+      return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
+    }, state.buffer, state.char_buf);
+  }
+
+  template<typename... Args>
+  auto request_impl(std::wstring_view url_path, dummy_buffer, Args&&... args) -> http_result {
+    // bufferをはがすだけ
+    return request_impl(url_path, std::forward<Args>(args)...);
+  }
+
+  template<typename... Args>
+  auto request_impl(std::string_view url_path, detail::wstring_buffer& buffer, Args&&... args) -> http_result {
+    // path文字列をwchar_tへ変換する
+    return buffer.use([&](wstring_t& converted_url) {
+        if (char_to_wchar(url_path, converted_url)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        return request_impl(converted_url, std::forward<Args>(args)...);
+      });
+  }
+
 }

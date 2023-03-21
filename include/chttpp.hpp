@@ -374,6 +374,10 @@ namespace chttpp {
     string m_base_url;
     detail::agent_config m_cfg;
     underlying::agent_impl::session_state m_state;
+
+    [[no_unique_address]]
+    underlying::agent_impl::determin_buffer_t<CharT> convert_buffer{};
+
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
 
@@ -383,7 +387,7 @@ namespace chttpp {
       : m_base_url(base_url)
       , m_cfg{ .init_cfg = std::move(cfg) }
       , m_state{}
-      , m_config_ec{m_state.init(base_url, m_cfg.init_cfg)}
+      , m_config_ec{ m_state.init(base_url, m_cfg.init_cfg) }
     {}
 
     template<auto Method>
@@ -394,7 +398,7 @@ namespace chttpp {
         return detail::http_result{m_config_ec};
       }
 
-      return chttpp::underlying::agent_impl::request_impl(m_base_url, url_path, m_state, m_cfg, std::move(req_cfg), tag{});
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), tag{});
     }
   };
 
