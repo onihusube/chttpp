@@ -229,6 +229,33 @@ namespace chttpp::underlying {
     }
   }
 
+  inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
+    std::mbstate_t state{};
+    const wchar_t *src = wstr.data();
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
+
+    string_t buffer{};
+    buffer.resize(required_len);
+
+    // ロケールの考慮・・・？
+    // 外側でコントロールしてもらう方向で・・・
+    const std::size_t converted_len = std::wcsrtombs(buffer.data(), &src, required_len, &state);
+
+    return { std::move(buffer), converted_len };
+  }
+
+  inline auto wchar_to_char(std::wstring_view wstr, string_t& out) -> bool {
+    std::mbstate_t state{};
+    const wchar_t *src = wstr.data();
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
+
+    out.resize(required_len);
+
+    // ロケールの考慮・・・？
+    // 外側でコントロールしてもらう方向で・・・
+    return std::wcsrtombs(out.data(), &src, required_len, &state) == static_cast<std::size_t>(-1);
+  }
+
   struct libcurl_session_state {
     // CURLのセッションハンドル
     unique_curl session = nullptr;
@@ -299,7 +326,7 @@ namespace chttpp::underlying {
       return CURLE_OK;
     }
 
-    auto init(std::string_view url_head, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+    auto init(std::string_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
       if (auto ec = this->init(url_head, init_cfg.auth); ec != CURLE_OK) {
         return ec;
       }
@@ -342,10 +369,15 @@ namespace chttpp::underlying {
       return CURLE_OK;
     }
 
-    auto init(std::wstring_view, const detail::config::agent_initial_config&) & -> ::CURLcode {
-      // 未実装
-      assert(false);
-      return CURLE_OK;
+    auto init(std::wstring_view url_head, detail::string_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+      return cnv_buf.use([&, this](string_t &converted_url) {
+          if (wchar_to_char(url_head, converted_url)) {
+            // std::errcだとillegal_byte_sequence
+            return CURLcode::CURLE_CONV_FAILED;
+          }
+
+          return this->init(converted_url, underlying::agent_impl::dummy_buffer{}, init_cfg);
+        });
     }
 
   };
@@ -632,21 +664,6 @@ namespace chttpp::underlying::terse {
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
   }
 
-  inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
-    std::mbstate_t state{};
-    const wchar_t *src = wstr.data();
-    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
-
-    string_t buffer{};
-    buffer.resize(required_len);
-
-    // ロケールの考慮・・・？
-    // 外側でコントロールしてもらう方向で・・・
-    const std::size_t converted_len = std::wcsrtombs(buffer.data(), &src, required_len, &state);
-
-    return { std::move(buffer), converted_len };
-  }
-
   template<typename... Args>
   auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
     libcurl_session_state session_obj;
@@ -674,13 +691,23 @@ namespace chttpp::underlying::terse {
 namespace chttpp::underlying::agent_impl {
 
   using namespace chttpp::underlying;
+  using session_state = libcurl_session_state;
+
+  template<>
+  struct determin_buffer<char> {
+    using type = dummy_buffer;
+  };
+
+  template<>
+  struct determin_buffer<wchar_t> {
+    using type = detail::string_buffer;
+  };
+
 
   template<typename MethodTag>
-  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
-
-    static_assert(not has_request_body, "currently being implemented");
 
     // メソッド判定
     constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
@@ -689,11 +716,8 @@ namespace chttpp::underlying::agent_impl {
     constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
     [[maybe_unused]]
     constexpr bool is_post = std::is_same_v<detail::tag::post_t, MethodTag>;
-    [[maybe_unused]]
     constexpr bool is_put = std::is_same_v<detail::tag::put_t, MethodTag>;
-    [[maybe_unused]]
     constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
-    [[maybe_unused]]
     constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
     auto& session = state.session;
@@ -733,16 +757,32 @@ namespace chttpp::underlying::agent_impl {
     // フルに構成したURLをセット
     curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
 
+    // ヘッダで指定された場合の扱いに注意？
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
 
-    if constexpr (is_head) {
-      curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
-    } else if constexpr (is_opt) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
-    } else if constexpr (is_trace) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
+    if constexpr (has_request_body) {
+
+      curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
+      curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
+
+      if constexpr (is_put) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PUT");
+      } else if constexpr (is_del) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
+      } else if constexpr (is_patch) {
+        //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
+        static_assert([]{return false;}(), "not implemented.");
+      }
+    } else {
+      if constexpr (is_head) {
+        curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
+      } else if constexpr (is_opt) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
+      } else if constexpr (is_trace) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
+      }
     }
 
     vector_t<char> body{};
@@ -769,11 +809,30 @@ namespace chttpp::underlying::agent_impl {
           unique_slist_append(req_header_list, header_buffer.c_str());
         });
       }
+      
+      if constexpr (has_request_body) {
+
+        // Content-Type指定はヘッダ設定を優先する
+        //const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
+        const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, [](const auto& p) { return p.first; });
+
+        if (not set_content_type) {
+          constexpr std::string_view content_type = "content-type: ";
+
+          state.buffer.use([&](string_t& header_buffer) {
+            header_buffer.append(content_type);
+            header_buffer.append(req_cfg.content_type);
+
+            unique_slist_append(req_header_list, header_buffer.c_str());
+          });
+        }
+      }
     }
 
-    if (req_header_list) {
-      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
-    }
+    // CURLOPT_HTTPHEADERの複数回の呼び出しは最後のみ有効
+    // ここで、前回のリクエスト時のヘッダ設定は消える
+    // ヘッダがない場合（req_header_listがnullptrの場合）、ヘッダ設定がリセットされる
+    curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
 
     // レスポンスボディコールバックの指定
     if constexpr (has_request_body or is_get or is_opt) { 
@@ -802,5 +861,23 @@ namespace chttpp::underlying::agent_impl {
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
   }
 
-  using session_state = libcurl_session_state;
+  template<typename... Args>
+  auto request_impl(std::string_view url_path, dummy_buffer, Args&&... args) -> http_result {
+    // bufferをはがすだけ
+    return request_impl(url_path, std::forward<Args>(args)...);
+  }
+
+  template<typename... Args>
+  auto request_impl(std::wstring_view url_path, detail::string_buffer& buffer, Args&&... args) -> http_result {
+    // path文字列をcharへ変換する
+    return buffer.use([&](string_t& converted_url) {
+        if (wchar_to_char(url_path, converted_url)) {
+          // std::errcだとillegal_byte_sequence
+          return http_result{ CURLcode::CURLE_CONV_FAILED };
+        }
+
+        return request_impl(converted_url, std::forward<Args>(args)...);
+      });
+  }
+
 }

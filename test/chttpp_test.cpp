@@ -1030,25 +1030,81 @@ int main() {
     using namespace chttpp::method_object;
 
     chttpp::agent req{ "https://httpbin.org/", {} };
+    
+    {
+      auto result = req.request<get>("get", {.params = {
+                                                {"param1", "value1"},
+                                                {"param2", "value2"},
+                                                {"param3", "value3"}}
+                                            });
 
-    auto result = req.request<get>("get", {.params = {
-                                               {"param1", "value1"},
-                                               {"param2", "value2"},
-                                               {"param3", "value3"}}
-                                          });
+      ut::expect(bool(result)) << result.error_message();
+      if (result) {
+        ut::expect(result.status_code().value() == 200_i);
 
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
-    ut::expect(result.status_code() == 200) << result.status_code().value();
+        auto res_json = result | to_json;
 
-    auto res_json = result | to_json;
+        ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
 
-    ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+        const auto &obj = res_json.get<picojson::value::object>();
+        ut::expect(obj.contains("url") >> ut::fatal);
 
-    const auto &obj = res_json.get<picojson::value::object>();
-    ut::expect(obj.contains("url") >> ut::fatal);
+        // 送ったパラメータのチェック
+        ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/get?param1=value1&param2=value2&param3=value3") << obj.at("url").get<std::string>();
+      }
+    }
+    {
+      using namespace chttpp::mime_types;
+      using namespace std::string_view_literals;
 
-    // 送ったパラメータのチェック
-    ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post?param1=value1&param2=value2&param3=value3");
+      auto result = req.request<post>("post", "agent post test", 
+                                              {.content_type = image/svg,
+                                               .params = {
+                                                   {"param1", "value1"},
+                                                   {"param2", "value2"},
+                                                   {"param3", "value3"}
+                                                }
+                                              });
+
+      // auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", {.content_type = image / svg, .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}, {"Content-Type", "text/plain"}, {"Content-Language", "ja-JP"}}});
+
+      ut::expect(bool(result)) << result.error_message();
+
+      result.then([&](auto&& res) {
+        ut::expect(res.status_code == 200) << result.status_code().value();
+
+        auto res_json = result | to_json;
+
+        ut::expect(res_json.is<picojson::value::object>() >> ut::fatal);
+
+        const auto &obj = res_json.get<picojson::value::object>();
+
+        ut::expect(std::ranges::size(obj) == 8_ull);
+        ut::expect(obj.contains("data") >> ut::fatal);
+        ut::expect(obj.contains("url") >> ut::fatal);
+        ut::expect(obj.contains("headers") >> ut::fatal);
+
+        // json要素のチェック
+        ut::expect(obj.at("data").get<std::string>() == "agent post test");
+        ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post");
+
+        const auto &headers = obj.at("headers").get<picojson::value::object>();
+
+        // ut::expect(std::ranges::size(headers) == 6_ull);
+        ut::expect(headers.contains("Content-Length"));
+        ut::expect(headers.contains("Content-Type"));
+        ut::expect(headers.contains("User-Agent"));
+        ut::expect(headers.contains("Content-Language"));
+
+        ut::expect(headers.at("Content-Length").get<std::string>() == "27");
+        ut::expect(headers.at("Content-Type").get<std::string>() == "text/plain"); // ヘッダ設定のmime_typeが優先される
+        ut::expect(headers.at("User-Agent").get<std::string>() == "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)");
+        ut::expect(headers.at("Content-Language").get<std::string>() == "ja-JP");
+
+      }).catch_error([](auto ec) {
+        ut::expect(false >> ut::fatal) << ec.message();
+      });
+    }
   };
 
   underlying_test();

@@ -9,6 +9,17 @@
 #include "null_terminated_string_view.hpp"
 //#include "mime_types.hpp"
 
+namespace chttpp::underlying::agent_impl {
+
+  struct dummy_buffer {};
+
+  template<typename CharT>
+  struct determin_buffer;
+
+  template<typename CharT>
+  using determin_buffer_t = determin_buffer<CharT>::type;
+}
+
 #ifdef _MSC_VER
 
 #include "underlying/winhttp.hpp"
@@ -372,14 +383,24 @@ namespace chttpp {
     using string_view = std::basic_string_view<CharT>;
 
     string m_base_url;
-    detail::agent_config m_cfg;
-    underlying::agent_impl::session_state m_state;
-
     [[no_unique_address]]
     underlying::agent_impl::determin_buffer_t<CharT> convert_buffer{};
 
+    detail::agent_config m_cfg;
+    underlying::agent_impl::session_state m_state;
+
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
+
+    void merge_header(std::span<const std::pair<std::string_view, std::string_view>> add_headers) {
+      auto& header_map = m_cfg.headers;
+
+      // 重複ヘッダは上書きする
+      // 一部、リスト化して良いヘッダというものも存在するので、要検討
+      for (const auto& [key, value] : add_headers) {
+        header_map.insert_or_assign(key, value);
+      }
+    }
 
   public:
 
@@ -387,18 +408,45 @@ namespace chttpp {
       : m_base_url(base_url)
       , m_cfg{ .init_cfg = std::move(cfg) }
       , m_state{}
-      , m_config_ec{ m_state.init(base_url, m_cfg.init_cfg) }
+      , m_config_ec{ m_state.init(base_url, convert_buffer, m_cfg.init_cfg) }
     {}
 
+    agent(const agent&) = delete;
+    agent& operator=(const agent&) = delete;
+
+    agent(agent&&) = default;
+    agent& operator=(agent&&) & = default;
+
     template<auto Method>
-    auto request(string_view url_path, detail::agent_request_config req_cfg = {}) {
+    auto request(string_view url_path, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
       using tag = decltype(Method)::tag_t;
 
       if (m_config_ec) {
         return detail::http_result{m_config_ec};
       }
 
-      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), tag{});
+      merge_header(req_cfg.headers);
+
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), std::span<const char>{}, tag{});
+    }
+
+    template<auto Method, byte_serializable Body>
+      requires detail::tag::has_reqbody_method<typename decltype(Method)::tag_t>
+    auto request(string_view url_path, Body&& request_body, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+      using tag = decltype(Method)::tag_t;
+
+      if (m_config_ec) {
+        return detail::http_result{m_config_ec};
+      }
+
+      merge_header(req_cfg.headers);
+
+      // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
+      if (req_cfg.content_type.empty()) {
+        req_cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
+      }
+
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), tag{});
     }
   };
 

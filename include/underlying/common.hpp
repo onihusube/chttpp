@@ -61,6 +61,8 @@ namespace chttpp::inline types {
   using header_t = std::pmr::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::pmr::vector<T>;
+  template<typename Key, typename Value>
+  using umap_t = std::pmr::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
 #else
   // アロケータカスタイマイズをしない
   template<typename CharT>
@@ -70,6 +72,8 @@ namespace chttpp::inline types {
   using header_t = std::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::vector<T>;
+  template <typename Key, typename Value>
+  using umap_t = std::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
 #endif
 
 }
@@ -449,6 +453,7 @@ namespace chttpp::detail::inline config {
   struct agent_request_config {
     std::string_view content_type = "";
     vector_t<std::pair<std::string_view, std::string_view>> params{};
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
   };
 
   struct agent_config {
@@ -456,7 +461,7 @@ namespace chttpp::detail::inline config {
     agent_initial_config init_cfg;
 
     // その他のタイミングで渡される設定
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    umap_t<std::string_view, std::string_view> headers{};
     //authorization_config auth{};
   };
 }
@@ -495,10 +500,12 @@ namespace chttpp::detail::tag {
   struct trace_t {};
   struct patch_t {};
 
-  template<typename Tag>
+  template <typename Tag>
   concept has_reqbody_method =
-    std::same_as<Tag, post_t> or
-    std::same_as<Tag, put_t> or
-    std::same_as<Tag, delete_t> or
-    std::same_as<Tag, patch_t>;
+      requires {
+        requires std::is_same_v<Tag, post_t> or
+                 std::is_same_v<Tag, put_t> or
+                 std::is_same_v<Tag, delete_t> or
+                 std::is_same_v<Tag, patch_t>;
+      };
 }

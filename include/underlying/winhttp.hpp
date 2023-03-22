@@ -727,11 +727,6 @@ namespace chttpp::underlying::agent_impl {
 
   using session_state = winhttp_session_state;
 
-  struct dummy_buffer {};
-
-  template<typename CharT>
-  struct determin_buffer;
-
   template<>
   struct determin_buffer<char> {
     using type = detail::wstring_buffer;
@@ -741,10 +736,6 @@ namespace chttpp::underlying::agent_impl {
   struct determin_buffer<wchar_t> {
     using type = dummy_buffer;
   };
-
-  template<typename CharT>
-  using determin_buffer_t = determin_buffer<CharT>::type;
-
 
 
   template<typename MethodTag>
