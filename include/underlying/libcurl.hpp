@@ -375,114 +375,19 @@ namespace chttpp::underlying::terse {
   using namespace chttpp::underlying;
 
   template<typename MethodTag>
-    requires (not detail::tag::has_reqbody_method<MethodTag>)
-  inline auto request_impl(libcurl_session_state&& state, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
+  auto request_impl(libcurl_session_state&& state, auto&& cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+    // メソッドタイプ判定
+    constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
+
     // メソッド判定
-    constexpr bool is_get   = std::is_same_v<detail::tag::get_t, MethodTag>;
-    constexpr bool is_head  = std::is_same_v<detail::tag::head_t, MethodTag>;
-    constexpr bool is_opt   = std::is_same_v<detail::tag::options_t, MethodTag>;
+    constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head = std::is_same_v<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt = std::is_same_v<detail::tag::options_t, MethodTag>;
     constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
-
-    auto& session = state.session;
-    auto& buffer = state.buffer;
-    auto& hurl = state.hurl;
-
-    // 認証情報の取得とセット、configに指定された方を優先する
-    if (cfg.auth.scheme != detail::authentication_scheme::none) {
-      // とりあえずbasic認証のみ考慮
-      curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char *>(cfg.auth.username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(cfg.auth.password.data()));
-    }
-
-    // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
-    unique_curlchar purl{rebuild_url(hurl.get(), cfg.params, buffer)};
-
-    if (purl == nullptr) {
-      // エラーコードの変換については要検討
-      return http_result{CURLcode::CURLE_URL_MALFORMAT};
-    }
-
-    // URLのセット
-    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
-
-    vector_t<char> body{};
-    header_t headers;
-
-    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
-    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
-    curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
-
-    if constexpr (is_head) {
-      curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
-    } else if constexpr (is_opt) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
-    } else if constexpr (is_trace) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
-    }
-
-    unique_slist req_header_list{};
-    {
-      constexpr std::string_view separater = ": ";
-
-      auto& req_headers = cfg.headers;
-
-      for (const auto& [key, value] : req_headers) {
-        buffer.use([&](string_t& header_buffer) {
-          // key: value となるようにコピー
-          header_buffer.append(key);
-          if (value.empty()) {
-            // 中身が空のヘッダを追加する
-            header_buffer.append(";");
-          } else {
-            header_buffer.append(separater);
-            header_buffer.append(value);
-          }
-
-          unique_slist_append(req_header_list, header_buffer.c_str());
-        });
-      }
-    }
-
-    if (req_header_list) {
-      curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
-    }
-
-    // レスポンスボディコールバックの指定
-    if constexpr (is_get or is_opt) { 
-      auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
-        buffer.reserve(buffer.size() + data_len);
-        std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
-      }>;
-      curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
-      curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
-    }
-
-    // レスポンスヘッダコールバックの指定
-    auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
-    curl_easy_setopt(session.get(), CURLOPT_HEADERFUNCTION, header_recieve);
-    curl_easy_setopt(session.get(), CURLOPT_HEADERDATA, &headers);
-
-    const CURLcode curl_status = curl_easy_perform(session.get());
-
-    if (curl_status != CURLE_OK) {
-      return http_result{curl_status};
-    }
-
-    long http_status;
-    curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
-
-    return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
-  }
-
-  template<detail::tag::has_reqbody_method MethodTag>
-  inline auto request_impl(libcurl_session_state&& state, detail::request_config&& cfg, std::span<const char> req_body, MethodTag) -> http_result {
-    // メソッド判定
     [[maybe_unused]]
-    constexpr bool is_post  = std::is_same_v<detail::tag::post_t, MethodTag>;
-    constexpr bool is_put   = std::is_same_v<detail::tag::put_t, MethodTag>;
-    constexpr bool is_del   = std::is_same_v<detail::tag::delete_t, MethodTag>;
+    constexpr bool is_post = std::is_same_v<detail::tag::post_t, MethodTag>;
+    constexpr bool is_put = std::is_same_v<detail::tag::put_t, MethodTag>;
+    constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
     constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
     auto& session = state.session;
@@ -515,16 +420,28 @@ namespace chttpp::underlying::terse {
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
-    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
-    curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char*>(req_body.data()));
 
-    if constexpr (is_put) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PUT");
-    } else if constexpr (is_del) {
-      curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
-    } else if constexpr (is_patch) {
-      //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
-      static_assert([]{return false;}(), "not implemented.");
+    if constexpr (has_request_body) {
+
+      curl_easy_setopt(session.get(), CURLOPT_POSTFIELDSIZE_LARGE, static_cast<curl_off_t>(req_body.size()));
+      curl_easy_setopt(session.get(), CURLOPT_POSTFIELDS, const_cast<char *>(req_body.data()));
+
+      if constexpr (is_put) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PUT");
+      } else if constexpr (is_del) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "DELETE");
+      } else if constexpr (is_patch) {
+        //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
+        static_assert([]{return false;}(), "not implemented.");
+      }
+    } else {
+      if constexpr (is_head) {
+        curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
+      } else if constexpr (is_opt) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
+      } else if constexpr (is_trace) {
+        curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
+      }
     }
 
     unique_slist req_header_list{};
@@ -533,12 +450,12 @@ namespace chttpp::underlying::terse {
 
       auto& req_headers = cfg.headers;
 
-      for (const auto &[key, value] : req_headers) {
+      for (const auto& [key, value] : req_headers) {
         buffer.use([&](string_t& header_buffer) {
           // key: value となるようにコピー
           header_buffer.append(key);
           if (value.empty()) {
-            // 中身が空のヘッダを追加するときのcurlの作法
+            // 中身が空のヘッダを追加する
             header_buffer.append(";");
           } else {
             header_buffer.append(separater);
@@ -549,18 +466,20 @@ namespace chttpp::underlying::terse {
         });
       }
 
-      // Content-Type指定はヘッダ設定を優先する
-      const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
+      if constexpr (has_request_body) {
+        // Content-Type指定はヘッダ設定を優先する
+        const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
-      if (not set_content_type) {
-        constexpr std::string_view content_type = "content-type: ";
+        if (not set_content_type) {
+          constexpr std::string_view content_type = "content-type: ";
 
-        buffer.use([&](string_t& header_buffer) {
-          header_buffer.append(content_type);
-          header_buffer.append(cfg.content_type);
+          buffer.use([&](string_t& header_buffer) {
+            header_buffer.append(content_type);
+            header_buffer.append(cfg.content_type);
 
-          unique_slist_append(req_header_list, header_buffer.c_str());
-        });
+            unique_slist_append(req_header_list, header_buffer.c_str());
+          });
+        }
       }
     }
 
@@ -569,12 +488,14 @@ namespace chttpp::underlying::terse {
     }
 
     // レスポンスボディコールバックの指定
-    auto* resbody_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
-      buffer.reserve(buffer.size() + data_len);
-      std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
-    }>;
-    curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, resbody_recieve);
-    curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+    if constexpr (has_request_body or is_get or is_opt) { 
+      auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+        buffer.reserve(buffer.size() + data_len);
+        std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+      }>;
+      curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+      curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+    }
 
     // レスポンスヘッダコールバックの指定
     auto* header_recieve = write_callback<decltype(headers), chttpp::detail::parse_response_header_on_curl>;
@@ -591,6 +512,11 @@ namespace chttpp::underlying::terse {
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
+  }
+
+  template<typename MethodTag>
+  auto request_impl(libcurl_session_state&& state, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
+    return request_impl(std::move(state), std::move(cfg), std::span<const char>{}, MethodTag{});
   }
 
   template<typename... Args>

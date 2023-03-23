@@ -438,9 +438,9 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
     proxy_config proxy{};
 
-    operator request_config_for_get() const {
-      return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
-    }
+    //operator request_config_for_get() const {
+    //  return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
+    //}
   };
 
   struct agent_initial_config {
