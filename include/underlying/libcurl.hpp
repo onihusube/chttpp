@@ -171,11 +171,6 @@ namespace chttpp::underlying {
       });
     }
 
-    // 認証情報が含まれる場合に削除する
-    // basic認証実装時はこの前で設定する必要がある
-    curl_url_set(hurl, CURLUPART_USER, nullptr, 0);
-    curl_url_set(hurl, CURLUPART_PASSWORD, nullptr, 0);
-
     // アンカーの削除（これはブラウザでのみ意味があり通常リクエストの一部ではない）
     curl_url_set(hurl, CURLUPART_FRAGMENT, nullptr, 0);
 
@@ -263,8 +258,6 @@ namespace chttpp::underlying {
     string_buffer buffer{};
     // CURLのURL
     unique_curlurl hurl = nullptr;
-    // 認証情報
-    std::optional<detail::config::authorization_config> auth = std::nullopt;
 
     // URLから抽出した認証情報の保存用
     unique_curlchar userptr = nullptr;
@@ -272,7 +265,7 @@ namespace chttpp::underlying {
 
     libcurl_session_state() = default;
 
-    auto init(std::string_view url, const detail::config::authorization_config& auth_cfg) & -> ::CURLcode {
+    auto init(std::string_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> ::CURLcode {
       // セッションハンドル初期化
       session.reset(curl_easy_init());
 
@@ -280,63 +273,10 @@ namespace chttpp::underlying {
         return CURLE_FAILED_INIT;
       }
 
-      if (url.starts_with("https")) {
-        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
-        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
-      }
-
-      hurl.reset(curl_url());
-      if (not hurl) {
-        // エラーコード要検討
-        return CURLE_FAILED_INIT;
-      }
-      // URLの読み込み
-      if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0); ec != CURLUE_OK) {
-        // エラーコード要検討
-        return CURLE_FAILED_INIT;
-      }
-
-      // 認証情報の取得
-      // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
-      // configに指定された方を優先する
-      if (auth_cfg.username.empty()) {
-        // 指定されない場合、URLに含まれているものを使用する
-        char* user = nullptr;
-        char* pw = nullptr;
-
-        if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
-          // あるものとする？
-          assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
-
-          // RAII
-          userptr.reset(user);
-          pwptr.reset(pw);
-
-          auto& auth_ref = this->auth.emplace();
-          // とりあえずbasic認証
-          auth_ref.scheme = cfg_auth::basic;
-          auth_ref.username = user;
-          auth_ref.password = pw;
-        }
-      } else {
-        // 明示的に指定されていればそれを優先
-        this->auth = auth_cfg;
-      }
-
-      return CURLE_OK;
-    }
-
-    auto init(std::string_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
-      if (auto ec = this->init(url_head, init_cfg.auth); ec != CURLE_OK) {
-        return ec;
-      }
-
-      // とりあえずagent優先でこちらに、後で簡易リクエストの処理と統合する
-
       {
         // HTTP versionの指定
         using enum cfg::http_version;
-        switch (init_cfg.version)
+        switch (version)
         {
         case http2:
           curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
@@ -355,18 +295,64 @@ namespace chttpp::underlying {
 
       // タイムアウトの指定
       {
-        const long timeout = init_cfg.timeout.count();
+        const long timeout_ms = timeout.count();
 
-        curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
-        curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
+        curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout_ms);
+        curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout_ms);
       }
 
       // Proxyの指定
-      if (not init_cfg.proxy.address.empty()) {
-        common_proxy_setting(session.get(), init_cfg.proxy);
+      if (not prxy_cfg.address.empty()) {
+        common_proxy_setting(session.get(), prxy_cfg);
+      }
+
+      if (url.starts_with("https")) {
+        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
+      }
+
+      hurl.reset(curl_url());
+      if (not hurl) {
+        // エラーコード要検討
+        return CURLE_FAILED_INIT;
+      }
+      // URLの読み込み
+      if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0); ec != CURLUE_OK) {
+        // エラーコード要検討
+        return CURLE_URL_MALFORMAT;
+      }
+
+      // URLに含まれている認証情報の取得
+      // URL編集前に行う必要がある（編集中にURLに含まれている情報を消すため）
+      // 実際の認証設定はリクエスト時に行う
+      char* user = nullptr;
+      char* pw = nullptr;
+
+      if (curl_url_get(hurl.get(), CURLUPART_USER, &user, 0) == CURLUE_OK) {
+        // あるものとする？
+        assert(curl_url_get(hurl.get(), CURLUPART_PASSWORD, &pw, 0) == CURLUE_OK);
+
+        // RAII
+        userptr.reset(user);
+        pwptr.reset(pw);
+
+        // URLに含まれている場合はここで設定してしまえば良い
+        // この場合はbasic認証決め打ち（でいい？
+        curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+
+        curl_easy_setopt(session.get(), CURLOPT_USERNAME, user);
+        curl_easy_setopt(session.get(), CURLOPT_PASSWORD, pw);
+
+        // URLのホスト部から認証情報を削除する
+        curl_url_set(hurl.get(), CURLUPART_USER, nullptr, 0);
+        curl_url_set(hurl.get(), CURLUPART_PASSWORD, nullptr, 0);
       }
 
       return CURLE_OK;
+    }
+
+    auto init(std::string_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+      return this->init(url_head, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
     }
 
     auto init(std::wstring_view url_head, detail::string_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
@@ -376,7 +362,7 @@ namespace chttpp::underlying {
             return CURLcode::CURLE_CONV_FAILED;
           }
 
-          return this->init(converted_url, underlying::agent_impl::dummy_buffer{}, init_cfg);
+          return this->init(converted_url, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
         });
     }
 
@@ -402,12 +388,12 @@ namespace chttpp::underlying::terse {
     auto& hurl = state.hurl;
 
     // 認証情報の取得とセット、configに指定された方を優先する
-    if (state.auth.has_value()) {
+    if (cfg.auth.scheme != detail::authentication_scheme::none) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-      
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
+
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char *>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(cfg.auth.password.data()));
     }
 
     // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
@@ -418,29 +404,12 @@ namespace chttpp::underlying::terse {
       return http_result{CURLcode::CURLE_URL_MALFORMAT};
     }
 
+    // URLのセット
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
+
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
-    {
-      // HTTP versionの指定
-      using enum cfg::http_version;
-      switch (cfg.version)
-      {
-      case http2:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
-        break;
-      /*case http3:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
-        break;*/
-      case http1_1:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-        break;
-      default:
-        assert(false);
-        break;
-      }
-    }
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
@@ -451,19 +420,6 @@ namespace chttpp::underlying::terse {
       curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
     } else if constexpr (is_trace) {
       curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "TRACE");
-    }
-
-    // タイムアウトの指定
-    {
-      const long timeout = cfg.timeout.count();
-
-      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
-      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
-    }
-
-    // Proxyの指定
-    if (not cfg.proxy.address.empty()) {
-      common_proxy_setting(session.get(), cfg.proxy);
     }
 
     unique_slist req_header_list{};
@@ -534,12 +490,12 @@ namespace chttpp::underlying::terse {
     auto& hurl = state.hurl;
 
     // 認証情報の取得とセット、configに指定された方を優先する
-    if (state.auth.has_value()) {
+    if (cfg.auth.scheme != detail::authentication_scheme::none) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-      
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
+
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char *>(cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(cfg.auth.password.data()));
     }
 
     // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る
@@ -550,26 +506,12 @@ namespace chttpp::underlying::terse {
       return http_result{CURLcode::CURLE_URL_MALFORMAT};
     }
 
+    // URLのセット
+    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
+
     vector_t<char> body{};
     header_t headers;
 
-    curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
-    {
-      // HTTP versionの指定
-      using enum cfg::http_version;
-      switch (cfg.version)
-      {
-      case http2:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
-        break;
-      case http1_1:
-        curl_easy_setopt(session.get(), CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-        break;
-      default:
-        assert(false);
-        break;
-      }
-    }
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
@@ -583,19 +525,6 @@ namespace chttpp::underlying::terse {
     } else if constexpr (is_patch) {
       //curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "PATCH");
       static_assert([]{return false;}(), "not implemented.");
-    }
-
-    // タイムアウトの指定
-    {
-      const long timeout = cfg.timeout.count();
-
-      curl_easy_setopt(session.get(), CURLOPT_TIMEOUT_MS, timeout);
-      curl_easy_setopt(session.get(), CURLOPT_CONNECTTIMEOUT_MS, timeout);
-    }
-
-    // Proxyの指定
-    if (not cfg.proxy.address.empty()) {
-      common_proxy_setting(session.get(), cfg.proxy);
     }
 
     unique_slist req_header_list{};
@@ -668,7 +597,7 @@ namespace chttpp::underlying::terse {
   auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
     libcurl_session_state session_obj;
 
-    if (auto ec = session_obj.init(url, cfg.auth); ec != CURLE_OK) {
+    if (auto ec = session_obj.init(url, cfg.proxy, cfg.timeout, cfg.version); ec != CURLE_OK) {
       return http_result{ec};
     }
 
@@ -723,12 +652,12 @@ namespace chttpp::underlying::agent_impl {
     auto& session = state.session;
 
     // 認証情報の取得とセット、configに指定された方を優先する
-    if (state.auth.has_value()) {
+    if (req_cfg.auth.scheme != detail::authentication_scheme::none) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-      
-      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char*>(state.auth->username.data()));
-      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char*>(state.auth->password.data()));
+
+      curl_easy_setopt(session.get(), CURLOPT_USERNAME, const_cast<char *>(req_cfg.auth.username.data()));
+      curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(req_cfg.auth.password.data()));
     }
 
     // URLパスとパラメータのセットのために、CURLUハンドルをコピーする
@@ -813,8 +742,7 @@ namespace chttpp::underlying::agent_impl {
       if constexpr (has_request_body) {
 
         // Content-Type指定はヘッダ設定を優先する
-        //const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
-        const bool set_content_type = std::ranges::any_of(req_headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, [](const auto& p) { return p.first; });
+        const bool set_content_type = req_headers.contains("Content-Type") or req_headers.contains("content-type");
 
         if (not set_content_type) {
           constexpr std::string_view content_type = "content-type: ";

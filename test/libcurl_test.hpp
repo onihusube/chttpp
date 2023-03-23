@@ -154,7 +154,8 @@ void underlying_test() {
       unique_curlchar ptr{rebuild_url(hurl.get(), params, buffer)};
       std::string_view res = ptr.get();
 
-      ut::expect(res == "https://example.com/path?param=value");
+      // basic認証情報の削除は他の場所でやる（rebuild_url()は取り除かれていることを前提とする）
+      ut::expect(res == "https://user:pass@example.com/path?param=value");
     }
     {
       unique_curlurl hurl{::curl_url()};

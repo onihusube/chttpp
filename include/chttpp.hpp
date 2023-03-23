@@ -392,18 +392,19 @@ namespace chttpp {
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
 
-    void merge_header(std::span<const std::pair<std::string_view, std::string_view>> add_headers) {
+    void merge_header(umap_t<string_t, string_t>&& add_headers) {
       auto& header_map = m_cfg.headers;
 
       // 重複ヘッダは上書きする
       // 一部、リスト化して良いヘッダというものも存在するので、要検討
-      for (const auto& [key, value] : add_headers) {
-        header_map.insert_or_assign(key, value);
+      for (auto&& [key, value] : std::move(add_headers)) {
+        header_map.insert_or_assign(std::move(key), std::move(value));
       }
     }
 
   public:
 
+    [[nodiscard]]
     agent(string_view base_url, detail::agent_initial_config cfg = {})
       : m_base_url(base_url)
       , m_cfg{ .init_cfg = std::move(cfg) }
@@ -425,7 +426,7 @@ namespace chttpp {
         return detail::http_result{m_config_ec};
       }
 
-      merge_header(req_cfg.headers);
+      merge_header(std::exchange(req_cfg.headers, {}));
 
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), std::span<const char>{}, tag{});
     }
@@ -439,7 +440,7 @@ namespace chttpp {
         return detail::http_result{m_config_ec};
       }
 
-      merge_header(req_cfg.headers);
+      merge_header(std::exchange(req_cfg.headers, {}));
 
       // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
       if (req_cfg.content_type.empty()) {
@@ -447,6 +448,18 @@ namespace chttpp {
       }
 
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), tag{});
+    }
+
+  public:
+
+    void set_headers(umap_t<string_t, string_t> headers) & {
+      merge_header(std::move(headers));
+    }
+
+    [[nodiscard]]
+    auto set_headers(umap_t<string_t, string_t> headers) && -> agent&& {
+      merge_header(std::move(headers));
+      return std::move(*this);
     }
   };
 
