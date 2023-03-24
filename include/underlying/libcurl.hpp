@@ -578,6 +578,8 @@ namespace chttpp::underlying::agent_impl {
     auto& session = state.session;
 
     // 認証情報の取得とセット、configに指定された方を優先する
+    // 以前に設定されていて、後のリクエストで認証情報が削除された場合、curl_easy_reset()を呼び出さないと認証情報をクリアできない
+    // あるいは、送信ヘッダから削除するという方法があるらしいが・・・
     if (req_cfg.auth.scheme != detail::authentication_scheme::none) {
       // とりあえずbasic認証のみ考慮
       curl_easy_setopt(session.get(), CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
@@ -647,28 +649,37 @@ namespace chttpp::underlying::agent_impl {
     {
       constexpr std::string_view separater = ": ";
 
-      auto& req_headers = cfg.headers;
+      auto set_headers = [&](string_t& header_buffer,  std::string_view key, std::string_view value) {
+        // key: value となるようにコピー
+        header_buffer.append(key);
+        if (value.empty()) {
+          // 中身が空のヘッダを追加する
+          header_buffer.append(";");
+        } else {
+          header_buffer.append(separater);
+          header_buffer.append(value);
+        }
 
-      for (const auto& [key, value] : req_headers) {
-        state.buffer.use([&](string_t& header_buffer) {
-          // key: value となるようにコピー
-          header_buffer.append(key);
-          if (value.empty()) {
-            // 中身が空のヘッダを追加する
-            header_buffer.append(";");
-          } else {
-            header_buffer.append(separater);
-            header_buffer.append(value);
-          }
+        unique_slist_append(req_header_list, header_buffer.c_str());
+      };
 
-          unique_slist_append(req_header_list, header_buffer.c_str());
-        });
+      // agentに直接設定されたヘッダ、リクエスト間で共通
+      for (const auto& [key, value] : cfg.headers) {
+        state.buffer.use([&](string_t& buf) { set_headers(buf, key, value); });
+      }
+
+      // リクエスト時指定のヘッダ、リクエスト毎に独立
+      for (const auto& [key, value] : req_cfg.headers) {
+        state.buffer.use([&](string_t& buf) { set_headers(buf, key, value); });
       }
       
       if constexpr (has_request_body) {
 
         // Content-Type指定はヘッダ設定を優先する
-        const bool set_content_type = req_headers.contains("Content-Type") or req_headers.contains("content-type");
+        const bool set_content_type =
+            cfg.headers.contains("Content-Type") or
+            cfg.headers.contains("content-type") or
+            std::ranges::any_of(req_cfg.headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
         if (not set_content_type) {
           constexpr std::string_view content_type = "content-type: ";

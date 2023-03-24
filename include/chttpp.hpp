@@ -426,8 +426,6 @@ namespace chttpp {
         return detail::http_result{m_config_ec};
       }
 
-      merge_header(std::exchange(req_cfg.headers, {}));
-
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), std::span<const char>{}, tag{});
     }
 
@@ -439,8 +437,6 @@ namespace chttpp {
       if (m_config_ec) {
         return detail::http_result{m_config_ec};
       }
-
-      merge_header(std::exchange(req_cfg.headers, {}));
 
       // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
       if (req_cfg.content_type.empty()) {

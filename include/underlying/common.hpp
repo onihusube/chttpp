@@ -451,7 +451,7 @@ namespace chttpp::detail::inline config {
 
   struct agent_request_config {
     std::string_view content_type = "";
-    umap_t<string_t, string_t> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
   };
