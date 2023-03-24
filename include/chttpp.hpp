@@ -392,16 +392,6 @@ namespace chttpp {
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
 
-    void merge_header(umap_t<string_t, string_t>&& add_headers) {
-      auto& header_map = m_cfg.headers;
-
-      // 重複ヘッダは上書きする
-      // 一部、リスト化して良いヘッダというものも存在するので、要検討
-      for (auto&& [key, value] : std::move(add_headers)) {
-        header_map.insert_or_assign(std::move(key), std::move(value));
-      }
-    }
-
   public:
 
     [[nodiscard]]
@@ -446,6 +436,49 @@ namespace chttpp {
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), tag{});
     }
 
+  private:
+
+    void merge_header(umap_t<string_t, string_t>&& add_headers) {
+      auto& header_map = m_cfg.headers;
+
+      // 重複ヘッダは上書きする
+      // 一部、リスト化して良いヘッダというものも存在するので、要検討
+      for (auto&& [key, value] : std::move(add_headers)) {
+        header_map.insert_or_assign(std::move(key), std::move(value));
+      }
+    }
+
+    void merge_cookie(deque_t<detail::cookie>&& cookies) {
+      auto& cookie_store = m_cfg.cookie_store;
+
+      constexpr string_view https_prefix = [] {
+        if constexpr (std::is_same_v<CharT, char>) {
+          return "https";
+        } else {
+          return L"https";
+        }
+      }();
+
+      const bool is_https = m_base_url.starts_with(https_prefix);
+
+      auto save_cookie = [&](detail::cookie&& cookie){
+        cookie_store.emplace_back(std::move(cookie));
+      };
+
+      if (is_https) {
+        for (auto&& cookie : std::move(cookies)) {
+          save_cookie(std::move(cookie));
+        }
+      } else {
+        // secure属性付き（secure=true）のクッキーは無視する
+        // デフォルトはsecure=falseなので、気にしなければ全てのクッキーが保存される
+        for (auto&& cookie : std::move(cookies) | std::views::filter(std::not_fn(&detail::cookie::secure))) {
+          save_cookie(std::move(cookie));
+        }
+      }
+
+    }
+
   public:
 
     void set_headers(umap_t<string_t, string_t> headers) & {
@@ -455,6 +488,16 @@ namespace chttpp {
     [[nodiscard]]
     auto set_headers(umap_t<string_t, string_t> headers) && -> agent&& {
       merge_header(std::move(headers));
+      return std::move(*this);
+    }
+
+    void set_cookies(deque_t<detail::cookie> cookies) & {
+      merge_cookie(std::move(cookies));
+    }
+
+    [[nodiscard]]
+    auto set_cookies(deque_t<detail::cookie> cookies) && -> agent&& {
+      merge_cookie(std::move(cookies));
       return std::move(*this);
     }
   };

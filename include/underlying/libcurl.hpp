@@ -699,6 +699,24 @@ namespace chttpp::underlying::agent_impl {
     // ヘッダがない場合（req_header_listがnullptrの場合）、ヘッダ設定がリセットされる
     curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
 
+    // クッキーの設定
+    // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
+    const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
+      // "name1=value1; name2=value2; ..."のように整形する
+      for (const auto& [name, value] : req_cfg.cookies) {
+        cookie_str.append(name);
+        cookie_str.append(1, '=');
+        cookie_str.append(value);
+        cookie_str.append("; ");
+      }
+
+      return curl_easy_setopt(session.get(), CURLOPT_COOKIE, cookie_str.c_str());
+    });
+
+    if (cookie_ec != CURLcode::CURLE_OK) {
+      return http_result{cookie_ec};
+    }
+
     // レスポンスボディコールバックの指定
     if constexpr (has_request_body or is_get or is_opt) { 
       auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {

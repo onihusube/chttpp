@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cassert>
+#include <deque>
 
 #if __has_include(<memory_resource>)
 
@@ -63,6 +64,8 @@ namespace chttpp::inline types {
   using vector_t = std::pmr::vector<T>;
   template<typename Key, typename Value>
   using umap_t = std::pmr::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
+  template<typename T>
+  using deque_t = std::pmr::deque<T>;
 #else
   // アロケータカスタイマイズをしない
   template<typename CharT>
@@ -74,6 +77,8 @@ namespace chttpp::inline types {
   using vector_t = std::vector<T>;
   template <typename Key, typename Value>
   using umap_t = std::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
+  template<typename T>
+  using deque_t = std::deque<T>;
 #endif
 
 }
@@ -451,9 +456,28 @@ namespace chttpp::detail::inline config {
 
   struct agent_request_config {
     std::string_view content_type = "";
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    std::initializer_list<std::pair<std::string_view, std::string_view>> headers{};
+    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies{};
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
+  };
+
+
+  struct cookie {
+    // 必須
+    string_t name;
+    string_t value;
+
+    // オプション
+    string_t domain = "";
+    string_t path = "/";
+    bool secure = false;
+
+    std::chrono::steady_clock::time_point expires = std::chrono::steady_clock::time_point::max();
+
+    // このライブラリの用法ではあっても無意味と思われる
+    //bool http_only = false;
+    //string_t SameSite = "Strict";
   };
 
   struct agent_config {
@@ -462,7 +486,8 @@ namespace chttpp::detail::inline config {
 
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
-    //authorization_config auth{};
+    deque_t<cookie> cookie_store{};
+    // authorization_config auth{};
   };
 }
 
