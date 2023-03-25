@@ -13,6 +13,7 @@
 #include <cctype>
 #include <cassert>
 #include <deque>
+#include <initializer_list>
 
 #if __has_include(<memory_resource>)
 
@@ -62,8 +63,8 @@ namespace chttpp::inline types {
   using header_t = std::pmr::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::pmr::vector<T>;
-  template<typename Key, typename Value>
-  using umap_t = std::pmr::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
+  template<typename Key, typename Value, typename Hash = std::hash<Key>>
+  using umap_t = std::pmr::unordered_map<Key, Value, Hash, std::ranges::equal_to>;
   template<typename T>
   using deque_t = std::pmr::deque<T>;
 #else
@@ -75,8 +76,8 @@ namespace chttpp::inline types {
   using header_t = std::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::vector<T>;
-  template <typename Key, typename Value>
-  using umap_t = std::unordered_map<Key, Value, string_hash, std::ranges::equal_to>;
+  template<typename Key, typename Value, typename Hash = std::hash<Key>>
+  using umap_t = std::unordered_map<Key, Value, Hash, std::ranges::equal_to>;
   template<typename T>
   using deque_t = std::deque<T>;
 #endif
@@ -456,8 +457,9 @@ namespace chttpp::detail::inline config {
 
   struct agent_request_config {
     std::string_view content_type = "";
-    std::initializer_list<std::pair<std::string_view, std::string_view>> headers{};
-    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies{};
+    // MSVCがこの2つに初期化子`{}`を付けるとC2797エラーになるので、なしにする
+    std::initializer_list<std::pair<std::string_view, std::string_view>> headers;
+    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies;
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
   };

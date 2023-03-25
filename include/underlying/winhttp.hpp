@@ -322,6 +322,9 @@ namespace chttpp::underlying {
     wstring_buffer buffer;
     string_buffer char_buf;
 
+    // ヘッダ構成用
+    umap_t<std::string_view, std::string_view, string_hash> tmp_header;
+
     auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> DWORD {
 
       // sessionの初期化
@@ -391,14 +394,13 @@ namespace chttpp::underlying {
       return ERROR_SUCCESS;
     }
 
-    auto init(std::wstring_view url_head, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+    auto init(std::wstring_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
       return this->init(url_head, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
     }
 
-    auto init(std::string_view url_head, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
-      return buffer.use([&, this](wstring_t& converted_url) {
+    auto init(std::string_view url_head, detail::wstring_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+      return cnv_buf.use([&, this](wstring_t& converted_url) {
           if (char_to_wchar(url_head, converted_url) == false) {
-            // 再帰的にbufferを使われると壊れるので注意
             return this->init(converted_url, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
           } else {
             return ::GetLastError();
@@ -563,7 +565,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<detail::tag::has_reqbody_method Tag>
-  auto request_impl(winhttp_session_state&& state, detail::request_config&& conf, std::span<const char> req_dody, Tag) -> http_result {
+  auto request_impl(winhttp_session_state&& state, detail::request_config&& conf, std::span<const char> req_body, Tag) -> http_result {
 
     constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
     constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
@@ -648,7 +650,7 @@ namespace chttpp::underlying::terse {
     }
 
     // リクエストの送信（送信とは言ってない）
-    if (not ::WinHttpSendRequest(request.get(), send_header_buf.c_str(), static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_dody.data()), static_cast<DWORD>(req_dody.size_bytes()), static_cast<DWORD>(req_dody.size_bytes()), 0) or
+    if (not ::WinHttpSendRequest(request.get(), send_header_buf.c_str(), static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
         not ::WinHttpReceiveResponse(request.get(), nullptr)) {
       return http_result{ ::GetLastError() };
     }
@@ -739,11 +741,9 @@ namespace chttpp::underlying::agent_impl {
 
 
   template<typename MethodTag>
-  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
-
-    static_assert(not has_request_body, "currently being implemented");
 
     // メソッド判定
     constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
@@ -786,6 +786,7 @@ namespace chttpp::underlying::agent_impl {
 
       // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
       const DWORD openreq_flag = ((state.url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
+      // ここでのWINHTTP_FLAG_REFRESHの使用は要検討
 
       // HTTPバージョン文字列
       auto& http_ver_str = state.http_ver_str;
@@ -800,6 +801,12 @@ namespace chttpp::underlying::agent_impl {
         return ::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_trace) {
         return ::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_post) {
+        return ::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_put) {
+        return ::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+      } else if constexpr (is_del) {
+        return ::WinHttpOpenRequest(connect.get(), L"DELETE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else {
         static_assert([] { return false; }(), "not implemented.");
       }
@@ -810,7 +817,7 @@ namespace chttpp::underlying::agent_impl {
     }
 
     // 認証情報の取得とセット
-    if (not common_authentication_setting(request.get(), cfg.init_cfg.auth, state.url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
+    if (not common_authentication_setting(request.get(), req_cfg.auth, state.url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
       return http_result{ ::GetLastError() };
     }
 
@@ -821,7 +828,7 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
-    if constexpr (is_get or is_opt) {
+    if constexpr (has_request_body or is_get or is_opt) {
       // レスポンスデータを自動で解凍する
       DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
       if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
@@ -829,11 +836,39 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
+    // 後でお掃除
+    [[maybe_unused]]
+    struct raii_clear_tmp_header {
+      decltype(state.tmp_header)& ref;
+
+      ~raii_clear_tmp_header() {
+        ref.clear();
+      }
+    } raii{ .ref = state.tmp_header };
+
+    // まずヘッダをマージする
+    state.tmp_header.insert(cfg.headers.begin(), cfg.headers.end());
+    // agent本体設定を上書きする形でリクエスト時ヘッダを指定
+    for (const auto& [key, value] : req_cfg.headers) {
+      state.tmp_header.insert_or_assign(key, value);
+    }
+
+    if constexpr (has_request_body) {
+      // Content-Typeヘッダの追加
+      // ヘッダ指定されたものを優先する（emplace()は、既にキーがあれば構築しない）
+      state.tmp_header.emplace("content-type", req_cfg.content_type);
+
+      // この時点で、ヘッダは空ではない
+    }
+
     LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
     wstring_t send_header_buf;
-    auto& headers = cfg.headers;
+    auto& headers = state.tmp_header;
 
-    if (not headers.empty()) {
+#pragma warning(push)
+#pragma warning(disable:4127)
+    if (has_request_body or (not headers.empty())) {
+#pragma warning(pop)
       // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
       const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
@@ -860,9 +895,16 @@ namespace chttpp::underlying::agent_impl {
     }
 
     // リクエスト送信とレスポンスの受信
-    if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
-        not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
+    if constexpr (has_request_body) {
+      if (not ::WinHttpSendRequest(request.get(), add_header, static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
+          not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+        return http_result{ ::GetLastError() };
+      }
+    } else {
+      if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
+          not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+        return http_result{ ::GetLastError() };
+      }
     }
     
     // レスポンスデータの取得
