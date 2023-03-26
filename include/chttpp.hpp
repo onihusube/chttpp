@@ -326,11 +326,11 @@ namespace chttpp::detail {
     using tag_t = MethodTag;
 
     auto operator()(nt_string_view URL, request_config_for_get cfg = {}) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), std::span<const char>{}, MethodTag{});
     }
 
     auto operator()(nt_wstring_view URL, request_config_for_get cfg = {}) const -> http_result {
-      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), std::span<const char>{}, MethodTag{});
     }
   };
 

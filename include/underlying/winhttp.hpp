@@ -417,13 +417,18 @@ namespace chttpp::underlying::terse {
 
 
   template<typename MethodTag>
-    requires (not detail::tag::has_reqbody_method<MethodTag>)
-  auto request_impl(winhttp_session_state&& state, detail::request_config_for_get&& conf, MethodTag) -> http_result {
+  auto request_impl(winhttp_session_state&& state, auto&& conf, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+    // メソッドタイプ判定
+    constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
+
     // メソッド判定
-    constexpr bool is_get = std::same_as<detail::tag::get_t, MethodTag>;
-    constexpr bool is_head = std::same_as<detail::tag::head_t, MethodTag>;
-    constexpr bool is_opt = std::same_as<detail::tag::options_t, MethodTag>;
-    constexpr bool is_trace = std::same_as<detail::tag::trace_t, MethodTag>;
+    constexpr bool is_get = std::is_same_v<detail::tag::get_t, MethodTag>;
+    constexpr bool is_head = std::is_same_v<detail::tag::head_t, MethodTag>;
+    constexpr bool is_opt = std::is_same_v<detail::tag::options_t, MethodTag>;
+    constexpr bool is_trace = std::is_same_v<detail::tag::trace_t, MethodTag>;
+    constexpr bool is_post = std::is_same_v<detail::tag::post_t, MethodTag>;
+    constexpr bool is_put = std::is_same_v<detail::tag::put_t, MethodTag>;
+    constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
 
     auto& connect = state.connect;
     auto& url_component = state.url_component;
@@ -445,144 +450,7 @@ namespace chttpp::underlying::terse {
       request.reset(::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_trace) {
       request.reset(::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
-    } else {
-      static_assert([] { return false; }(), "not implemented.");
-    }
-
-    if (not request) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // 認証情報の取得とセット
-    if (not common_authentication_setting(request.get(), conf.auth, url_component, state.buffer, WINHTTP_AUTH_TARGET_SERVER)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // プロクシ認証情報の設定
-    if (not conf.proxy.address.empty()) {
-      if (not proxy_authentication_setting(request.get(), conf.proxy.auth, state.buffer)) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    if constexpr (is_get or is_opt) {
-      // レスポンスデータを自動で解凍する
-      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
-      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
-        return http_result{ ::GetLastError() };
-      }
-    }
-
-    LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
-    wstring_t send_header_buf;
-    auto& headers = conf.headers;
-
-    if (not headers.empty()) {
-      // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
-      const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
-
-      const bool failed = state.char_buf.use([&](string_t& tmp_buf) {
-        tmp_buf.resize(total_len, '\0');
-
-        auto pos = tmp_buf.begin();
-
-        // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
-        for (auto& [name, value] : headers) {
-          // name: value\r\n のフォーマット
-          pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
-        }
-
-        // まとめてWCHAR文字列へ文字コード変換
-        //std::tie(send_header_buf, failed) = char_to_wchar(tmp_buf);
-        return char_to_wchar(tmp_buf, send_header_buf);
-      });
-
-      if (failed) {
-        return http_result{ ::GetLastError() };
-      }
-
-      add_header = send_header_buf.c_str();
-    }
-
-    // リクエスト送信とレスポンスの受信
-    if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
-        not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // レスポンスデータの取得
-    vector_t<char> body{};
-    if constexpr (is_get or is_opt) {
-      DWORD read_len{};
-      std::size_t total_read{};
-
-      // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
-      // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
-      do {
-        DWORD data_len{};
-        if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
-          return http_result{ ::GetLastError() };
-        }
-
-        // 実際にはここで止まるらしい
-        if (data_len == 0) break;
-
-        body.resize(total_read + data_len);
-
-        // WinHttpReadDataが最初に0にセットするらしいよ
-        //read_len = 0;
-        if (not ::WinHttpReadData(request.get(), body.data() + total_read, data_len, &read_len)) {
-          return http_result{ ::GetLastError() };
-        }
-
-        total_read += read_len;
-      } while (0 < read_len);
-    }
-
-    // ステータスコードの取得
-    DWORD status_code{};
-    DWORD dowrd_len = sizeof(status_code);
-    if (not ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status_code, &dowrd_len, WINHTTP_NO_HEADER_INDEX)) {
-      return http_result{ ::GetLastError() };
-    }
-
-    // レスポンスヘッダの取得
-    DWORD header_bytes{};
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, WINHTTP_NO_OUTPUT_BUFFER, &header_bytes, WINHTTP_NO_HEADER_INDEX);
-    // 生ヘッダはUTF-16文字列として得られる（null終端されている）
-    wstring_t header_buf;
-    header_buf.resize(header_bytes / sizeof(wchar_t));
-    ::WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_RAW_HEADERS_CRLF, WINHTTP_HEADER_NAME_BY_INDEX, header_buf.data(), &header_bytes, WINHTTP_NO_HEADER_INDEX);
-
-    // ヘッダの変換、レスポンスヘッダに非Ascii文字が無いものと仮定しない
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, nullptr, 0, nullptr, nullptr);
-    string_t converted_header{};
-    converted_header.resize(converted_len);
-    if (::WideCharToMultiByte(CP_ACP, 0, header_buf.data(), -1, converted_header.data(), static_cast<int>(converted_len), nullptr, nullptr) == 0) {
-      return http_result{ ::GetLastError() };
-    }
-
-    return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
-  }
-
-  template<detail::tag::has_reqbody_method Tag>
-  auto request_impl(winhttp_session_state&& state, detail::request_config&& conf, std::span<const char> req_body, Tag) -> http_result {
-
-    constexpr bool is_post = std::same_as<Tag, detail::tag::post_t>;
-    constexpr bool is_put = std::same_as<Tag, detail::tag::put_t>;
-    constexpr bool is_del = std::same_as<Tag, detail::tag::delete_t>;
-
-    auto& connect = state.connect;
-    auto& url_component = state.url_component;
-    auto& http_ver_str = state.http_ver_str;
-
-    // パラメータを設定したパスとクエリの構成
-    const auto path_and_query = build_path_and_query({ url_component.lpszUrlPath, url_component.dwUrlPathLength }, { url_component.lpszExtraInfo, url_component.dwExtraInfoLength }, conf.params);
-
-    // httpsの時だけWINHTTP_FLAG_SECUREを設定する（こうしないとWinHttpSendRequestでコケる）
-    const DWORD openreq_flag = ((url_component.nPort == 80) ? 0 : WINHTTP_FLAG_SECURE) | WINHTTP_FLAG_ESCAPE_PERCENT | WINHTTP_FLAG_REFRESH;
-    hinet request{};
-    if constexpr (is_post) {
+    } else if constexpr (is_post) {
       request.reset(::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
     } else if constexpr (is_put) {
       request.reset(::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag));
@@ -608,7 +476,7 @@ namespace chttpp::underlying::terse {
       }
     }
 
-    {
+    if constexpr (has_request_body or is_get or is_opt) {
       // レスポンスデータを自動で解凍する
       DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
       if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
@@ -618,59 +486,88 @@ namespace chttpp::underlying::terse {
 
     auto& headers = conf.headers;
 
-    // Content-Typeヘッダの追加
-    // ヘッダ指定されたものを優先する
-    std::input_or_output_iterator auto i = std::ranges::find(headers, "Content-Type", &std::pair<std::string_view, std::string_view>::first);
-    if (i == headers.end()) {
-      headers.emplace_back("Content-Type", conf.content_type);
+    if constexpr (has_request_body) {
+      // Content-Typeヘッダの追加
+      // ヘッダ指定されたものを優先する
+      std::input_or_output_iterator auto i = std::ranges::find_if(headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
+      if (i == headers.end()) {
+        headers.emplace_back("content-type", conf.content_type);
+      }
+      // この時点で、headersは空ではない
     }
-    // この時点で、headersは空ではない
 
+    LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
     wstring_t send_header_buf;
 
-    // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
-    const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
+#pragma warning(push)
+#pragma warning(disable:4127)
+    if (has_request_body or not headers.empty()) {
+#pragma warning(pop)
+      // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
+      const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-    bool failed = state.char_buf.use([&](string_t& tmp_buf) {
-      tmp_buf.resize(total_len, '\0');
+      const bool failed = state.char_buf.use([&](string_t& tmp_buf) {
+        tmp_buf.resize(total_len, '\0');
 
-      auto pos = tmp_buf.begin();
+        auto pos = tmp_buf.begin();
 
-      // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
-      for (auto& [name, value] : headers) {
-        // name: value\r\n のフォーマット
-        pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+        // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+        for (auto& [name, value] : headers) {
+          // name: value\r\n のフォーマット
+          pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+        }
+
+        // まとめてWCHAR文字列へ文字コード変換
+        return char_to_wchar(tmp_buf, send_header_buf);
+      });
+
+      if (failed) {
+        return http_result{ ::GetLastError() };
       }
 
-      // まとめてWCHAR文字列へ文字コード変換
-      return char_to_wchar(tmp_buf, send_header_buf);
-    });
-
-    if (failed) {
-      return http_result{ ::GetLastError() };
+      add_header = send_header_buf.c_str();
     }
 
-    // リクエストの送信（送信とは言ってない）
-    if (not ::WinHttpSendRequest(request.get(), send_header_buf.c_str(), static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
-        not ::WinHttpReceiveResponse(request.get(), nullptr)) {
-      return http_result{ ::GetLastError() };
+    // リクエスト送信とレスポンスの受信
+    if constexpr (has_request_body) {
+      if (not ::WinHttpSendRequest(request.get(), add_header, static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
+          not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+        return http_result{ ::GetLastError() };
+      }
+    } else {
+      if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
+          not ::WinHttpReceiveResponse(request.get(), nullptr)) {
+        return http_result{ ::GetLastError() };
+      }
     }
 
     // レスポンスデータの取得
-    DWORD data_len{};
-    if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
-      return http_result{ ::GetLastError() };
-    }
-
     vector_t<char> body{};
-    if (0 < data_len) {
-      body.resize(data_len);
+    if constexpr (has_request_body or is_get or is_opt) {
       DWORD read_len{};
+      std::size_t total_read{};
 
-      if (not ::WinHttpReadData(request.get(), body.data(), data_len, &read_len)) {
-        return http_result{ ::GetLastError() };
-      }
-      assert(read_len == data_len);
+      // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
+      // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
+      do {
+        DWORD data_len{};
+        if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        // 実際にはここで止まるらしい
+        if (data_len == 0) break;
+
+        body.resize(total_read + data_len);
+
+        // WinHttpReadDataが最初に0にセットするらしいよ
+        //read_len = 0;
+        if (not ::WinHttpReadData(request.get(), body.data() + total_read, data_len, &read_len)) {
+          return http_result{ ::GetLastError() };
+        }
+
+        total_read += read_len;
+      } while (0 < read_len);
     }
 
     // ステータスコードの取得
