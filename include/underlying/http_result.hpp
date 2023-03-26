@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cassert>
+#include <source_location>
 
 #include "common.hpp"
 #include "status_code.hpp"
@@ -50,9 +51,13 @@ namespace chttpp::detail {
     using error_type = error_code;
 
     template<typename T>
-      requires std::constructible_from<error_code, T>
-    explicit http_result(T&& e) noexcept(std::is_nothrow_constructible_v<error_code, T>)
-      : m_either{std::in_place_index<1>, std::forward<T>(e)}
+      requires std::constructible_from<error_code, T, std::source_location>
+    explicit http_result(T&& e, std::source_location ctx = std::source_location::current()) noexcept(std::is_nothrow_constructible_v<error_code, T>)
+      : m_either{std::in_place_index<1>, std::forward<T>(e), std::move(ctx)}
+    {}
+
+    explicit http_result(const error_code& ec) noexcept(std::is_nothrow_copy_constructible_v<error_code>)
+      : m_either{ std::in_place_index<1>, ec}
     {}
 
     explicit http_result(http_response&& res) noexcept(std::is_nothrow_move_constructible_v<http_response>)

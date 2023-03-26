@@ -326,7 +326,7 @@ namespace chttpp::underlying {
     // ヘッダ構成用
     umap_t<std::string_view, std::string_view, string_hash> tmp_header;
 
-    auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> DWORD {
+    auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> detail::error_code {
 
       // sessionの初期化
       session = init_winhttp_session(prxy_cfg);
@@ -337,7 +337,7 @@ namespace chttpp::underlying {
       // セッション全体ではなく各点でのタイムアウト指定になる
       // 最悪の場合、指定時間の4倍の時間待機することになる・・・？
       if (not ::WinHttpSetTimeouts(session.get(), timeout_int, timeout_int, timeout_int, timeout_int)) {
-        return ::GetLastError();
+        return detail::error_code{ ::GetLastError() };
       }
 
       // HTTPバージョンの設定
@@ -352,7 +352,7 @@ namespace chttpp::underlying {
           DWORD http2_opt = WINHTTP_PROTOCOL_FLAG_HTTP2;
           http_ver_str = L"HTTP/2";
           if (not ::WinHttpSetOption(session.get(), WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL, &http2_opt, sizeof(http2_opt))) {
-            return ::GetLastError();
+            return detail::error_code{ ::GetLastError() };
           }
           break;
         }
@@ -379,7 +379,7 @@ namespace chttpp::underlying {
       url_component = { .dwStructSize = sizeof(::URL_COMPONENTS), .dwSchemeLength = (DWORD)-1, .dwHostNameLength = (DWORD)-1, .dwUserNameLength = (DWORD)-1, .dwPasswordLength = (DWORD)-1, .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
 
       if (not ::WinHttpCrackUrl(url.data(), static_cast<DWORD>(url.length()), 0, &url_component)) {
-        return ::GetLastError();
+        return detail::error_code{ ::GetLastError() };
       }
 
       // null終端をするためにwstringに移す
@@ -389,22 +389,22 @@ namespace chttpp::underlying {
       connect.reset(::WinHttpConnect(session.get(), host_name.c_str(), url_component.nPort, 0));
 
       if (not connect) {
-        return ::GetLastError();
+        return detail::error_code{ ::GetLastError() };
       }
 
-      return ERROR_SUCCESS;
+      return detail::error_code{};
     }
 
-    auto init(std::wstring_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+    auto init(std::wstring_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> detail::error_code {
       return this->init(url_head, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
     }
 
-    auto init(std::string_view url_head, detail::wstring_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> DWORD {
+    auto init(std::string_view url_head, detail::wstring_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> detail::error_code {
       return cnv_buf.use([&, this](wstring_t& converted_url) {
           if (char_to_wchar(url_head, converted_url) == false) {
             return this->init(converted_url, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
           } else {
-            return ::GetLastError();
+            return detail::error_code{ ::GetLastError() };
           }
         });
     }

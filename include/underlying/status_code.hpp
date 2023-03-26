@@ -3,6 +3,7 @@
 #include <utility>
 #include <cstdint>
 #include <type_traits>
+#include <source_location>
 
 #include "common.hpp"
 
@@ -17,11 +18,15 @@ namespace chttpp::detail {
     using errc = ::chttpp::underlying::lib_error_code_tratis::errc;
 
     errc m_ec;
+    std::source_location m_context;
 
   public:
-    explicit error_code() noexcept : m_ec(::chttpp::underlying::lib_error_code_tratis::no_error_value) {}
+    explicit error_code() noexcept : m_ec(::chttpp::underlying::lib_error_code_tratis::no_error_value), m_context{} {}
 
-    explicit error_code(errc ec) noexcept(std::is_nothrow_move_constructible_v<errc>) : m_ec(std::move(ec)) {}
+    explicit error_code(errc ec, std::source_location&& ctx = std::source_location::current()) noexcept(std::is_nothrow_move_constructible_v<errc>)
+      : m_ec(std::move(ec))
+      , m_context{std::move(ctx)}
+    {}
 
     error_code(const error_code&) = default;
     error_code(error_code&&) = default;
@@ -42,6 +47,11 @@ namespace chttpp::detail {
     [[nodiscard]]
     auto value() const noexcept -> errc {
       return m_ec;
+    }
+
+    [[nodiscard]]
+    auto context() const noexcept -> const std::source_location& {
+      return m_context;
     }
 
     explicit operator bool() const noexcept {
