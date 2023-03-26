@@ -63,8 +63,8 @@ namespace chttpp::inline types {
   using header_t = std::pmr::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::pmr::vector<T>;
-  template<typename Key, typename Value, typename Hash = std::hash<Key>>
-  using umap_t = std::pmr::unordered_map<Key, Value, Hash, std::ranges::equal_to>;
+  template<typename Key, typename Value, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to>
+  using umap_t = std::pmr::unordered_map<Key, Value, Hash, Comp>;
   template<typename T>
   using deque_t = std::pmr::deque<T>;
 #else
@@ -76,8 +76,8 @@ namespace chttpp::inline types {
   using header_t = std::unordered_map<string_t, string_t, string_hash, std::ranges::equal_to>;
   template<typename T>
   using vector_t = std::vector<T>;
-  template<typename Key, typename Value, typename Hash = std::hash<Key>>
-  using umap_t = std::unordered_map<Key, Value, Hash, std::ranges::equal_to>;
+  template<typename Key, typename Value, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to >>
+  using umap_t = std::unordered_map<Key, Value, Hash, Comp>;
   template<typename T>
   using deque_t = std::deque<T>;
 #endif

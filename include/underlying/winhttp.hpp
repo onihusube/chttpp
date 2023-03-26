@@ -846,6 +846,8 @@ namespace chttpp::underlying::agent_impl {
       }
     } raii{ .ref = state.tmp_header };
 
+    assert(state.tmp_header.empty());
+
     // まずヘッダをマージする
     state.tmp_header.insert(cfg.headers.begin(), cfg.headers.end());
     // agent本体設定を上書きする形でリクエスト時ヘッダを指定
@@ -855,8 +857,12 @@ namespace chttpp::underlying::agent_impl {
 
     if constexpr (has_request_body) {
       // Content-Typeヘッダの追加
-      // ヘッダ指定されたものを優先する（emplace()は、既にキーがあれば構築しない）
-      state.tmp_header.emplace("content-type", req_cfg.content_type);
+      const bool content_type_exists = state.tmp_header.contains("content-type") or state.tmp_header.contains("Content-Type");
+
+      // ヘッダ指定されたものを優先する
+      if (not content_type_exists) {
+        state.tmp_header.emplace("content-type", req_cfg.content_type);
+      }
 
       // この時点で、ヘッダは空ではない
     }
@@ -909,7 +915,7 @@ namespace chttpp::underlying::agent_impl {
     
     // レスポンスデータの取得
     vector_t<char> body{};
-    if constexpr (is_get or is_opt) {
+    if constexpr (has_request_body or is_get or is_opt) {
       DWORD read_len{};
       std::size_t total_read{};
 

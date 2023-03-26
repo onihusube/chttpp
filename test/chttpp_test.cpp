@@ -862,7 +862,7 @@ int main() {
                                                                                            }
                                                                                          });
 
-      ut::expect(res.has_response() >> ut::fatal);
+      ut::expect(res.has_response() >> ut::fatal) << res.error_message();
       ut::expect(res.status_code() == 200) << res.status_code().value();
 
       //std::cout << res.response_body() << "\n";
