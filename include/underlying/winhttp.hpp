@@ -240,7 +240,6 @@ namespace chttpp::underlying {
   }
 
   inline bool common_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, const ::URL_COMPONENTS& url_component, wstring_buffer& buffer, int target) {
-    std::wstring_view user, pw;
 
     // 設定で指定された方を優先
     if (auth.scheme != detail::authentication_scheme::none) {
@@ -251,7 +250,7 @@ namespace chttpp::underlying {
       // パスワードの長さ
       const std::size_t pw_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), nullptr, 0);
 
-      buffer.use([&](wstring_t& auth_buf) {
+      return buffer.use([&](wstring_t& auth_buf) {
         // \0を1つ含むようにリサイズ
         auth_buf.resize(user_len + pw_len + 1);
 
@@ -259,6 +258,7 @@ namespace chttpp::underlying {
         int res_user = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.username.data(), static_cast<int>(auth.username.length()), auth_buf.data(), static_cast<int>(user_len));
         // パスワードの変換
         int res_pw = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, auth.password.data(), static_cast<int>(auth.password.length()), auth_buf.data() + user_len + 1, static_cast<int>(pw_len));
+        // これら変換では、1つのバッファの中で\0で区切って2つの文字列を格納している
 
         assert(res_user == user_len);
         assert(res_pw == pw_len);
@@ -268,32 +268,33 @@ namespace chttpp::underlying {
         auth_buf[user_len] = L'\0';
 
         // \0を含まない範囲を参照させる
-        user = std::wstring_view{ auth_buf.data(), user_len };
-        pw = std::wstring_view{ auth_buf.data() + user_len + 1, pw_len };
+        std::wstring_view user{ auth_buf.data(), user_len };
+        std::wstring_view pw{ auth_buf.data() + user_len + 1, pw_len };
+
+        // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
+        // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
+
+        return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
       });
     } else if (url_component.dwUserNameLength != 0) {
       // URLにユーザー名とパスワードが含まれている場合
       // null終端のためにいったんバッファにコピー
-
-      buffer.use([&](wstring_t& auth_buf) {
+      return buffer.use([&](wstring_t& auth_buf) {
         // \0を1つ含むようにリサイズ
         auth_buf.reserve(static_cast<std::size_t>(url_component.dwUserNameLength) + url_component.dwPasswordLength + 1);
         auth_buf.append(url_component.lpszUserName, url_component.dwUserNameLength);
         auth_buf.append(1, L'\0');
         auth_buf.append(url_component.lpszPassword, url_component.dwPasswordLength);
 
-        user = std::wstring_view{ auth_buf.data(), url_component.dwUserNameLength };
-        pw = std::wstring_view{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength };
+        std::wstring_view user{ auth_buf.data(), url_component.dwUserNameLength };
+        std::wstring_view pw{ auth_buf.data() + user.length() + 1, url_component.dwPasswordLength };
+
+        return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
       });
     } else {
       // 認証なし
       return true;
     }
-
-    // Basic認証以外の認証では、WinHttpSendRequest()の後に応答を確認しつつ設定し再送する必要がある
-    // https://docs.microsoft.com/ja-jp/windows/win32/winhttp/authentication-in-winhttp
-
-    return ::WinHttpSetCredentials(req_handle, target, WINHTTP_AUTH_SCHEME_BASIC, user.data(), pw.data(), nullptr) == TRUE;
   }
 
   inline bool proxy_authentication_setting(HINTERNET req_handle, const detail::authorization_config& auth, wstring_buffer& buffer) {
