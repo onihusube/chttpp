@@ -29,7 +29,7 @@ meson.add_devenv(env)
 if cppcompiler == 'msvc'
     options = ['/std:c++latest', '/source-charset:utf-8', '/Zc:__cplusplus']
 elif cppcompiler == 'gcc'
-    options = ['-std=c++2a']
+    options = ['-std=c++2a', '-fvisibility=hidden']
 endif
 
 # 依存プロジェクト

@@ -458,8 +458,13 @@ namespace chttpp::detail::inline config {
   struct agent_request_config {
     std::string_view content_type = "";
     // MSVCがこの2つに初期化子`{}`を付けるとC2797エラーになるので、なしにする
+#ifdef _MSC_VER
     std::initializer_list<std::pair<std::string_view, std::string_view>> headers;
     std::initializer_list<std::pair<std::string_view, std::string_view>> cookies;
+#else
+    std::initializer_list<std::pair<std::string_view, std::string_view>> headers{};
+    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies{};
+#endif
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
   };

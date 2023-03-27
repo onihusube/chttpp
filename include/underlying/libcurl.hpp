@@ -265,12 +265,12 @@ namespace chttpp::underlying {
 
     libcurl_session_state() = default;
 
-    auto init(std::string_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> ::CURLcode {
+    auto init(std::string_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> detail::error_code {
       // セッションハンドル初期化
       session.reset(curl_easy_init());
 
       if (not session) {
-        return CURLE_FAILED_INIT;
+        return detail::error_code{CURLE_FAILED_INIT};
       }
 
       {
@@ -314,12 +314,12 @@ namespace chttpp::underlying {
       hurl.reset(curl_url());
       if (not hurl) {
         // エラーコード要検討
-        return CURLE_FAILED_INIT;
+        return detail::error_code{CURLE_FAILED_INIT};
       }
       // URLの読み込み
       if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, url.data(), 0); ec != CURLUE_OK) {
         // エラーコード要検討
-        return CURLE_URL_MALFORMAT;
+        return detail::error_code{CURLE_URL_MALFORMAT};
       }
 
       // URLに含まれている認証情報の取得
@@ -348,18 +348,18 @@ namespace chttpp::underlying {
         curl_url_set(hurl.get(), CURLUPART_PASSWORD, nullptr, 0);
       }
 
-      return CURLE_OK;
+      return detail::error_code{};
     }
 
-    auto init(std::string_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+    auto init(std::string_view url_head, underlying::agent_impl::dummy_buffer, const detail::config::agent_initial_config& init_cfg) & -> detail::error_code {
       return this->init(url_head, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
     }
 
-    auto init(std::wstring_view url_head, detail::string_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> ::CURLcode {
+    auto init(std::wstring_view url_head, detail::string_buffer& cnv_buf, const detail::config::agent_initial_config& init_cfg) & -> detail::error_code {
       return cnv_buf.use([&, this](string_t &converted_url) {
           if (wchar_to_char(url_head, converted_url)) {
             // std::errcだとillegal_byte_sequence
-            return CURLcode::CURLE_CONV_FAILED;
+            return detail::error_code{CURLcode::CURLE_CONV_FAILED};
           }
 
           return this->init(converted_url, init_cfg.proxy, init_cfg.timeout, init_cfg.version);
@@ -512,11 +512,6 @@ namespace chttpp::underlying::terse {
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
-  }
-
-  template<typename MethodTag>
-  auto request_impl(libcurl_session_state&& state, detail::request_config_for_get&& cfg, MethodTag) -> http_result {
-    return request_impl(std::move(state), std::move(cfg), std::span<const char>{}, MethodTag{});
   }
 
   template<typename... Args>
