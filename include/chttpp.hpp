@@ -272,7 +272,7 @@ namespace chttpp {
     */
     template<typename T>
     concept byte_serializable = requires(T&& t) {
-      { cpo::as_byte_seq(std::forward<T>(t)) } -> std::convertible_to<std::span<const char>>;
+      { cpo::as_byte_seq(t) } -> std::convertible_to<std::span<const char>>;
     };
 
     /**
@@ -346,7 +346,7 @@ namespace chttpp::detail {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
       // ここ、request_bodyの完全転送の必要あるかな・・・？
-      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(request_body), MethodTag{});
     }
 
     template<byte_serializable Body>
@@ -355,7 +355,7 @@ namespace chttpp::detail {
       if (cfg.content_type.empty()) {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
-      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), MethodTag{});
+      return chttpp::underlying::terse::request_impl(URL, std::move(cfg), cpo::as_byte_seq(request_body), MethodTag{});
     }
   };
 }
@@ -433,7 +433,7 @@ namespace chttpp {
         req_cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
 
-      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(std::forward<Body>(request_body)), tag{});
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
     }
 
   private:
