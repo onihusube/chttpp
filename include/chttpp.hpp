@@ -448,8 +448,11 @@ namespace chttpp {
       }
     }
 
-    void merge_cookie(deque_t<detail::cookie>&& cookies) {
+    void merge_cookie(detail::cookie_store_t&& cookies) {
       auto& cookie_store = m_cfg.cookie_store;
+
+      // 以降の処理は、アロケータの一致を前提とする（agent初期化後にset_default_resource()を変更されるとしぬ）
+      assert(cookie_store.get_allocator() == cookies.get_allocator());
 
       constexpr string_view https_prefix = [] {
         if constexpr (std::is_same_v<CharT, char>) {
@@ -461,22 +464,22 @@ namespace chttpp {
 
       const bool is_https = m_base_url.starts_with(https_prefix);
 
-      auto save_cookie = [&](detail::cookie&& cookie){
-        cookie_store.emplace_back(std::move(cookie));
-      };
-
-      if (is_https) {
-        for (auto&& cookie : std::move(cookies)) {
-          save_cookie(std::move(cookie));
-        }
-      } else {
+      if (not is_https) {
         // secure属性付き（secure=true）のクッキーは無視する
         // デフォルトはsecure=falseなので、気にしなければ全てのクッキーが保存される
-        for (auto&& cookie : std::move(cookies) | std::views::filter(std::not_fn(&detail::cookie::secure))) {
-          save_cookie(std::move(cookie));
-        }
+        std::erase_if(cookies, &detail::cookie::secure);
       }
 
+      // 指定クッキーをマージ
+      cookie_store.merge(cookies);
+
+      // 既に存在するものについては上書き
+      // あらかじめ重複を削除してからマージすれば効率的になる・・・？
+      cookie_store.erase(cookies.cbegin(), cookies.cend());
+      cookie_store.merge(cookies);
+
+      // 空になるはず
+      assert(cookies.empty());
     }
 
   public:
@@ -491,12 +494,12 @@ namespace chttpp {
       return std::move(*this);
     }
 
-    void set_cookies(deque_t<detail::cookie> cookies) & {
+    void set_cookies(detail::cookie_store_t cookies) & {
       merge_cookie(std::move(cookies));
     }
 
     [[nodiscard]]
-    auto set_cookies(deque_t<detail::cookie> cookies) && -> agent&& {
+    auto set_cookies(detail::cookie_store_t cookies) && -> agent&& {
       merge_cookie(std::move(cookies));
       return std::move(*this);
     }

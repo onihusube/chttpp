@@ -27,6 +27,7 @@ namespace ut = boost::ut;
 #include "http_result_test.hpp"
 #include "http_config_test.hpp"
 #include "status_code_test.hpp"
+#include "cookie_test.hpp"
 
 namespace chttpp_test {
 
@@ -108,6 +109,13 @@ int main() {
     ut::expect(headers.size() == 7);
     ut::expect(headers.contains("vary"));
     ut::expect(headers["vary"] == "Accept-Encoding, User-Agent"sv);
+
+    parse_response_header_oneline(headers, "Set-Cookie: name1=value1; Expires=Wed, 21 Oct 2015 07:28:00 GMT");
+    parse_response_header_oneline(headers, "set-cookie: name2=value2; Secure");
+    parse_response_header_oneline(headers, "Set-Cookie: name3=value3");
+    ut::expect(headers.size() == 8);
+    ut::expect(headers.contains("set-cookie"));
+    ut::expect(headers["set-cookie"] == "name1=value1; Expires=Wed, 21 Oct 2015 07:28:00 GMT; name2=value2; Secure; name3=value3"sv) << headers["set-cookie"];
   };
 
 #ifndef _MSC_VER

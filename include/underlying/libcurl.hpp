@@ -637,9 +637,6 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
-    vector_t<char> body{};
-    header_t headers;
-
     unique_slist req_header_list{};
     {
       constexpr std::string_view separater = ": ";
@@ -711,6 +708,9 @@ namespace chttpp::underlying::agent_impl {
     if (cookie_ec != CURLcode::CURLE_OK) {
       return http_result{cookie_ec};
     }
+
+    vector_t<char> body{};
+    header_t headers;
 
     // レスポンスボディコールバックの指定
     if constexpr (has_request_body or is_get or is_opt) { 

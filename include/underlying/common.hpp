@@ -14,6 +14,7 @@
 #include <cassert>
 #include <deque>
 #include <initializer_list>
+#include <unordered_set>
 
 #if __has_include(<memory_resource>)
 
@@ -65,6 +66,8 @@ namespace chttpp::inline types {
   using vector_t = std::pmr::vector<T>;
   template<typename Key, typename Value, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to>
   using umap_t = std::pmr::unordered_map<Key, Value, Hash, Comp>;
+  template<typename Key, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to>
+  using uset_t = std::pmr::unordered_set<Key, Hash, Comp>;
   template<typename T>
   using deque_t = std::pmr::deque<T>;
 #else
@@ -78,6 +81,8 @@ namespace chttpp::inline types {
   using vector_t = std::vector<T>;
   template<typename Key, typename Value, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to >>
   using umap_t = std::unordered_map<Key, Value, Hash, Comp>;
+  template<typename Key, typename Hash = std::hash<Key>, typename Comp = std::ranges::equal_to>
+  using uset_t = std::unordered_set<Key, Hash, Comp>;
   template<typename T>
   using deque_t = std::deque<T>;
 #endif
@@ -197,14 +202,22 @@ namespace chttpp::detail {
       c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     }
 
+    const bool is_set_cookie = key_str == "set-cookie";
+
     if (const auto [it, inserted] = headers.emplace(std::move(key_str), std::string_view{ header_value_pos, header_end_pos }); not inserted) {
       // ヘッダ要素が重複している場合、値をカンマ区切りリストによって追記する
       // 詳細 : https://this.aereal.org/entry/2017/12/21/190158
 
       auto& header_value = (*it).second;
+      
       // ヘッダ要素を追加する分の領域を拡張
       header_value.reserve(header_value.length() + std::size_t(std::ranges::distance(header_value_pos, header_end_pos)) + 2);
-      header_value.append(", ");
+      if (is_set_cookie) {
+        // クッキーの分割は"; "によって行う（後での分離しやすさのため）
+        header_value.append("; ");
+      } else {
+        header_value.append(", ");
+      }
       header_value.append(std::string_view{header_value_pos, header_end_pos});
     }
   }
@@ -485,7 +498,43 @@ namespace chttpp::detail::inline config {
     // このライブラリの用法ではあっても無意味と思われる
     //bool http_only = false;
     //string_t SameSite = "Strict";
+
+    // クッキーの等価性は、name,domain,pathの一致によって判定される
+    friend bool operator==(const cookie& self, const cookie& other) noexcept(noexcept(std::string{} == std::string{})) {
+      return self.name   == other.name && 
+             self.domain == other.domain && 
+             self.path   == other.path;
+    }
   };
+
+  struct cookie_hash {
+    using hash_type = std::hash<std::string_view>;
+    using is_transparent = void;
+
+    /***
+     * @cite https://stackoverflow.com/questions/8513911/how-to-create-a-good-hash-combine-with-64-bit-output-inspired-by-boosthash-co
+     */
+    static inline void hash_combine(std::size_t& seed, std::size_t hash) {
+      constexpr std::size_t kMul = 0x9ddfea08eb382d69ULL;
+      std::size_t a = (hash ^ seed) * kMul;
+      a ^= (a >> 47);
+      std::size_t b = (seed ^ a) * kMul;
+      b ^= (b >> 47);
+      seed = b * kMul;
+    }
+
+    std::size_t operator()(const cookie& c) const noexcept(noexcept(hash_type{}(c.name))) {
+      hash_type hasher{};
+
+      std::size_t hash = hasher(c.name);
+      hash_combine(hash, hasher(c.domain));
+      hash_combine(hash, hasher(c.path));
+
+      return hash;
+    }
+  };
+
+  using cookie_store_t = uset_t<cookie, cookie_hash>;
 
   struct agent_config {
     // コンストラクタで渡す設定
@@ -493,7 +542,7 @@ namespace chttpp::detail::inline config {
 
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
-    deque_t<cookie> cookie_store{};
+    cookie_store_t cookie_store{};
     // authorization_config auth{};
   };
 }
@@ -519,6 +568,36 @@ namespace chttpp {
   // プロクシ周りの設定
   namespace cfg_prxy {
     using enum chttpp::detail::config::enums::proxy_scheme;
+  }
+}
+
+namespace chttpp::detail {
+
+  void apply_set_cookie(std::string_view set_cookie_str, cookie_store_t &cookie_store) {
+    constexpr std::string_view semicolon = "; ";
+    constexpr std::string_view equal = "=";
+    constexpr std::string_view attribute[] = {
+        "Expires",
+        "Max-Age",
+        "Domain",
+        "Path",
+        "Secure",
+        "HttpOnly",
+        "SameSite",
+    };
+
+    using namespace std::views;
+    using std::ranges::any_of;
+    using std::ranges::begin;
+    using std::ranges::end;
+    
+    for (auto&& inner : set_cookie_str | split(semicolon)) {
+      for (std::string_view cookie_part : inner | split(equal)
+                                                | transform([](auto&& subrng) { return std::string_view{begin(subrng), end(subrng)}; }))
+      {
+        const bool is_attribute = any_of(attribute, [cookie_part](auto attr) { return cookie_part == attr; });
+      }
+    }
   }
 }
 
