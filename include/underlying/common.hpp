@@ -577,25 +577,156 @@ namespace chttpp::detail {
     constexpr std::string_view semicolon = "; ";
     constexpr std::string_view equal = "=";
     constexpr std::string_view attribute[] = {
-        "Expires",
-        "Max-Age",
-        "Domain",
-        "Path",
-        "Secure",
-        "HttpOnly",
-        "SameSite",
+        "Expires",  // 7
+        "Max-Age",  // 7
+        "Domain",   // 6
+        "Secure",   // 6
+        "Path",     // 4
+        "HttpOnly", // 8
+        "SameSite", // 8
     };
 
     using namespace std::views;
+    using std::ranges::subrange;
     using std::ranges::any_of;
     using std::ranges::begin;
     using std::ranges::end;
-    
-    for (auto&& inner : set_cookie_str | split(semicolon)) {
-      for (std::string_view cookie_part : inner | split(equal)
-                                                | transform([](auto&& subrng) { return std::string_view{begin(subrng), end(subrng)}; }))
+    using std::ranges::size;
+
+    constexpr auto to_string_view = [](auto&& subrng) {
+      return std::string_view{begin(subrng), end(subrng)};
+    };
+
+    auto attribute_index = [&attribute](std::string_view name) -> int {
+      switch (name.length())
       {
-        const bool is_attribute = any_of(attribute, [cookie_part](auto attr) { return cookie_part == attr; });
+      case 7:
+        if (name == attribute[0]) return 0; // Expires
+        if (name == attribute[1]) return 1; // Max-Age
+        return size(attribute);
+      case 6:
+        if (name == attribute[2]) return 2; // Domain
+        if (name == attribute[3]) return 3; // Secure
+        return size(attribute);
+      case 4:
+        if (name == attribute[4]) return 4; // Path
+        return size(attribute);
+      case 8:
+        if (name == attribute[5]) return 5; // HttpOnly
+        if (name == attribute[6]) return 6; // SameSite
+        return size(attribute);
+      default:
+        return size(attribute);
+      }
+    };
+
+    constexpr auto is_attribute = [len = size(attribute)](int index) -> bool {
+      return std::cmp_less(index, len);
+    };
+
+    auto primary_part = set_cookie_str | split(semicolon);
+
+    auto primary_it = begin(primary_part);
+    const auto primary_end = end(primary_part);
+
+    auto spliteq = split(equal) | transform(to_string_view);
+
+    while(primary_it != primary_end) {
+      auto cookie_pair = *primary_it | spliteq;
+
+      // 起こり得るんか？
+      assert(not cookie_pair.empty());
+
+      auto it = begin(cookie_pair);
+
+      // クッキー名の抽出
+      std::string_view name = *it;
+      // 属性名ではないことを確認
+      if (is_attribute(attribute_index(name))) {
+        // クッキー本体がないことになる
+        // 次の本体が現れるまで読み飛ばす
+        ++primary_it;
+        continue;
+      }
+
+      ++it;
+
+      // クッキー値は空があり得る
+      std::string_view value{};
+      if (it != cookie_pair.end()) {
+        value = *it;
+      }
+
+      if (name.empty() and value.empty()) {
+        // 両方空は異常とする
+        ++primary_it;
+        continue;
+      }
+
+      cookie tmp_cookie{ .name = string_t{name}, .value = string_t{value} };
+
+      // 属性の読み取り
+      for (; primary_it != primary_end; ++primary_it) {
+
+        auto secondary_part = *primary_it | spliteq;
+
+        // 起こりえる？？
+        assert(not secondary_part.empty());
+
+        // 外側の名前をわざとシャドウイングする
+        // 型レベルでは比較等が通るので、名前を変えて取り違えるとバグの元になる
+        auto it = begin(secondary_part);
+
+        // 属性名の確認
+        const int attr_idx = attribute_index(*it);
+        if (not is_attribute(attr_idx)) {
+          // 次のクッキー本体が現れた
+          // primary_itは次のクッキー本体を指した状態でこのループを抜ける
+          break;
+        }
+
+        // 属性値抽出
+        switch (attr_idx)
+        {
+        case 0:
+          // Expiresのパース
+          assert(false);
+          break;
+        case 1:
+          // Max-Ageの計算
+          assert(false);
+          break;
+        case 2:
+          ++it;
+          if (it != secondary_part.end()) {
+            tmp_cookie.domain = string_t{*it};
+          }
+          break;
+        case 3:
+          tmp_cookie.secure = true;
+          break;
+        case 4:
+          ++it;
+          if (it != secondary_part.end()) {
+            tmp_cookie.path = string_t{*it};
+          }
+          break;
+        // HttpOnly SameSite は読み飛ばし
+        case 5: [[fallthrough]];
+        case 6: continue;
+        // ここにはこない
+        default: assert(false);
+        }
+      }
+
+      // 抽出したクッキーの保存
+      if (auto pos = cookie_store.find(tmp_cookie); pos != cookie_store.end()) {
+        // 上書き
+        //*pos = std::move(tmp_cookie);
+        assert(false);
+      } else {
+        // 新規挿入
+        cookie_store.insert(std::move(tmp_cookie));
       }
     }
   }
