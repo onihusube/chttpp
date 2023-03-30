@@ -15,6 +15,9 @@
 #include <deque>
 #include <initializer_list>
 #include <unordered_set>
+#include <spanstream>
+#include <iomanip>
+#include <ctime>
 
 #if __has_include(<memory_resource>)
 
@@ -493,7 +496,7 @@ namespace chttpp::detail::inline config {
     string_t path = "/";
     bool secure = false;
 
-    std::chrono::steady_clock::time_point expires = std::chrono::steady_clock::time_point::max();
+    std::chrono::system_clock::time_point expires = std::chrono::system_clock::time_point::max();
 
     // このライブラリの用法ではあっても無意味と思われる
     //bool http_only = false;
@@ -574,9 +577,18 @@ namespace chttpp {
 namespace chttpp::detail {
 
   void apply_set_cookie(std::string_view set_cookie_str, cookie_store_t &cookie_store) {
+    // memo : https://triple-underscore.github.io/http-cookie-ja.html#sane-set-cookie
+
+    using namespace std::views;
+    using std::forward_iterator;
+    using std::ranges::begin;
+    using std::ranges::end;
+    using std::ranges::size;
+    using std::ranges::subrange;
+
     constexpr std::string_view semicolon = "; ";
     constexpr std::string_view equal = "=";
-    constexpr std::string_view attribute[] = {
+    constexpr std::string_view attribute_names[] = {
         "Expires",  // 7
         "Max-Age",  // 7
         "Domain",   // 6
@@ -586,66 +598,94 @@ namespace chttpp::detail {
         "SameSite", // 8
     };
 
-    using namespace std::views;
-    using std::ranges::subrange;
-    using std::ranges::any_of;
-    using std::ranges::begin;
-    using std::ranges::end;
-    using std::ranges::size;
+    enum class attribute {
+      NotAttribute = -1,
+      Expires,
+      MaxAge,
+      Domain,
+      Secure,
+      Path,
+      HttpOnly,
+      SameSite,
+    };
 
     constexpr auto to_string_view = [](auto&& subrng) {
       return std::string_view{begin(subrng), end(subrng)};
     };
 
-    auto attribute_index = [&attribute](std::string_view name) -> int {
+    auto classify_attribute = [&attribute_names](std::string_view name) -> attribute {
       switch (name.length())
       {
       case 7:
-        if (name == attribute[0]) return 0; // Expires
-        if (name == attribute[1]) return 1; // Max-Age
-        return size(attribute);
+        if (name == attribute_names[0]) return attribute::Expires;  // Expires
+        if (name == attribute_names[1]) return attribute::MaxAge;   // Max-Age
+        return attribute::NotAttribute;
       case 6:
-        if (name == attribute[2]) return 2; // Domain
-        if (name == attribute[3]) return 3; // Secure
-        return size(attribute);
+        if (name == attribute_names[2]) return attribute::Domain; // Domain
+        if (name == attribute_names[3]) return attribute::Secure; // Secure
+        return attribute::NotAttribute;
       case 4:
-        if (name == attribute[4]) return 4; // Path
-        return size(attribute);
+        if (name == attribute_names[4]) return attribute::Path; // Path
+        return attribute::NotAttribute;
       case 8:
-        if (name == attribute[5]) return 5; // HttpOnly
-        if (name == attribute[6]) return 6; // SameSite
-        return size(attribute);
+        if (name == attribute_names[5]) return attribute::HttpOnly; // HttpOnly
+        if (name == attribute_names[6]) return attribute::SameSite; // SameSite
+        return attribute::NotAttribute;
       default:
-        return size(attribute);
+        return attribute::NotAttribute;
       }
     };
 
-    constexpr auto is_attribute = [len = size(attribute)](int index) -> bool {
-      return std::cmp_less(index, len);
+    constexpr auto is_attribute = [](attribute attr) -> bool {
+      return attr != attribute::NotAttribute;
     };
 
+    // '='で分割するアダプタ
+    constexpr auto spliteq = split(equal) | transform(to_string_view);
+
+    // 取得時刻
+    const auto now_time = std::chrono::system_clock::now();
+
+    // Expiresの日付を変換する
+    auto parse_expires = [now_time](std::string_view str) -> std::chrono::system_clock::time_point {
+      std::ispanstream ss{str};
+      std::tm tm{};
+      ss >> std::get_time(&tm, "%a, %d %b %Y %H:%M:%S %Z");
+
+      if (ss.fail()) {
+        // 失敗は現在時刻を返すことで、すぐに削除されるようにする
+        return now_time;
+      }
+
+      return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+    };
+
+
+    // まず'; 'で分割
     auto primary_part = set_cookie_str | split(semicolon);
 
-    auto primary_it = begin(primary_part);
+    forward_iterator auto primary_it = begin(primary_part);
     const auto primary_end = end(primary_part);
 
-    auto spliteq = split(equal) | transform(to_string_view);
-
     while(primary_it != primary_end) {
+      // さらに'='で分割
       auto cookie_pair = *primary_it | spliteq;
 
       // 起こり得るんか？
       assert(not cookie_pair.empty());
 
+      // この時点で現在の要素には興味がないので次に進めておく
+      ++primary_it;
+
+      // 長くても2要素
       auto it = begin(cookie_pair);
 
       // クッキー名の抽出
       std::string_view name = *it;
       // 属性名ではないことを確認
-      if (is_attribute(attribute_index(name))) {
+      if (is_attribute(classify_attribute(name))) {
         // クッキー本体がないことになる
         // 次の本体が現れるまで読み飛ばす
-        ++primary_it;
         continue;
       }
 
@@ -659,7 +699,6 @@ namespace chttpp::detail {
 
       if (name.empty() and value.empty()) {
         // 両方空は異常とする
-        ++primary_it;
         continue;
       }
 
@@ -678,52 +717,65 @@ namespace chttpp::detail {
         auto it = begin(secondary_part);
 
         // 属性名の確認
-        const int attr_idx = attribute_index(*it);
-        if (not is_attribute(attr_idx)) {
+        const auto attr = classify_attribute(*it);
+        if (not is_attribute(attr)) {
           // 次のクッキー本体が現れた
           // primary_itは次のクッキー本体を指した状態でこのループを抜ける
           break;
         }
 
         // 属性値抽出
-        switch (attr_idx)
+        switch (attr)
         {
-        case 0:
+        case attribute::Expires:
           // Expiresのパース
-          assert(false);
+          ++it;
+          if (it != secondary_part.end()) {
+            tmp_cookie.expires = parse_expires(*it);
+          } else {
+            tmp_cookie.expires = now_time;
+          }
           break;
-        case 1:
+        case attribute::MaxAge:
           // Max-Ageの計算
           assert(false);
           break;
-        case 2:
+        case attribute::Domain:
           ++it;
           if (it != secondary_part.end()) {
             tmp_cookie.domain = string_t{*it};
           }
           break;
-        case 3:
+        case attribute::Secure:
           tmp_cookie.secure = true;
           break;
-        case 4:
+        case attribute::Path:
           ++it;
           if (it != secondary_part.end()) {
             tmp_cookie.path = string_t{*it};
           }
           break;
         // HttpOnly SameSite は読み飛ばし
-        case 5: [[fallthrough]];
-        case 6: continue;
-        // ここにはこない
-        default: assert(false);
+        case attribute::HttpOnly: [[fallthrough]];
+        case attribute::SameSite: continue;
+        default:
+          // ここにはこない
+          assert(false);
         }
       }
 
       // 抽出したクッキーの保存
       if (auto pos = cookie_store.find(tmp_cookie); pos != cookie_store.end()) {
-        // 上書き
-        //*pos = std::move(tmp_cookie);
-        assert(false);
+        // 上書きするためにノードハンドルを取り出す
+        auto nh = cookie_store.extract(pos);
+
+        // name domain path の3つは一致しているので触らない
+        nh.value().value = std::move(tmp_cookie.value);
+        nh.value().expires = tmp_cookie.expires;
+        nh.value().secure = tmp_cookie.secure;
+
+        // ノードハンドルを戻す
+        cookie_store.insert(std::move(nh));
       } else {
         // 新規挿入
         cookie_store.insert(std::move(tmp_cookie));

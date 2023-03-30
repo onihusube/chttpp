@@ -29,7 +29,7 @@ meson.add_devenv(env)
 if cppcompiler == 'msvc'
     options = ['/std:c++latest', '/source-charset:utf-8', '/Zc:__cplusplus']
 elif cppcompiler == 'gcc'
-    options = ['-std=c++2a', '-fvisibility=hidden']
+    options = ['-std=c++2b', '-fvisibility=hidden']
 endif
 
 # 依存プロジェクト
@@ -45,9 +45,9 @@ else
 
 # ライブラリ利用時の設定追加
 if cppcompiler == 'msvc'
-    options = ['/std:c++20', '/source-charset:utf-8']
+    options = ['/std:c++latest', '/source-charset:utf-8']
 elif cppcompiler == 'gcc'
-    options = ['-std=c++2a']
+    options = ['-std=c++2b']
 endif
 
 # subprojectとして構築時は依存オブジェクトの宣言だけしとく

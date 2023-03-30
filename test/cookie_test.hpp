@@ -7,6 +7,8 @@
 #define BOOST_UT_DISABLE_MODULE
 #include <boost/ut.hpp>
 
+namespace ut = boost::ut;
+
 /*
 ChatGPTに教えてもらったテストケース
 
@@ -45,5 +47,99 @@ Secure属性が設定されたクッキーをHTTP経由で送信した場合に�
 */
 
 void cookie_test() {
-  //using chttpp::detail::apply_set_cookie;
+  using namespace boost::ut::literals;
+  using chttpp::detail::apply_set_cookie;
+  using chttpp::detail::config::cookie_store_t;
+  using chttpp::detail::config::cookie;
+
+  constexpr auto cmp_cookie_all = [](const cookie& lhs, const cookie& rhs) -> bool {
+    return lhs == rhs and lhs.value == rhs.value and lhs.expires == rhs.expires and lhs.secure == rhs.secure;
+  };
+
+  "simple_cookie"_test = [cmp_cookie_all]
+  {
+    cookie_store_t cookies{};
+
+    apply_set_cookie("name=value", cookies);
+    {
+      cookie c{.name = "name", .value = "value"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    apply_set_cookie("name1=value1; Path=/path", cookies);
+    {
+      ut::expect(cookies.size() == 2);
+
+      cookie c{.name = "name1", .value = "value1", .path="/path"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    apply_set_cookie("name2=value2; Secure", cookies);
+    {
+      ut::expect(cookies.size() == 3);
+
+      cookie c{.name = "name2", .value = "value2", .secure = true};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    apply_set_cookie("name3=value3; HttpOnly", cookies);
+    {
+      ut::expect(cookies.size() == 4);
+
+      cookie c{.name = "name3", .value = "value3"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    apply_set_cookie("name4=value4; Domain=example.com", cookies);
+    {
+      ut::expect(cookies.size() == 5);
+
+      cookie c{.name = "name4", .value = "value4", .domain = "example.com"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    apply_set_cookie("name5=value5; name6=value6; name7=value7", cookies);
+    {
+      ut::expect(cookies.size() == 8);
+      cookie cs[] = {{.name = "name5", .value = "value5"}, {.name = "name6", .value = "value6"}, {.name = "name7", .value = "value7"}};
+
+      for (const auto& c : cs)
+      {
+        const auto pos = cookies.find(c);
+
+        ut::expect(pos != cookies.end());
+        ut::expect(cmp_cookie_all(*pos, c));
+      }
+    }
+    apply_set_cookie("name=value; Expires=Wed, 21 Oct 2015 07:28:00 GMT", cookies);
+    {
+      // 上書きしてる
+      ut::expect(cookies.size() == 8);
+
+      std::tm tm{.tm_sec = 0, .tm_min = 28, .tm_hour = 7, .tm_mday = 21, .tm_mon = 10 - 1, .tm_year = 2015 - 1900, .tm_wday = -1, .tm_yday = -1, .tm_isdst = 0, .tm_gmtoff{}, .tm_zone{}};
+      const auto time = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+
+      cookie c{.name = "name", .value = "value", .expires = time};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+  };
 }
