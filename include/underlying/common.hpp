@@ -18,6 +18,7 @@
 #include <spanstream>
 #include <iomanip>
 #include <ctime>
+#include <charconv>
 
 #if __has_include(<memory_resource>)
 
@@ -578,11 +579,13 @@ namespace chttpp::detail {
 
   void apply_set_cookie(std::string_view set_cookie_str, cookie_store_t &cookie_store) {
     // memo : https://triple-underscore.github.io/http-cookie-ja.html#sane-set-cookie
+    // memo : https://qiita.com/sekai/items/489378d60267cc85fd34
 
     using namespace std::views;
     using std::forward_iterator;
     using std::ranges::begin;
     using std::ranges::end;
+    using std::ranges::find;
     using std::ranges::size;
     using std::ranges::subrange;
 
@@ -668,20 +671,30 @@ namespace chttpp::detail {
     const auto primary_end = end(primary_part);
 
     while(primary_it != primary_end) {
+      //const bool contains_equal = find(*primary_it, '=');
+
       // さらに'='で分割
       auto cookie_pair = *primary_it | spliteq;
 
-      // 起こり得るんか？
-      assert(not cookie_pair.empty());
-
       // この時点で現在の要素には興味がないので次に進めておく
       ++primary_it;
+
+      // "; "みたいなのが入ってる時、
+      if (cookie_pair.empty()) {
+        continue;
+      }
 
       // 長くても2要素
       auto it = begin(cookie_pair);
 
       // クッキー名の抽出
       std::string_view name = *it;
+
+      // 名前は必須
+      if (name.empty()) {
+        continue;
+      }
+
       // 属性名ではないことを確認
       if (is_attribute(classify_attribute(name))) {
         // クッキー本体がないことになる
@@ -697,11 +710,6 @@ namespace chttpp::detail {
         value = *it;
       }
 
-      if (name.empty() and value.empty()) {
-        // 両方空は異常とする
-        continue;
-      }
-
       cookie tmp_cookie{ .name = string_t{name}, .value = string_t{value} };
 
       // 属性の読み取り
@@ -709,8 +717,10 @@ namespace chttpp::detail {
 
         auto secondary_part = *primary_it | spliteq;
 
-        // 起こりえる？？
-        assert(not secondary_part.empty());
+        // "; "みたいなのが混ざってる時
+        if (secondary_part.empty()) {
+          continue;
+        }
 
         // 外側の名前をわざとシャドウイングする
         // 型レベルでは比較等が通るので、名前を変えて取り違えるとバグの元になる
@@ -738,7 +748,18 @@ namespace chttpp::detail {
           break;
         case attribute::MaxAge:
           // Max-Ageの計算
-          assert(false);
+          // まずは取得時刻を入れる
+          tmp_cookie.expires = now_time;
+          ++it;
+          if (it != secondary_part.end()) {
+            const auto str = *it;
+            std::size_t age;
+            if (auto [ptr, ec] = std::from_chars(std::to_address(str.begin()), std::to_address(str.end()), age); ec == std::errc{}) {
+              tmp_cookie.expires += std::chrono::seconds{age};
+              break;
+            }
+          }
+          // 指定なしや変換失敗はそのまま（取得時刻）にする
           break;
         case attribute::Domain:
           ++it;

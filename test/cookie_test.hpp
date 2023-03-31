@@ -141,5 +141,60 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
+    apply_set_cookie("Path=/path; Domain=example.com; Expires=Wed, 21 Oct 2015 07:28:00 GMT; name1=skip; HttpOnly; Path=/path; Secure", cookies);
+    {
+      ut::expect(cookies.size() == 8);
+
+      cookie c{.name = "name1", .value = "skip", .path = "/path", .secure = true};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    {
+      // 少なくとも処理前時刻+max-age以上の値になるはず
+      auto time = std::chrono::system_clock::now();
+      time += std::chrono::seconds{3600};
+      
+      apply_set_cookie("name3=maxage; Max-Age=3600", cookies);
+      
+      ut::expect(cookies.size() == 8);
+
+      cookie c{.name = "name3", .value = "maxage", .expires = time};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+
+      const auto expires = (*pos).expires;
+      ut::expect(time <= expires);
+      ut::expect(expires < std::chrono::system_clock::time_point::max());
+    }
   };
+
+  "duplicate_cookie"_test = [] {
+    cookie_store_t cookies{};
+
+    // name, path, domainの3つ組によってクッキーの等価性が決まる
+    apply_set_cookie("name=value1", cookies);
+    apply_set_cookie("name=value2; Path=/path/path", cookies);
+    apply_set_cookie("name=value3; Domain=example.com", cookies);
+    apply_set_cookie("name=value4; Domain=example.com; Path=/path/path", cookies);
+
+    ut::expect(cookies.size() == 4);
+  };
+
+  /*"invalid_cookie"_test = [] {
+    cookie_store_t cookies{};
+
+    apply_set_cookie("", cookies);
+    apply_set_cookie("; ", cookies);
+    apply_set_cookie(";", cookies);
+    apply_set_cookie("=; =", cookies);
+    apply_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Scure; HttpOnly", cookies);
+    apply_set_cookie("=NoName", cookies);
+
+    ut::expect(cookies.size() == 0);
+  };*/
 }
