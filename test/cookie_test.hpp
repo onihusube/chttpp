@@ -185,16 +185,26 @@ void cookie_test() {
     ut::expect(cookies.size() == 4);
   };
 
-  /*"invalid_cookie"_test = [] {
+  "invalid_cookie"_test = [] {
     cookie_store_t cookies{};
 
+    // これらは全て受理されない
     apply_set_cookie("", cookies);
     apply_set_cookie("; ", cookies);
     apply_set_cookie(";", cookies);
     apply_set_cookie("=; =", cookies);
-    apply_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Scure; HttpOnly", cookies);
+    apply_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly", cookies);
     apply_set_cookie("=NoName", cookies);
+    apply_set_cookie("noeq", cookies);
+    apply_set_cookie("noeq;", cookies);
+    apply_set_cookie("noeq; ", cookies);
 
-    ut::expect(cookies.size() == 0);
-  };*/
+    ut::expect(cookies.size() == 0) << cookies.size();
+  };
+
+  "Overlapping attributes"_test = [] {
+    cookie_store_t cookies{};
+
+    apply_set_cookie("name=value; Secure; Secure; Secure; HttpOnly; HttpOnly", cookies);
+  };
 }

@@ -90,6 +90,7 @@
         "iomanip": "cpp",
         "stack": "cpp",
         "unordered_set": "cpp",
-        "spanstream": "cpp"
+        "spanstream": "cpp",
+        "charconv": "cpp"
     }
 }

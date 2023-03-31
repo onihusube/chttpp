@@ -589,7 +589,7 @@ namespace chttpp::detail {
     using std::ranges::size;
     using std::ranges::subrange;
 
-    constexpr std::string_view semicolon = "; ";
+    constexpr std::string_view semicolon = ";";
     constexpr std::string_view equal = "=";
     constexpr std::string_view attribute_names[] = {
         "Expires",  // 7
@@ -610,10 +610,6 @@ namespace chttpp::detail {
       Path,
       HttpOnly,
       SameSite,
-    };
-
-    constexpr auto to_string_view = [](auto&& subrng) {
-      return std::string_view{begin(subrng), end(subrng)};
     };
 
     auto classify_attribute = [&attribute_names](std::string_view name) -> attribute {
@@ -643,8 +639,27 @@ namespace chttpp::detail {
       return attr != attribute::NotAttribute;
     };
 
-    // '='で分割するアダプタ
-    constexpr auto spliteq = split(equal) | transform(to_string_view);
+    // 先頭ホワイトスペースのスキップ
+    // split結果の要素であるsubrangeを受けて、drop_while_viewを返す
+    auto skip_leading_ws = [](auto&& r) {
+      return std::move(r) | drop_while([](char c) -> bool { return c == ' '; });
+    };
+
+    // split結果をstring_viewにする、ついでに末尾ホワイトスペースを除く
+    constexpr auto to_string_view = [](auto&& subrng) -> std::string_view {
+      std::string_view str_view = {begin(subrng), end(subrng)};
+      
+      if (const auto pos = str_view.find_last_not_of(' '); pos == std::string_view::npos) {
+        return str_view;
+      } else {
+        // 末尾のホワイトスペースを除去
+        return str_view.substr(0, pos + 1);
+      }
+
+    };
+
+    // '='で分割し、先頭と末尾のホワイトスペースを無視するアダプタ
+    constexpr auto spliteq = split(equal) | transform(skip_leading_ws) | transform(to_string_view);
 
     // 取得時刻
     const auto now_time = std::chrono::system_clock::now();
@@ -664,22 +679,21 @@ namespace chttpp::detail {
     };
 
 
-    // まず'; 'で分割
+    // まず';'で分割
     auto primary_part = set_cookie_str | split(semicolon);
 
     forward_iterator auto primary_it = begin(primary_part);
     const auto primary_end = end(primary_part);
 
+    // primary_itの進行を制御するために、外側のループはwhileとする
     while(primary_it != primary_end) {
-      //const bool contains_equal = find(*primary_it, '=');
-
       // さらに'='で分割
       auto cookie_pair = *primary_it | spliteq;
 
       // この時点で現在の要素には興味がないので次に進めておく
       ++primary_it;
 
-      // "; "みたいなのが入ってる時、
+      // "; "みたいなのが入ってる時（spliteqへの入力文字範囲が空となる時）
       if (cookie_pair.empty()) {
         continue;
       }
@@ -704,20 +718,21 @@ namespace chttpp::detail {
 
       ++it;
 
-      // クッキー値は空があり得る
-      std::string_view value{};
-      if (it != cookie_pair.end()) {
-        value = *it;
+      if (it == cookie_pair.end()) {
+        // `name; `のように=を含まないクッキー本体は無視する
+        // =を含んでいれば、たとえ値がなくてもcookie_pairは2要素のrangeとなる
+        continue;
       }
 
-      cookie tmp_cookie{ .name = string_t{name}, .value = string_t{value} };
+      // クッキー値は空でも良い
+      cookie tmp_cookie{ .name = string_t{name}, .value = string_t{*it} };
 
-      // 属性の読み取り
+      // 属性の読み取りループ、次のクッキー本体が現れるまで
       for (; primary_it != primary_end; ++primary_it) {
 
         auto secondary_part = *primary_it | spliteq;
 
-        // "; "みたいなのが混ざってる時
+        // "; "みたいなのが混ざってる時（spliteqへの入力文字範囲が空となる時）
         if (secondary_part.empty()) {
           continue;
         }
@@ -753,6 +768,7 @@ namespace chttpp::detail {
           ++it;
           if (it != secondary_part.end()) {
             const auto str = *it;
+            // Max-Ageは符号無し
             std::size_t age;
             if (auto [ptr, ec] = std::from_chars(std::to_address(str.begin()), std::to_address(str.end()), age); ec == std::errc{}) {
               tmp_cookie.expires += std::chrono::seconds{age};
