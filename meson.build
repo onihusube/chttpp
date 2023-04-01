@@ -11,7 +11,8 @@ if cppcompiler == 'msvc'
     # VSプロジェクトに編集しうるファイルを追加する
     vs_files = ['include/chttpp.hpp', 'include/mime_types.hpp', 'include/underlying/winhttp.hpp',
                 'include/underlying/common.hpp', 'include/null_terminated_string_view.hpp','test/winhttp_test.hpp',
-                'test/http_result_test.hpp', 'include/underlying/http_result.hpp', 'include/underlying/status_code.hpp']
+                'test/http_result_test.hpp', 'include/underlying/http_result.hpp', 'include/underlying/status_code.hpp',
+                'test/cookie_test.hpp']
 elif cppcompiler == 'gcc'
     curl_dep = dependency('libcurl')
     dep_libs = [curl_dep]
@@ -23,6 +24,7 @@ if not meson.is_subproject()
 # デバッグ用設定
 env = environment()
 env.set('cpp_debugstl', 'true')
+env.set('b_sanitize', 'address')
 meson.add_devenv(env)
 
 # テストプロジェクト用の設定追加
