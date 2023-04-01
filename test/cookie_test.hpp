@@ -207,9 +207,82 @@ void cookie_test() {
     ut::expect(cookies.size() == 0) << cookies.size();
   };
 
-  "Overlapping attributes"_test = [] {
+  "overlapping attributes"_test = [] {
     cookie_store_t cookies{};
 
     apply_set_cookie("name=value; Secure; Secure; Secure; HttpOnly; HttpOnly", cookies);
+    {
+      ut::expect(cookies.size() == 1);
+
+      cookie c{ .name = "name", .value = "value", .secure = true };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    apply_set_cookie("domain=test; Domain=example.com; Domain=example.jp; Domain=example.net; Domain=google.com", cookies);
+    {
+      ut::expect(cookies.size() == 2);
+
+      cookie c{ .name = "domain", .value = "test", .domain="google.com"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    apply_set_cookie("path=test; Path=/path/path; Path=/path/path/path; Path=/; Path=/test/path/test", cookies);
+    {
+      ut::expect(cookies.size() == 3);
+
+      cookie c{ .name = "path", .value = "test", .path = "/test/path/test" };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+    {
+      // 少なくとも処理前時刻+max-age以上の値になるはず
+      auto time = std::chrono::system_clock::now();
+      time += std::chrono::seconds{ 1000 };
+
+      apply_set_cookie("maxage=test; Max-Age=0; Max-Age=1; Max-Age=3600; Max-Age=1000", cookies);
+      ut::expect(cookies.size() == 4);
+
+      cookie c{ .name = "maxage", .value = "test" };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+
+      const auto expires = (*pos).expires;
+      ut::expect(time <= expires);
+      ut::expect(expires < std::chrono::system_clock::time_point::max());
+    }
+    apply_set_cookie("expires=test; Expires=Sun, 23 Sep 2001 17:09:32 GMT; Expires=Tue, 16 Feb 1993 07:02:53 GMT; Expires=Wed, 21 Oct 2015 07:28:00 GMT", cookies);
+    {
+      ut::expect(cookies.size() == 5);
+
+#if 201907L <= __cpp_lib_chrono
+      using namespace std::chrono_literals;
+
+      constexpr std::chrono::sys_days ymd = 2015y / 10 / 21d;
+      auto time = std::chrono::clock_cast<std::chrono::system_clock>(ymd) + 7h + 28min + 0s;
+#else
+      std::tm tm{ .tm_sec = 0, .tm_min = 28, .tm_hour = 7, .tm_mday = 21, .tm_mon = 10 - 1, .tm_year = 2015 - 1900, .tm_wday = -1, .tm_yday = -1, .tm_isdst = 0, .tm_gmtoff{}, .tm_zone{} };
+      const auto time = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+#endif
+
+      cookie c{ .name = "expires", .value = "test", .expires = time };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
   };
 }
