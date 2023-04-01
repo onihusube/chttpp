@@ -130,10 +130,15 @@ void cookie_test() {
     {
       // 上書きしてる
       ut::expect(cookies.size() == 8);
+#if 201907L <= __cpp_lib_chrono
+      using namespace std::chrono_literals;
 
-      std::tm tm{.tm_sec = 0, .tm_min = 28, .tm_hour = 7, .tm_mday = 21, .tm_mon = 10 - 1, .tm_year = 2015 - 1900, .tm_wday = -1, .tm_yday = -1, .tm_isdst = 0, .tm_gmtoff{}, .tm_zone{}};
+      constexpr std::chrono::sys_days ymd = 2015y/10/21d;
+      auto time = std::chrono::clock_cast<std::chrono::system_clock>(ymd) + 7h + 28min + 0s;
+#else
+      std::tm tm{ .tm_sec = 0, .tm_min = 28, .tm_hour = 7, .tm_mday = 21, .tm_mon = 10 - 1, .tm_year = 2015 - 1900, .tm_wday = -1, .tm_yday = -1, .tm_isdst = 0, .tm_gmtoff{}, .tm_zone{} };
       const auto time = std::chrono::system_clock::from_time_t(std::mktime(&tm));
-
+#endif
       cookie c{.name = "name", .value = "value", .expires = time};
 
       const auto pos = cookies.find(c);

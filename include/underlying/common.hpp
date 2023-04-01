@@ -641,7 +641,7 @@ namespace chttpp::detail {
 
     // 先頭ホワイトスペースのスキップ
     // split結果の要素であるsubrangeを受けて、drop_while_viewを返す
-    auto skip_leading_ws = [](auto&& r) {
+    constexpr auto skip_leading_ws = [](auto&& r) {
       return std::move(r) | drop_while([](char c) -> bool { return c == ' '; });
     };
 
@@ -667,15 +667,25 @@ namespace chttpp::detail {
     // Expiresの日付を変換する
     auto parse_expires = [now_time](std::string_view str) -> std::chrono::system_clock::time_point {
       std::ispanstream ss{str};
+
+#if 201907L <= __cpp_lib_chrono
+      using namespace std::chrono;
+
+      system_clock::time_point time;
+      ss >> parse("%a, %d %b %Y %H:%M:%S %Z", time);
+#else
       std::tm tm{};
+      // MSVCだと失敗する
       ss >> std::get_time(&tm, "%a, %d %b %Y %H:%M:%S %Z");
+      const auto time = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+#endif
 
       if (ss.fail()) {
         // 失敗は現在時刻を返すことで、すぐに削除されるようにする
         return now_time;
       }
 
-      return std::chrono::system_clock::from_time_t(std::mktime(&tm));
+      return time;
     };
 
 
@@ -739,8 +749,10 @@ namespace chttpp::detail {
 
         // 外側の名前をわざとシャドウイングする
         // 型レベルでは比較等が通るので、名前を変えて取り違えるとバグの元になる
+#pragma warning(push)
+#pragma warning(disable:4456)
         auto it = begin(secondary_part);
-
+#pragma warning(pop)
         // 属性名の確認
         const auto attr = classify_attribute(*it);
         if (not is_attribute(attr)) {
