@@ -196,6 +196,7 @@ void cookie_test() {
     // これらは全て受理されない
     apply_set_cookie("", cookies);
     apply_set_cookie("; ", cookies);
+    apply_set_cookie("    ;      ", cookies);
     apply_set_cookie(";", cookies);
     apply_set_cookie("=; =", cookies);
     apply_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly", cookies);
@@ -283,6 +284,99 @@ void cookie_test() {
 
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
+    }
+  };
+
+  "strange cookie"_test = [] {
+    cookie_store_t cookies{};
+
+    apply_set_cookie("user id=12345", cookies);
+    {
+      ut::expect(cookies.size() == 1);
+
+      cookie c{ .name = "user id", .value = "12345" };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    apply_set_cookie(R"(name="John; Smith"; Path=/path/)", cookies);
+    {
+      ut::expect(cookies.size() == 2);
+
+      cookie c{ .name = "name", .value = R"("John)" };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    apply_set_cookie("Inva(l)idToken=Inva(l)idToken", cookies);
+    {
+      ut::expect(cookies.size() == 3);
+
+      cookie c{ .name = "Inva(l)idToken", .value = "Inva(l)idToken"};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    apply_set_cookie("InvalidSyntax = InvalidSyntax;Secure;", cookies);
+    {
+      ut::expect(cookies.size() == 4);
+
+      cookie c{ .name = "InvalidSyntax", .value = "InvalidSyntax", .secure = true };
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
+
+    {
+      // MAx-ageは変化しない（負の数指定は無視される）
+      const auto time = std::chrono::system_clock::now();
+
+      apply_set_cookie("foo=bar; Domain=example.com; Path=/; Max-Age=-10", cookies);
+
+      ut::expect(cookies.size() == 5);
+
+      cookie c{ .name = "foo", .value = "bar", .domain = "example.com", .expires = time};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+
+      const auto expires = (*pos).expires;
+      ut::expect(time <= expires);
+      ut::expect(expires < std::chrono::system_clock::time_point::max());
+    }
+
+    apply_set_cookie(R"($Version=1;Customer="WILE_E_COYOTE"    ; $Path= "/acme";   Part_Number ="Rocket_Launcher_0001" ; Shipping        =      "FedEx")", cookies);
+    {
+      ut::expect(cookies.size() == 10);
+
+      std::pair<chttpp::string_t, chttpp::string_t> namevalue[] = {
+        {"$Version", "1"},
+        {"Customer", R"("WILE_E_COYOTE")"},
+        {"$Path", R"("/acme")"},
+        {"Part_Number", R"("Rocket_Launcher_0001")"},
+        {"Shipping", R"("FedEx")"}
+      };
+
+      for (auto&& [name, value] : namevalue) {
+        cookie c{ .name = name, .value = value };
+
+        const auto pos = cookies.find(c);
+
+        ut::expect(pos != cookies.end());
+        ut::expect(cmp_cookie_all(*pos, c));
+      }
     }
   };
 }
