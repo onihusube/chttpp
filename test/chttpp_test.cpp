@@ -1118,6 +1118,48 @@ int main() {
 
       }
     }
+    {
+      // agent本体にクッキーをセット
+      req.set_cookies({{.name = "preset", .value = "cookie", .domain = "httpbin.org", .path = "/cookies"}});
+      // サーバからクッキーを取得
+      {
+        auto res = req.request<get>("/cookies/set/set_cookie/test");
+        ut::expect(bool(res)) << res.error_message();
+        // 厳密にはリダイレクトが起きてるっぽい、返答がよくわからないのでとりあえず細かくチェックしない
+        //ut::expect(result.status_code().OK()) << result.status_code().value();
+      }
+      // リクエスト時にクッキーを指定
+      auto result = req.request<get>("cookies", { .cookies = { {"request", "cookie"} } });
+
+      ut::expect(bool(result)) << result.error_message();
+
+      if (result) {
+        ut::expect(result.status_code().OK()) << result.status_code().value();
+
+        std::cout << result.response_body() << '\n';
+
+        auto res_json = result | to_json;
+      
+        ut::expect(res_json.is<picojson::value::object>());
+
+        if (res_json.is<picojson::value::object>()) {
+
+          const auto &obj = res_json.get<picojson::value::object>();
+          ut::expect(obj.contains("cookies") >> ut::fatal);
+
+          const auto &cookies = obj.at("cookies").get<picojson::value::object>();
+
+          ut::expect(cookies.contains("preset") >> ut::fatal);
+          ut::expect(cookies.contains("set_cookie") >> ut::fatal);
+          ut::expect(cookies.contains("request") >> ut::fatal);
+
+          // 送ったパラメータのチェック
+          ut::expect(cookies.at("preset").get<std::string>() == "cookie");
+          ut::expect(cookies.at("set_cookie").get<std::string>() == "test");
+          ut::expect(cookies.at("request").get<std::string>() == "cookie");
+        }
+      }
+    }
   };
 
   underlying_test();

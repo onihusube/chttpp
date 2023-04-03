@@ -555,7 +555,7 @@ namespace chttpp::underlying::agent_impl {
 
 
   template<typename MethodTag>
-  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -628,7 +628,11 @@ namespace chttpp::underlying::agent_impl {
         static_assert([]{return false;}(), "not implemented.");
       }
     } else {
-      if constexpr (is_head) {
+
+      if constexpr (is_get) {
+        // 一度GET以外のリクエストを行った後でGETに戻す、明示しないと前回のメソッドが引き継がれてしまう
+        curl_easy_setopt(session.get(), CURLOPT_HTTPGET, 1L);
+      } else if constexpr (is_head) {
         curl_easy_setopt(session.get(), CURLOPT_NOBODY, 1L);
       } else if constexpr (is_opt) {
         curl_easy_setopt(session.get(), CURLOPT_CUSTOMREQUEST, "OPTIONS");
@@ -691,10 +695,26 @@ namespace chttpp::underlying::agent_impl {
     // ヘッダがない場合（req_header_listがnullptrの場合）、ヘッダ設定がリセットされる
     curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
 
+    // agentの保持するクッキーストアから、期限切れのものを削除する
+    std::erase_if(cfg.cookie_store, [nowtime = std::chrono::system_clock::now()](const auto &c) {
+      return c.expires < nowtime;
+    });
+
     // クッキーの設定
     // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
     const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
       // "name1=value1; name2=value2; ..."のように整形する
+      for (const auto& c : cfg.cookie_store) {
+        cookie_str.append(c.name);
+        cookie_str.append(1, '=');
+        cookie_str.append(c.value);
+        cookie_str.append("; ");
+      }
+
+      // cookieヘッダでは名前と値のペアで送るので、ドメインやパスまで考慮した一致判定はできない
+      // そのため、同じ名前のクッキーは許容される
+      // agentの初期設定からドメインが、.request()の引数からパスをユーザー意図として取得可能ではあり、それを用いて一致判定はできそう
+      // その場合は、リクエスト時設定（つまりこっちのループを優先したい）
       for (const auto& [name, value] : req_cfg.cookies) {
         cookie_str.append(name);
         cookie_str.append(1, '=');
@@ -735,6 +755,11 @@ namespace chttpp::underlying::agent_impl {
 
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
+
+    // サーバからのクッキーを保存する（あれば
+    if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
+      detail::apply_set_cookie((*pos).second, cfg.cookie_store);
+    }
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
   }
