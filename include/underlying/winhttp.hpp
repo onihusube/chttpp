@@ -57,6 +57,8 @@ namespace chttpp::detail {
     using namespace std::literals;
 
     header_t headers;
+
+    // この処理、views::splitでできないか・・・？
     auto current_pos = header_str.begin();
     const auto terminator = "\r\n"sv;
     std::boyer_moore_searcher search{ terminator.begin(), terminator.end() };
@@ -639,7 +641,7 @@ namespace chttpp::underlying::agent_impl {
 
 
   template<typename MethodTag>
-  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, const detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -753,6 +755,35 @@ namespace chttpp::underlying::agent_impl {
       state.tmp_header.insert_or_assign(key, value);
     }
 
+    constexpr auto make_one_cookie = [](std::string_view name, std::string_view value, string_t& out) {
+      out.append(name);
+      out.append("=");
+      out.append(value);
+      out.append("; ");
+    };
+
+    // cookieヘッダの構成
+    // このバッファはヘッダが文字列化されるまで保持されていなければならない
+    string_t cookie_header_str{};
+
+    // agent本体設定 -> リクエスト時設定の順で適用
+    for (auto& cookie : cfg.cookie_store) {
+      make_one_cookie(cookie.name, cookie.value, cookie_header_str);
+    }
+    for (const auto& [name, value] : req_cfg.cookies) {
+      make_one_cookie(name, value, cookie_header_str);
+    }
+
+    if (not cookie_header_str.empty()) {
+      // 末尾の"; "を削除
+      cookie_header_str.pop_back();
+      cookie_header_str.pop_back();
+
+      // ヘッダ設定を上書き（これでよい？
+      state.tmp_header["cookie"] = cookie_header_str;
+    }
+
+
     if constexpr (has_request_body) {
       // Content-Typeヘッダの追加
       const bool content_type_exists = state.tmp_header.contains("content-type") or state.tmp_header.contains("Content-Type");
@@ -765,6 +796,7 @@ namespace chttpp::underlying::agent_impl {
       // この時点で、ヘッダは空ではない
     }
 
+    // ヘッダを文字列化
     LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
     wstring_t send_header_buf;
     auto& headers = state.tmp_header;
@@ -866,7 +898,15 @@ namespace chttpp::underlying::agent_impl {
         return http_result{ ::GetLastError() };
       }
 
-      return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = chttpp::detail::parse_response_header_on_winhttp(converted_header), .status_code{status_code} } };
+      // ヘッダの分割
+      auto headers = chttpp::detail::parse_response_header_on_winhttp(converted_header);
+
+      // クッキーの取り出し
+      if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
+        detail::apply_set_cookie((*pos).second, cfg.cookie_store);
+      }
+
+      return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code{status_code}}};
     }, state.buffer, state.char_buf);
   }
 
