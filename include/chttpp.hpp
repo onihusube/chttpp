@@ -467,7 +467,7 @@ namespace chttpp {
       if (not is_https) {
         // secure属性付き（secure=true）のクッキーは無視する
         // デフォルトはsecure=falseなので、気にしなければ全てのクッキーが保存される
-        std::erase_if(cookies, &detail::cookie::secure);
+        std::erase_if(cookies, [](const auto& c) { return c.secure; });
       }
 
       // 指定クッキーをマージ

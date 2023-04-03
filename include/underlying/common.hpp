@@ -406,86 +406,7 @@ chttpp::get(...).then([](auto&& hr) {
   };
 }
 
-namespace chttpp::detail::inline config {
-
-  inline namespace enums {
-    enum class http_version {
-      http1_1,
-      http2,
-      //http3,
-    };
-
-    enum class authentication_scheme {
-      none,
-      basic,
-      //digest,
-    };
-
-    enum class proxy_scheme {
-      http,
-      https,
-      socks4,
-      socks4a,
-      socks5,
-      socks5h,
-    };
-  }
-
-  struct authorization_config {
-    std::string_view username = "";
-    std::string_view password = "";
-    authentication_scheme scheme = authentication_scheme::none;
-  };
-
-  struct proxy_config {
-    std::string_view address = "";
-    proxy_scheme scheme = proxy_scheme::http;
-    authorization_config auth{};
-  };
-
-  struct request_config_for_get {
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    http_version version = http_version::http2;
-    std::chrono::milliseconds timeout{ 30000 };
-    authorization_config auth{};
-    proxy_config proxy{};
-  };
-
-  struct request_config {
-    std::string_view content_type = "";
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    http_version version = http_version::http2;
-    std::chrono::milliseconds timeout{ 30000 };
-    authorization_config auth{};
-    proxy_config proxy{};
-
-    //operator request_config_for_get() const {
-    //  return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
-    //}
-  };
-
-  struct agent_initial_config {
-    http_version version = http_version::http2;
-    std::chrono::milliseconds timeout{30000};
-    proxy_config proxy{};
-  };
-
-  struct agent_request_config {
-    std::string_view content_type = "";
-    // MSVCがこの2つに初期化子`{}`を付けるとC2797エラーになるので、なしにする
-#ifdef _MSC_VER
-    std::initializer_list<std::pair<std::string_view, std::string_view>> headers;
-    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies;
-#else
-    std::initializer_list<std::pair<std::string_view, std::string_view>> headers{};
-    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies{};
-#endif
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    authorization_config auth{};
-  };
-
+namespace chttpp::detail::inline cookie_related {
 
   struct cookie {
     // 必須
@@ -540,42 +461,49 @@ namespace chttpp::detail::inline config {
 
   using cookie_store_t = uset_t<cookie, cookie_hash>;
 
-  struct agent_config {
-    // コンストラクタで渡す設定
-    agent_initial_config init_cfg;
+  class cookie_store_impl : private uset_t<cookie, cookie_hash> {
+    using base = uset_t<cookie, cookie_hash>;
 
-    // その他のタイミングで渡される設定
-    umap_t<string_t, string_t> headers{};
-    cookie_store_t cookie_store{};
-    // authorization_config auth{};
+  public:
+
+    cookie_store_impl(cookie_store_impl&&) = default;
+    cookie_store_impl& operator=(cookie_store_impl&&) = default;
+
+    cookie_store_impl(const cookie_store_impl&) = delete;
+    cookie_store_impl& operator=(const cookie_store_impl&) = delete;
+
+    using base::unordered_set;
+    
+    using base::begin;
+    using base::end;
+    using base::size;
+    
+    using base::find;
+    using base::insert;
+    using base::merge;
+    using base::extract;
+    using base::erase;
+
+    using base::get_allocator;
+
+    auto remove_expired_cookies() & {
+      const auto nowtime = std::chrono::system_clock::now();
+
+      return std::erase_if(*this, [nowtime](const auto &c) {
+        return c.expires < nowtime;
+      });
+    }
+
+    void convert_cookie_header_to(string_t& out) const {
+      for (const auto& c : *this) {
+        out.append(c.name);
+        out.append(1, '=');
+        out.append(c.value);
+        out.append("; ");
+      }
+    }
   };
-}
 
-namespace chttpp {
-  // 設定用列挙値の簡易アクセス用の名前空間を定義
-
-  // なるべく短く元の列挙型にアクセス
-  namespace cfg {
-    using namespace chttpp::detail::config::enums;
-  }
-
-  // 認証周りの設定
-  namespace cfg_auth {
-    using enum chttpp::detail::config::enums::authentication_scheme;
-  }
-
-  // httpバージョンの設定
-  namespace cfg_ver {
-    using enum chttpp::detail::config::enums::http_version;
-  }
-
-  // プロクシ周りの設定
-  namespace cfg_prxy {
-    using enum chttpp::detail::config::enums::proxy_scheme;
-  }
-}
-
-namespace chttpp::detail {
 
   void apply_set_cookie(std::string_view set_cookie_str, cookie_store_t &cookie_store) {
     // memo : https://triple-underscore.github.io/http-cookie-ja.html#sane-set-cookie
@@ -747,12 +675,17 @@ namespace chttpp::detail {
           continue;
         }
 
-        // 外側の名前をわざとシャドウイングする
-        // 型レベルでは比較等が通るので、名前を変えて取り違えるとバグの元になる
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable:4456)
+#endif
+        // 外側の名前をわざとシャドウイングする
+        // 型レベルでは比較等が通るので、名前を変えて取り違えるとバグの元になる
         auto it = begin(secondary_part);
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
+
         // 属性名の確認
         const auto attr = classify_attribute(*it);
         if (not is_attribute(attr)) {
@@ -830,6 +763,121 @@ namespace chttpp::detail {
         cookie_store.insert(std::move(tmp_cookie));
       }
     }
+  }
+}
+
+namespace chttpp::detail::inline config {
+
+  inline namespace enums {
+    enum class http_version {
+      http1_1,
+      http2,
+      //http3,
+    };
+
+    enum class authentication_scheme {
+      none,
+      basic,
+      //digest,
+    };
+
+    enum class proxy_scheme {
+      http,
+      https,
+      socks4,
+      socks4a,
+      socks5,
+      socks5h,
+    };
+  }
+
+  struct authorization_config {
+    std::string_view username = "";
+    std::string_view password = "";
+    authentication_scheme scheme = authentication_scheme::none;
+  };
+
+  struct proxy_config {
+    std::string_view address = "";
+    proxy_scheme scheme = proxy_scheme::http;
+    authorization_config auth{};
+  };
+
+  struct request_config_for_get {
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
+    std::chrono::milliseconds timeout{ 30000 };
+    authorization_config auth{};
+    proxy_config proxy{};
+  };
+
+  struct request_config {
+    std::string_view content_type = "";
+    vector_t<std::pair<std::string_view, std::string_view>> headers{};
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    http_version version = http_version::http2;
+    std::chrono::milliseconds timeout{ 30000 };
+    authorization_config auth{};
+    proxy_config proxy{};
+
+    //operator request_config_for_get() const {
+    //  return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
+    //}
+  };
+
+  struct agent_initial_config {
+    http_version version = http_version::http2;
+    std::chrono::milliseconds timeout{30000};
+    proxy_config proxy{};
+  };
+
+  struct agent_request_config {
+    std::string_view content_type = "";
+    // MSVCがこの2つに初期化子`{}`を付けるとC2797エラーになるので、なしにする
+#ifdef _MSC_VER
+    std::initializer_list<std::pair<std::string_view, std::string_view>> headers;
+    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies;
+#else
+    std::initializer_list<std::pair<std::string_view, std::string_view>> headers{};
+    std::initializer_list<std::pair<std::string_view, std::string_view>> cookies{};
+#endif
+    vector_t<std::pair<std::string_view, std::string_view>> params{};
+    authorization_config auth{};
+  };
+
+  struct agent_config {
+    // コンストラクタで渡す設定
+    agent_initial_config init_cfg;
+
+    // その他のタイミングで渡される設定
+    umap_t<string_t, string_t> headers{};
+    cookie_store_t cookie_store{};
+    // authorization_config auth{};
+  };
+}
+
+namespace chttpp {
+  // 設定用列挙値の簡易アクセス用の名前空間を定義
+
+  // なるべく短く元の列挙型にアクセス
+  namespace cfg {
+    using namespace chttpp::detail::config::enums;
+  }
+
+  // 認証周りの設定
+  namespace cfg_auth {
+    using enum chttpp::detail::config::enums::authentication_scheme;
+  }
+
+  // httpバージョンの設定
+  namespace cfg_ver {
+    using enum chttpp::detail::config::enums::http_version;
+  }
+
+  // プロクシ周りの設定
+  namespace cfg_prxy {
+    using enum chttpp::detail::config::enums::proxy_scheme;
   }
 }
 

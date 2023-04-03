@@ -49,8 +49,8 @@ Secure属性が設定されたクッキーをHTTP経由で送信した場合に�
 void cookie_test() {
   using namespace boost::ut::literals;
   using chttpp::detail::apply_set_cookie;
-  using chttpp::detail::config::cookie_store_t;
-  using chttpp::detail::config::cookie;
+  using chttpp::detail::cookie_store_t;
+  using chttpp::detail::cookie;
 
   constexpr auto cmp_cookie_all = [](const cookie& lhs, const cookie& rhs) -> bool {
     return lhs == rhs and lhs.value == rhs.value and lhs.expires == rhs.expires and lhs.secure == rhs.secure;
@@ -207,7 +207,7 @@ void cookie_test() {
     ut::expect(cookies.size() == 0) << cookies.size();
   };
 
-  "overlapping attributes"_test = [] {
+  "overlapping attributes"_test = [cmp_cookie_all] {
     cookie_store_t cookies{};
 
     apply_set_cookie("name=value; Secure; Secure; Secure; HttpOnly; HttpOnly", cookies);
