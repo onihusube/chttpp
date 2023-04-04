@@ -424,11 +424,78 @@ namespace chttpp::detail::inline cookie_related {
     //bool http_only = false;
     //string_t SameSite = "Strict";
 
+    // クッキーの作成時刻基本的に触らない
+    std::chrono::system_clock::time_point create_time = std::chrono::system_clock::now();
+
     // クッキーの等価性は、name,domain,pathの一致によって判定される
     friend bool operator==(const cookie& self, const cookie& other) noexcept(noexcept(std::string{} == std::string{})) {
       return self.name   == other.name && 
              self.domain == other.domain && 
              self.path   == other.path;
+    }
+  };
+
+  class cookie_ref {
+    std::string_view m_name;
+    std::string_view m_path;
+    std::chrono::system_clock::time_point m_create_time;
+
+    std::string_view m_value;
+
+  public:
+
+    cookie_ref(const cookie& c)
+      : m_name{c.name}
+      , m_path{c.path}
+      , m_create_time{c.create_time}
+      , m_value{c.value}
+    {}
+
+    cookie_ref(const std::pair<std::string_view, std::string_view>& c, std::string_view path = "/")
+      : m_name{c.first}
+      , m_path{path}
+      , m_create_time{std::chrono::system_clock::time_point::max()}
+      , m_value{c.second}
+    {}
+
+    auto name() const noexcept -> std::string_view {
+      return m_name;
+    }
+
+    auto value() const noexcept -> std::string_view {
+      return m_value;
+    }
+
+    friend auto operator<=>(const cookie_ref& lhs, const cookie_ref& rhs) {
+      // memo : https://qiita.com/y_tochukaso/items/a4e815674be61ca68707
+      // クッキー名 -> Path -> 作成時刻 の順で比較
+      // 昇順に並んだ時にクッキー送信順になるようにする
+
+      // 名前はそのまま（lhs < rhs）
+      if (auto cmp = lhs.m_name <=> rhs.m_name; cmp != 0) {
+        return cmp;
+      }
+      // パスは長い方が前（lhs > rhs）、他と逆
+      if (auto cmp = rhs.m_path.length() <=> lhs.m_path.length(); cmp != 0) {
+        return cmp;
+      }
+      // 作成日時は早い方が前（lhs < rhs）
+      return lhs.m_create_time <=> rhs.m_create_time;
+    }
+
+    friend bool operator==(const cookie_ref& lhs, const cookie_ref& rhs) {
+      return lhs.m_name == rhs.m_name &&
+             lhs.m_path == rhs.m_path &&
+             lhs.m_create_time == rhs.m_create_time;
+    }
+
+    friend void swap(cookie_ref& lhs, cookie_ref& rhs) {
+      using std::ranges::swap;
+
+      swap(lhs.m_name, rhs.m_name);
+      swap(lhs.m_path, rhs.m_path);
+      swap(lhs.m_create_time, rhs.m_create_time);
+      swap(lhs.m_value, rhs.m_value);
     }
   };
 

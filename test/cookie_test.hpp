@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string_view>
+#include <ranges>
+#include <algorithm>
 
 #include "chttpp.hpp"
 
@@ -51,6 +53,7 @@ void cookie_test() {
   using chttpp::detail::apply_set_cookie;
   using chttpp::detail::cookie_store_t;
   using chttpp::detail::cookie;
+  using chttpp::detail::cookie_ref;
 
   constexpr auto cmp_cookie_all = [](const cookie& lhs, const cookie& rhs) -> bool {
     return lhs == rhs and lhs.value == rhs.value and lhs.expires == rhs.expires and lhs.secure == rhs.secure;
@@ -287,7 +290,7 @@ void cookie_test() {
     }
   };
 
-  "strange cookie"_test = [] {
+  "strange cookie"_test = [cmp_cookie_all] {
     cookie_store_t cookies{};
 
     apply_set_cookie("user id=12345", cookies);
@@ -378,5 +381,51 @@ void cookie_test() {
         ut::expect(cmp_cookie_all(*pos, c));
       }
     }
+  };
+
+  "cookie_ref"_test = [] {
+    std::vector<cookie_ref> for_sort;
+    for_sort.emplace_back(std::make_pair("samename2", "ord6"));
+    for_sort.emplace_back(std::make_pair("samename", "ord4"), "/lll");
+    for_sort.emplace_back(std::make_pair("samename", "ord5"));
+    for_sort.emplace_back(std::make_pair("samename3", "ord7"), "/abcd");
+    for_sort.emplace_back(std::make_pair("samename3", "ord9"), "/ab");
+
+    const auto epoch0 = std::chrono::system_clock::now();
+    const auto epoch1 = std::chrono::system_clock::now() + std::chrono::seconds{1};
+
+    cookie cooks[] = {
+      { .name = "samename", .value = "ord3", .path = "/llll", .create_time = epoch1 },
+      { .name = "samename", .value = "ord1", .path = "/lllll" , .create_time = epoch0 },
+      { .name = "a", .value = "ord0", .path = "/lllll" , .create_time = epoch0 },
+      { .name = "samename3", .value = "ord8", .path = "/efg" , .create_time = epoch0 },
+      { .name = "samename", .value = "ord2", .path = "/llll" , .create_time = epoch0 }
+    };
+
+    for (const auto& c : cooks)
+    {
+      for_sort.emplace_back(c);
+    }
+
+    // 名前は昇順、Pathは長さによる降順、作成時刻は昇順
+    std::ranges::sort(for_sort);
+
+    std::string_view corect[] = {
+        "ord0",
+        "ord1",
+        "ord2",
+        "ord3",
+        "ord4",
+        "ord5",
+        "ord6",
+        "ord7",
+        "ord8",
+        "ord9"
+    };
+
+    ut::expect(std::ranges::size(corect) == for_sort.size()) << for_sort.size();
+
+    // クッキー値の一致を見ることで間接的にソートの正確性をチェック
+    ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::value));
   };
 }
