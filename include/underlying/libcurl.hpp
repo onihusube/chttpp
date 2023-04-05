@@ -703,6 +703,27 @@ namespace chttpp::underlying::agent_impl {
     // クッキーの設定
     // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
     const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
+      /*
+      vector_t<detail::cookie_ref> sorted_cookies;
+      sorted_cookies.reserve(cfg.cookie_store.size() + req_cfg.cookies.size());
+
+      constexpr auto to_cookie_ref = [](const auto& c) { return detail::cookie_ref{c}; };
+
+      std::ranges::copy(cfg.cookie_store | std::views::transform(to_cookie_ref), std::back_inserter(sorted_cookies));
+      std::ranges::copy(req_cfg.cookies  | std::views::transform(to_cookie_ref), std::back_inserter(sorted_cookies));
+
+      // 同名ならPathが長い方が先、同じ長さなら作成時間が早い方が先、になるようにソート
+      std::ranges::sort(sorted_cookies);
+
+      // "name1=value1; name2=value2; ..."のように整形する
+      for (const auto& c : sorted_cookies) {
+        cookie_str.append(c.name);
+        cookie_str.append(1, '=');
+        cookie_str.append(c.value);
+        cookie_str.append("; ");
+      }
+      */
+
       // "name1=value1; name2=value2; ..."のように整形する
       for (const auto& c : cfg.cookie_store) {
         cookie_str.append(c.name);

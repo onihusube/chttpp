@@ -437,7 +437,7 @@ namespace chttpp::detail::inline cookie_related {
 
   class cookie_ref {
     std::string_view m_name;
-    std::string_view m_path;
+    std::size_t m_path_length;
     std::chrono::system_clock::time_point m_create_time;
 
     std::string_view m_value;
@@ -446,14 +446,14 @@ namespace chttpp::detail::inline cookie_related {
 
     cookie_ref(const cookie& c)
       : m_name{c.name}
-      , m_path{c.path}
+      , m_path_length{c.path.length()}
       , m_create_time{c.create_time}
       , m_value{c.value}
     {}
 
     cookie_ref(const std::pair<std::string_view, std::string_view>& c, std::string_view path = "/")
       : m_name{c.first}
-      , m_path{path}
+      , m_path_length{path.length()}
       , m_create_time{std::chrono::system_clock::time_point::max()}
       , m_value{c.second}
     {}
@@ -476,7 +476,7 @@ namespace chttpp::detail::inline cookie_related {
         return cmp;
       }
       // パスは長い方が前（lhs > rhs）、他と逆
-      if (auto cmp = rhs.m_path.length() <=> lhs.m_path.length(); cmp != 0) {
+      if (auto cmp = rhs.m_path_length <=> lhs.m_path_length; cmp != 0) {
         return cmp;
       }
       // 作成日時は早い方が前（lhs < rhs）
@@ -485,7 +485,7 @@ namespace chttpp::detail::inline cookie_related {
 
     friend bool operator==(const cookie_ref& lhs, const cookie_ref& rhs) {
       return lhs.m_name == rhs.m_name &&
-             lhs.m_path == rhs.m_path &&
+             lhs.m_path_length == rhs.m_path_length &&
              lhs.m_create_time == rhs.m_create_time;
     }
 
@@ -493,7 +493,7 @@ namespace chttpp::detail::inline cookie_related {
       using std::ranges::swap;
 
       swap(lhs.m_name, rhs.m_name);
-      swap(lhs.m_path, rhs.m_path);
+      swap(lhs.m_path_length, rhs.m_path_length);
       swap(lhs.m_create_time, rhs.m_create_time);
       swap(lhs.m_value, rhs.m_value);
     }
