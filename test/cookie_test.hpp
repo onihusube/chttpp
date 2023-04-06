@@ -50,8 +50,7 @@ Secure属性が設定されたクッキーをHTTP経由で送信した場合に�
 
 void cookie_test() {
   using namespace boost::ut::literals;
-  using chttpp::detail::apply_set_cookie;
-  using chttpp::detail::cookie_store_t;
+  using chttpp::detail::cookie_store;
   using chttpp::detail::cookie;
   using chttpp::detail::cookie_ref;
 
@@ -61,9 +60,9 @@ void cookie_test() {
 
   "simple_cookie"_test = [cmp_cookie_all]
   {
-    cookie_store_t cookies{};
+    cookie_store cookies{};
 
-    apply_set_cookie("name=value", cookies);
+    cookies.insert_from_set_cookie("name=value");
     {
       cookie c{.name = "name", .value = "value"};
 
@@ -72,7 +71,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("name1=value1; Path=/path", cookies);
+    cookies.insert_from_set_cookie("name1=value1; Path=/path");
     {
       ut::expect(cookies.size() == 2);
 
@@ -83,7 +82,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("name2=value2; Secure", cookies);
+    cookies.insert_from_set_cookie("name2=value2; Secure");
     {
       ut::expect(cookies.size() == 3);
 
@@ -94,7 +93,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("name3=value3; HttpOnly", cookies);
+    cookies.insert_from_set_cookie("name3=value3; HttpOnly");
     {
       ut::expect(cookies.size() == 4);
 
@@ -105,7 +104,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("name4=value4; Domain=example.com", cookies);
+    cookies.insert_from_set_cookie("name4=value4; Domain=example.com");
     {
       ut::expect(cookies.size() == 5);
 
@@ -116,7 +115,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("name5=value5; name6=value6; name7=value7", cookies);
+    cookies.insert_from_set_cookie("name5=value5; name6=value6; name7=value7");
     {
       ut::expect(cookies.size() == 8);
       cookie cs[] = {{.name = "name5", .value = "value5"}, {.name = "name6", .value = "value6"}, {.name = "name7", .value = "value7"}};
@@ -129,7 +128,7 @@ void cookie_test() {
         ut::expect(cmp_cookie_all(*pos, c));
       }
     }
-    apply_set_cookie("name=value; Expires=Wed, 21 Oct 2015 07:28:00 GMT", cookies);
+    cookies.insert_from_set_cookie("name=value; Expires=Wed, 21 Oct 2015 07:28:00 GMT");
     {
       // 上書きしてる
       ut::expect(cookies.size() == 8);
@@ -149,7 +148,7 @@ void cookie_test() {
       ut::expect(pos != cookies.end());
       ut::expect(cmp_cookie_all(*pos, c));
     }
-    apply_set_cookie("Path=/path; Domain=example.com; Expires=Wed, 21 Oct 2015 07:28:00 GMT; name1=skip; HttpOnly; Path=/path; Secure", cookies);
+    cookies.insert_from_set_cookie("Path=/path; Domain=example.com; Expires=Wed, 21 Oct 2015 07:28:00 GMT; name1=skip; HttpOnly; Path=/path; Secure");
     {
       ut::expect(cookies.size() == 8);
 
@@ -165,7 +164,7 @@ void cookie_test() {
       auto time = std::chrono::system_clock::now();
       time += std::chrono::seconds{3600};
       
-      apply_set_cookie("name3=maxage; Max-Age=3600", cookies);
+      cookies.insert_from_set_cookie("name3=maxage; Max-Age=3600");
       
       ut::expect(cookies.size() == 8);
 
@@ -182,39 +181,39 @@ void cookie_test() {
   };
 
   "duplicate_cookie"_test = [] {
-    cookie_store_t cookies{};
+    cookie_store cookies{};
 
     // name, path, domainの3つ組によってクッキーの等価性が決まる
-    apply_set_cookie("name=value1", cookies);
-    apply_set_cookie("name=value2; Path=/path/path", cookies);
-    apply_set_cookie("name=value3; Domain=example.com", cookies);
-    apply_set_cookie("name=value4; Domain=example.com; Path=/path/path", cookies);
+    cookies.insert_from_set_cookie("name=value1");
+    cookies.insert_from_set_cookie("name=value2; Path=/path/path");
+    cookies.insert_from_set_cookie("name=value3; Domain=example.com");
+    cookies.insert_from_set_cookie("name=value4; Domain=example.com; Path=/path/path");
 
     ut::expect(cookies.size() == 4);
   };
 
   "invalid_cookie"_test = [] {
-    cookie_store_t cookies{};
+    cookie_store cookies{};
 
     // これらは全て受理されない
-    apply_set_cookie("", cookies);
-    apply_set_cookie("; ", cookies);
-    apply_set_cookie("    ;      ", cookies);
-    apply_set_cookie(";", cookies);
-    apply_set_cookie("=; =", cookies);
-    apply_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly", cookies);
-    apply_set_cookie("=NoName", cookies);
-    apply_set_cookie("noeq", cookies);
-    apply_set_cookie("noeq;", cookies);
-    apply_set_cookie("noeq; ", cookies);
+    cookies.insert_from_set_cookie("");
+    cookies.insert_from_set_cookie("; ");
+    cookies.insert_from_set_cookie("    ;      ");
+    cookies.insert_from_set_cookie(";");
+    cookies.insert_from_set_cookie("=; =");
+    cookies.insert_from_set_cookie("Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly");
+    cookies.insert_from_set_cookie("=NoName");
+    cookies.insert_from_set_cookie("noeq");
+    cookies.insert_from_set_cookie("noeq;");
+    cookies.insert_from_set_cookie("noeq; ");
 
     ut::expect(cookies.size() == 0) << cookies.size();
   };
 
   "overlapping attributes"_test = [cmp_cookie_all] {
-    cookie_store_t cookies{};
+    cookie_store cookies{};
 
-    apply_set_cookie("name=value; Secure; Secure; Secure; HttpOnly; HttpOnly", cookies);
+    cookies.insert_from_set_cookie("name=value; Secure; Secure; Secure; HttpOnly; HttpOnly");
     {
       ut::expect(cookies.size() == 1);
 
@@ -226,7 +225,7 @@ void cookie_test() {
       ut::expect(cmp_cookie_all(*pos, c));
     }
 
-    apply_set_cookie("domain=test; Domain=example.com; Domain=example.jp; Domain=example.net; Domain=google.com", cookies);
+    cookies.insert_from_set_cookie("domain=test; Domain=example.com; Domain=example.jp; Domain=example.net; Domain=google.com");
     {
       ut::expect(cookies.size() == 2);
 
@@ -238,7 +237,7 @@ void cookie_test() {
       ut::expect(cmp_cookie_all(*pos, c));
     }
 
-    apply_set_cookie("path=test; Path=/path/path; Path=/path/path/path; Path=/; Path=/test/path/test", cookies);
+    cookies.insert_from_set_cookie("path=test; Path=/path/path; Path=/path/path/path; Path=/; Path=/test/path/test");
     {
       ut::expect(cookies.size() == 3);
 
@@ -254,7 +253,7 @@ void cookie_test() {
       auto time = std::chrono::system_clock::now();
       time += std::chrono::seconds{ 1000 };
 
-      apply_set_cookie("maxage=test; Max-Age=0; Max-Age=1; Max-Age=3600; Max-Age=1000", cookies);
+      cookies.insert_from_set_cookie("maxage=test; Max-Age=0; Max-Age=1; Max-Age=3600; Max-Age=1000");
       ut::expect(cookies.size() == 4);
 
       cookie c{ .name = "maxage", .value = "test" };
@@ -267,7 +266,7 @@ void cookie_test() {
       ut::expect(time <= expires);
       ut::expect(expires < std::chrono::system_clock::time_point::max());
     }
-    apply_set_cookie("expires=test; Expires=Sun, 23 Sep 2001 17:09:32 GMT; Expires=Tue, 16 Feb 1993 07:02:53 GMT; Expires=Wed, 21 Oct 2015 07:28:00 GMT", cookies);
+    cookies.insert_from_set_cookie("expires=test; Expires=Sun, 23 Sep 2001 17:09:32 GMT; Expires=Tue, 16 Feb 1993 07:02:53 GMT; Expires=Wed, 21 Oct 2015 07:28:00 GMT");
     {
       ut::expect(cookies.size() == 5);
 
@@ -291,9 +290,9 @@ void cookie_test() {
   };
 
   "strange cookie"_test = [cmp_cookie_all] {
-    cookie_store_t cookies{};
+    cookie_store cookies{};
 
-    apply_set_cookie("user id=12345", cookies);
+    cookies.insert_from_set_cookie("user id=12345");
     {
       ut::expect(cookies.size() == 1);
 
@@ -305,7 +304,7 @@ void cookie_test() {
       ut::expect(cmp_cookie_all(*pos, c));
     }
 
-    apply_set_cookie(R"(name="John; Smith"; Path=/path/)", cookies);
+    cookies.insert_from_set_cookie(R"(name="John; Smith"; Path=/path/)");
     {
       ut::expect(cookies.size() == 2);
 
@@ -317,7 +316,7 @@ void cookie_test() {
       ut::expect(cmp_cookie_all(*pos, c));
     }
 
-    apply_set_cookie("Inva(l)idToken=Inva(l)idToken", cookies);
+    cookies.insert_from_set_cookie("Inva(l)idToken=Inva(l)idToken");
     {
       ut::expect(cookies.size() == 3);
 
@@ -329,7 +328,7 @@ void cookie_test() {
       ut::expect(cmp_cookie_all(*pos, c));
     }
 
-    apply_set_cookie("InvalidSyntax = InvalidSyntax;Secure;", cookies);
+    cookies.insert_from_set_cookie("InvalidSyntax = InvalidSyntax;Secure;");
     {
       ut::expect(cookies.size() == 4);
 
@@ -345,7 +344,7 @@ void cookie_test() {
       // MAx-ageは変化しない（負の数指定は無視される）
       const auto time = std::chrono::system_clock::now();
 
-      apply_set_cookie("foo=bar; Domain=example.com; Path=/; Max-Age=-10", cookies);
+      cookies.insert_from_set_cookie("foo=bar; Domain=example.com; Path=/; Max-Age=-10");
 
       ut::expect(cookies.size() == 5);
 
@@ -360,7 +359,7 @@ void cookie_test() {
       ut::expect(expires < std::chrono::system_clock::time_point::max());
     }
 
-    apply_set_cookie(R"($Version=1;Customer="WILE_E_COYOTE"    ; $Path= "/acme";   Part_Number ="Rocket_Launcher_0001" ; Shipping        =      "FedEx")", cookies);
+    cookies.insert_from_set_cookie(R"($Version=1;Customer="WILE_E_COYOTE"    ; $Path= "/acme";   Part_Number ="Rocket_Launcher_0001" ; Shipping        =      "FedEx")");
     {
       ut::expect(cookies.size() == 10);
 
@@ -384,48 +383,49 @@ void cookie_test() {
   };
 
   "cookie_ref"_test = [] {
-    std::vector<cookie_ref> for_sort;
-    for_sort.emplace_back(std::make_pair("samename2", "ord6"));
-    for_sort.emplace_back(std::make_pair("samename", "ord4"), "/lll");
-    for_sort.emplace_back(std::make_pair("samename", "ord5"));
-    for_sort.emplace_back(std::make_pair("samename3", "ord7"), "/abcd");
-    for_sort.emplace_back(std::make_pair("samename3", "ord9"), "/ab");
-
-    const auto epoch0 = std::chrono::system_clock::now();
-    const auto epoch1 = std::chrono::system_clock::now() + std::chrono::seconds{1};
-
-    cookie cooks[] = {
-      { .name = "samename", .value = "ord3", .path = "/llll", .create_time = epoch1 },
-      { .name = "samename", .value = "ord1", .path = "/lllll" , .create_time = epoch0 },
-      { .name = "a", .value = "ord0", .path = "/lllll" , .create_time = epoch0 },
-      { .name = "samename3", .value = "ord8", .path = "/efg" , .create_time = epoch0 },
-      { .name = "samename", .value = "ord2", .path = "/llll" , .create_time = epoch0 }
-    };
-
-    for (const auto& c : cooks)
     {
-      for_sort.emplace_back(c);
+      std::vector<cookie_ref> for_sort;
+      for_sort.emplace_back(std::make_pair("samename2", "ord6"));
+      for_sort.emplace_back(std::make_pair("samename", "ord4"), "/lll");
+      for_sort.emplace_back(std::make_pair("samename", "ord5"));
+      for_sort.emplace_back(std::make_pair("samename3", "ord7"), "/abcd");
+      for_sort.emplace_back(std::make_pair("samename3", "ord9"), "/ab");
+
+      const auto epoch0 = std::chrono::system_clock::now();
+      const auto epoch1 = std::chrono::system_clock::now() + std::chrono::seconds{1};
+
+      cookie cooks[] = {
+        { .name = "samename", .value = "ord3", .path = "/llll", .create_time = epoch1 },
+        { .name = "samename", .value = "ord1", .path = "/lllll" , .create_time = epoch0 },
+        { .name = "a", .value = "ord0", .path = "/lllll" , .create_time = epoch0 },
+        { .name = "samename3", .value = "ord8", .path = "/efg" , .create_time = epoch0 },
+        { .name = "samename", .value = "ord2", .path = "/llll" , .create_time = epoch0 }
+      };
+
+      for (const auto& c : cooks) {
+        for_sort.emplace_back(c);
+      }
+
+      // 名前は昇順、Pathは長さによる降順、作成時刻は昇順
+      std::ranges::sort(for_sort);
+
+      std::string_view corect[] = {
+          "ord0",
+          "ord1",
+          "ord2",
+          "ord3",
+          "ord4",
+          "ord5",
+          "ord6",
+          "ord7",
+          "ord8",
+          "ord9"
+      };
+
+      ut::expect(std::ranges::size(corect) == for_sort.size()) << for_sort.size();
+
+      // クッキー値の一致を見ることで間接的にソートの正確性をチェック
+      ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::value));
     }
-
-    // 名前は昇順、Pathは長さによる降順、作成時刻は昇順
-    std::ranges::sort(for_sort);
-
-    std::string_view corect[] = {
-        "ord0",
-        "ord1",
-        "ord2",
-        "ord3",
-        "ord4",
-        "ord5",
-        "ord6",
-        "ord7",
-        "ord8",
-        "ord9"
-    };
-
-    ut::expect(std::ranges::size(corect) == for_sort.size()) << for_sort.size();
-
-    // クッキー値の一致を見ることで間接的にソートの正確性をチェック
-    ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::value));
   };
 }
