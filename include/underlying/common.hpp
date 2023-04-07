@@ -557,7 +557,6 @@ namespace chttpp::detail::inline cookie_related {
     void merge(cookie_store& other) & {
       this->merge(static_cast<base&>(other));
     }
-
     friend auto erase_if(cookie_store& self, auto pred)
       requires requires(base& container) {
         std::erase_if(container, pred);
@@ -720,6 +719,7 @@ namespace chttpp::detail::inline cookie_related {
         auto cookie_pair = *primary_it | spliteq;
 
         // この時点で現在の要素には興味がないので次に進めておく
+        // forward_iteratorであるため、cookie_pairが無効になることはない
         ++primary_it;
 
         // "; "みたいなのが入ってる時（spliteqへの入力文字範囲が空となる時）
@@ -897,28 +897,24 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
   };
 
+#define common_request_config \
+    vector_t<std::pair<std::string_view, std::string_view>> headers{}; \
+    vector_t<std::pair<std::string_view, std::string_view>> params{}; \
+    http_version version = http_version::http2; \
+    std::chrono::milliseconds timeout{ 30000 }; \
+    authorization_config auth{}; \
+    proxy_config proxy{}
+
   struct request_config_for_get {
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    http_version version = http_version::http2;
-    std::chrono::milliseconds timeout{ 30000 };
-    authorization_config auth{};
-    proxy_config proxy{};
+    common_request_config;
   };
 
   struct request_config {
     std::string_view content_type = "";
-    vector_t<std::pair<std::string_view, std::string_view>> headers{};
-    vector_t<std::pair<std::string_view, std::string_view>> params{};
-    http_version version = http_version::http2;
-    std::chrono::milliseconds timeout{ 30000 };
-    authorization_config auth{};
-    proxy_config proxy{};
-
-    //operator request_config_for_get() const {
-    //  return request_config_for_get{ .headers = headers, .params = params, .version = version, .timeout = timeout, .auth = auth, .proxy = proxy };
-    //}
+    common_request_config;
   };
+
+#undef common_request_config
 
   struct agent_initial_config {
     http_version version = http_version::http2;
@@ -947,7 +943,6 @@ namespace chttpp::detail::inline config {
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
     cookie_store cookie_vault{};
-    // authorization_config auth{};
   };
 }
 

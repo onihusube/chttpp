@@ -382,12 +382,15 @@ namespace chttpp {
     using string = basic_string_t<CharT>;
     using string_view = std::basic_string_view<CharT>;
 
+    // URLの頭の部分
     string m_base_url;
+
+    // URLの変換に使用するバッファ（CharTによっては空のクラス）
     [[no_unique_address]]
     underlying::agent_impl::determin_buffer_t<CharT> convert_buffer{};
 
-    detail::agent_config m_cfg;
-    underlying::agent_impl::session_state m_state;
+    // session_stateやバッファ等のリソースのまとめ
+    underlying::agent_impl::agent_resource m_resource;
 
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
@@ -395,11 +398,10 @@ namespace chttpp {
   public:
 
     [[nodiscard]]
-    agent(string_view base_url, detail::agent_initial_config cfg = {})
+    agent(string_view base_url, detail::agent_initial_config initial_cfg = {})
       : m_base_url(base_url)
-      , m_cfg{ .init_cfg = std::move(cfg) }
-      , m_state{}
-      , m_config_ec{ m_state.init(base_url, convert_buffer, m_cfg.init_cfg) }
+      , m_resource{ .config = std::move(initial_cfg) }
+      , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
     {}
 
     agent(const agent&) = delete;
@@ -416,7 +418,7 @@ namespace chttpp {
         return detail::http_result{m_config_ec};
       }
 
-      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), std::span<const char>{}, tag{});
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), std::span<const char>{}, tag{});
     }
 
     template<auto Method, byte_serializable Body>
@@ -433,13 +435,13 @@ namespace chttpp {
         req_cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
 
-      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_state, m_cfg, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
+      return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
     }
 
   private:
 
     void merge_header(umap_t<string_t, string_t>&& add_headers) {
-      auto& header_map = m_cfg.headers;
+      auto &header_map = m_resource.headers;
 
       // 重複ヘッダは上書きする
       // 一部、リスト化して良いヘッダというものも存在するので、要検討
@@ -449,7 +451,7 @@ namespace chttpp {
     }
 
     void merge_cookie(detail::cookie_store&& cookies) {
-      auto& cookie_vault = m_cfg.cookie_vault;
+      auto &cookie_vault = m_resource.cookie_vault;
 
       // 以降の処理は、アロケータの一致を前提とする（agent初期化後にset_default_resource()を変更されるとしぬ）
       assert(cookie_vault.get_allocator() == cookies.get_allocator());

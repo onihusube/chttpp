@@ -553,9 +553,21 @@ namespace chttpp::underlying::agent_impl {
     using type = detail::string_buffer;
   };
 
+  struct agent_resource {
+    // コンストラクタで渡す設定
+    detail::agent_initial_config config;
+
+    // その他のタイミングで渡される設定
+    umap_t<string_t, string_t> headers{};
+    detail::cookie_store cookie_vault{};
+
+    // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
+    libcurl_session_state state{};
+    vector_t<detail::cookie_ref> cookie_buf{};
+  };
 
   template<typename MethodTag>
-  inline auto request_impl(std::string_view url_path, libcurl_session_state& state, detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url_path, agent_resource& agent_resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -570,6 +582,7 @@ namespace chttpp::underlying::agent_impl {
     constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
     constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
+    auto& state = agent_resource.state;
     auto& session = state.session;
 
     // 認証情報の取得とセット、configに指定された方を優先する
@@ -660,7 +673,7 @@ namespace chttpp::underlying::agent_impl {
       };
 
       // agentに直接設定されたヘッダ、リクエスト間で共通
-      for (const auto& [key, value] : cfg.headers) {
+      for (const auto& [key, value] : agent_resource.headers) {
         state.buffer.use([&](string_t& buf) { set_headers(buf, key, value); });
       }
 
@@ -673,8 +686,8 @@ namespace chttpp::underlying::agent_impl {
 
         // Content-Type指定はヘッダ設定を優先する
         const bool set_content_type =
-            cfg.headers.contains("Content-Type") or
-            cfg.headers.contains("content-type") or
+            agent_resource.headers.contains("Content-Type") or
+            agent_resource.headers.contains("content-type") or
             std::ranges::any_of(req_cfg.headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
         if (not set_content_type) {
@@ -696,17 +709,19 @@ namespace chttpp::underlying::agent_impl {
     curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
 
     // 期限切れクッキーの削除
-    cfg.cookie_vault.remove_expired_cookies();
+    agent_resource.cookie_vault.remove_expired_cookies();
 
     // クッキーの設定
     // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
     const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
+      // これは後ほど自動化（winhttpの方でも似たような需要があるので共通化が望ましい）
+      agent_resource.cookie_buf.clear();
+
       // クッキーを送信順になるようにソート
-      vector_t<detail::cookie_ref> sorted_cookies;
-      cfg.cookie_vault.sort_by_send_order_to(sorted_cookies, req_cfg.cookies);
+      agent_resource.cookie_vault.sort_by_send_order_to(agent_resource.cookie_buf, req_cfg.cookies);
 
       // "name1=value1; name2=value2; ..."のように整形する
-      for (const auto& c : sorted_cookies) {
+      for (const auto& c : agent_resource.cookie_buf) {
         cookie_str.append(c.name());
         cookie_str.append(1, '=');
         cookie_str.append(c.value());
@@ -749,7 +764,7 @@ namespace chttpp::underlying::agent_impl {
 
     // サーバからのクッキーを保存する（あれば
     if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-      cfg.cookie_vault.insert_from_set_cookie((*pos).second);
+      agent_resource.cookie_vault.insert_from_set_cookie((*pos).second);
     }
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};
