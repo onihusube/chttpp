@@ -639,9 +639,22 @@ namespace chttpp::underlying::agent_impl {
     using type = dummy_buffer;
   };
 
+  struct agent_resource {
+    // コンストラクタで渡す設定
+    detail::agent_initial_config config;
+
+    // その他のタイミングで渡される設定
+    umap_t<string_t, string_t> headers{};
+    detail::cookie_store cookie_vault{};
+
+    // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
+    winhttp_session_state state{};
+    vector_t<detail::cookie_ref> cookie_buf{};
+  };
+
 
   template<typename MethodTag>
-  auto request_impl(std::wstring_view url_path, winhttp_session_state& state, detail::agent_config& cfg, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view url_path, agent_resource& resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -659,7 +672,7 @@ namespace chttpp::underlying::agent_impl {
     [[maybe_unused]]
     constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
-    auto& connect = state.connect;
+    auto& state = resource.state;
 
     // ホスト名がきちんとしていないとWinHttpCrackUrl()は分解してくれない（エラーコード 12006 で失敗する）
     hinet request{state.buffer.use([&](wstring_t& full_url) -> ::HINTERNET {
@@ -692,21 +705,21 @@ namespace chttpp::underlying::agent_impl {
       auto& http_ver_str = state.http_ver_str;
       
       if constexpr (is_get) {
-        return ::WinHttpOpenRequest(connect.get(), L"GET", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"GET", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_head) {
-        return ::WinHttpOpenRequest(connect.get(), L"HEAD", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"HEAD", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_opt) {
         // OPTIONSリクエストの対象を指定する
         LPCWSTR target = (url_path_component.dwUrlPathLength == 0) ? L"*" : url_path_component.lpszUrlPath;
-        return ::WinHttpOpenRequest(connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"OPTIONS", target, http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_trace) {
-        return ::WinHttpOpenRequest(connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"TRACE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_post) {
-        return ::WinHttpOpenRequest(connect.get(), L"POST", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"POST", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_put) {
-        return ::WinHttpOpenRequest(connect.get(), L"PUT", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"PUT", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else if constexpr (is_del) {
-        return ::WinHttpOpenRequest(connect.get(), L"DELETE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
+        return ::WinHttpOpenRequest(state.connect.get(), L"DELETE", path_and_query.c_str(), http_ver_str.data(), WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, openreq_flag);
       } else {
         static_assert([] { return false; }(), "not implemented.");
       }
@@ -722,8 +735,8 @@ namespace chttpp::underlying::agent_impl {
     }
 
     // プロクシ認証情報の設定
-    if (not cfg.init_cfg.proxy.address.empty()) {
-      if (not proxy_authentication_setting(request.get(), cfg.init_cfg.proxy.auth, state.buffer)) {
+    if (not resource.config.proxy.address.empty()) {
+      if (not proxy_authentication_setting(request.get(), resource.config.proxy.auth, state.buffer)) {
         return http_result{ ::GetLastError() };
       }
     }
@@ -749,7 +762,7 @@ namespace chttpp::underlying::agent_impl {
     assert(state.tmp_header.empty());
 
     // まずヘッダをマージする
-    state.tmp_header.insert(cfg.headers.begin(), cfg.headers.end());
+    state.tmp_header.insert(resource.headers.begin(), resource.headers.end());
     // agent本体設定を上書きする形でリクエスト時ヘッダを指定
     for (const auto& [key, value] : req_cfg.headers) {
       state.tmp_header.insert_or_assign(key, value);
@@ -763,15 +776,22 @@ namespace chttpp::underlying::agent_impl {
     };
 
     // cookieヘッダの構成
-    // このバッファはヘッダが文字列化されるまで保持されていなければならない
-    string_t cookie_header_str{};
 
-    // agent本体設定 -> リクエスト時設定の順で適用
-    for (auto& cookie : cfg.cookie_store) {
-      make_one_cookie(cookie.name, cookie.value, cookie_header_str);
-    }
-    for (const auto& [name, value] : req_cfg.cookies) {
-      make_one_cookie(name, value, cookie_header_str);
+    // 期限切れクッキー削除
+    resource.cookie_vault.remove_expired_cookies();
+
+    // 並べ替え
+    vector_t<detail::cookie_ref> sorted_cookie;
+    resource.cookie_vault.sort_by_send_order_to(sorted_cookie, req_cfg.cookies);
+
+    // このバッファはヘッダが文字列化されるまで保持されていなければならない
+    string_t cookie_header_str {};
+
+    for (auto& cookie : sorted_cookie) {
+      cookie_header_str.append(cookie.name());
+      cookie_header_str.append("=");
+      cookie_header_str.append(cookie.value());
+      cookie_header_str.append("; ");
     }
 
     if (not cookie_header_str.empty()) {
@@ -903,7 +923,7 @@ namespace chttpp::underlying::agent_impl {
 
       // クッキーの取り出し
       if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-        detail::apply_set_cookie((*pos).second, cfg.cookie_store);
+        resource.cookie_vault.insert_from_set_cookie((*pos).second);
       }
 
       return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code{status_code}}};
