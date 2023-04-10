@@ -563,7 +563,8 @@ namespace chttpp::underlying::agent_impl {
 
     // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     libcurl_session_state state{};
-    vector_t<detail::cookie_ref> cookie_buf{};
+    //vector_t<detail::cookie_ref> cookie_buf{};
+    detail::vector_buffer<detail::cookie_ref> cookie_buf{};
   };
 
   template<typename MethodTag>
@@ -708,31 +709,34 @@ namespace chttpp::underlying::agent_impl {
     // ヘッダがない場合（req_header_listがnullptrの場合）、ヘッダ設定がリセットされる
     curl_easy_setopt(session.get(), CURLOPT_HTTPHEADER, req_header_list.get());
 
-    // 期限切れクッキーの削除
-    agent_resource.cookie_vault.remove_expired_cookies();
-
-    // クッキーの設定
-    // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
-    const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
-      // これは後ほど自動化（winhttpの方でも似たような需要があるので共通化が望ましい）
-      agent_resource.cookie_buf.clear();
+    // クッキーの設定など
+    {
+      // 期限切れクッキーの削除
+      agent_resource.cookie_vault.remove_expired_cookies();
 
       // クッキーを送信順になるようにソート
-      agent_resource.cookie_vault.sort_by_send_order_to(agent_resource.cookie_buf, req_cfg.cookies);
+      auto [sorted_cookies, raii] = agent_resource.cookie_buf.pin([&](auto &cookie_buf) -> std::span<const detail::cookie_ref> {
+        agent_resource.cookie_vault.sort_by_send_order_to(cookie_buf, req_cfg.cookies);
+        return { cookie_buf };
+      });
 
-      // "name1=value1; name2=value2; ..."のように整形する
-      for (const auto& c : agent_resource.cookie_buf) {
-        cookie_str.append(c.name());
-        cookie_str.append(1, '=');
-        cookie_str.append(c.value());
-        cookie_str.append("; ");
+      // クッキーの設定
+      // ヘッダより後で設定するため、ヘッダ設定を上書きする？（未確認）
+      const auto cookie_ec = state.buffer.use([&](string_t &cookie_str) {
+        // "name1=value1; name2=value2; ..."のように整形する
+        for (const auto& c : sorted_cookies) {
+          cookie_str.append(c.name());
+          cookie_str.append(1, '=');
+          cookie_str.append(c.value());
+          cookie_str.append("; ");
+        }
+
+        return curl_easy_setopt(session.get(), CURLOPT_COOKIE, cookie_str.c_str());
+      });
+
+      if (cookie_ec != CURLcode::CURLE_OK) {
+        return http_result{cookie_ec};
       }
-
-      return curl_easy_setopt(session.get(), CURLOPT_COOKIE, cookie_str.c_str());
-    });
-
-    if (cookie_ec != CURLcode::CURLE_OK) {
-      return http_result{cookie_ec};
     }
 
     vector_t<char> body{};

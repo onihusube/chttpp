@@ -95,14 +95,24 @@ namespace chttpp::inline types {
 
 namespace chttpp::detail::inline util {
 
-  template<typename CharT>
-  struct auto_clear {
-    basic_string_t<CharT>& str;
+  template<typename T>
+  class scoped_clear {
+    T& buf;
 
-    ~auto_clear() {
-      str.clear();
+  public:
+
+    scoped_clear(T& r) : buf(r) {}
+
+    scoped_clear(const scoped_clear&) = delete;
+    scoped_clear &operator=(const scoped_clear&) = delete;
+
+    ~scoped_clear() {
+      buf.clear();
     }
   };
+
+  template<typename CharT>
+  using str_auto_clear = scoped_clear<basic_string_t<CharT>>;
 
   template<typename CharT>
   class basic_string_buffer {
@@ -119,7 +129,7 @@ namespace chttpp::detail::inline util {
 
       // 使用後に空にする
       [[maybe_unused]]
-      auto_clear raii{ m_buffer };
+      str_auto_clear raii{ m_buffer };
 
       return std::invoke(fun, m_buffer);
     }
@@ -132,7 +142,7 @@ namespace chttpp::detail::inline util {
   using wstring_buffer = basic_string_buffer<wchar_t>;
 
   template<typename F, typename... CharTs>
-  auto use_multiple_buffer_impl(F&& fun, auto_clear<CharTs>... buffers) {
+  auto use_multiple_buffer_impl(F&& fun, str_auto_clear<CharTs>... buffers) {
     return std::invoke(fun, buffers.str...);
   }
 
@@ -141,9 +151,37 @@ namespace chttpp::detail::inline util {
     // 空であること
     assert((buffers.m_buffer.empty() && ...));
 
-    // auto_clearで文字列バッファをラップして自動クリーンを行う（その実装の）ために、この関数を経由する必要がある
-    return use_multiple_buffer_impl(fun, auto_clear{ buffers.m_buffer }...);
+    // str_auto_clearで文字列バッファをラップして自動クリーンを行う（その実装の）ために、この関数を経由する必要がある
+    return use_multiple_buffer_impl(fun, str_auto_clear{ buffers.m_buffer }...);
   }
+
+
+  template<typename T>
+    requires requires (T& t) {
+      t.clear();
+    }
+  class pinned_buffer {
+    T m_buffer;
+
+  public:
+    pinned_buffer() = default;
+
+    pinned_buffer(pinned_buffer &&) = default;
+
+    // 代入操作は意味なさそうに思える
+    pinned_buffer &operator=(pinned_buffer &&) = delete;
+
+    [[nodiscard]]
+    auto pin(std::invocable<T&> auto&& func) & {
+      using func_ret_t = std::remove_cvref_t<decltype(std::invoke(func, m_buffer))>;
+      using ret_pair = std::pair<func_ret_t, scoped_clear<T>>;
+
+      return ret_pair(std::piecewise_construct, std::forward_as_tuple(std::invoke(func, m_buffer)), std::tie(m_buffer));
+    }
+  };
+
+  template <typename T>
+  using vector_buffer = pinned_buffer<vector_t<T>>;
 }
 
 namespace chttpp::detail::inline concepts {
@@ -557,6 +595,7 @@ namespace chttpp::detail::inline cookie_related {
     void merge(cookie_store& other) & {
       this->merge(static_cast<base&>(other));
     }
+
     friend auto erase_if(cookie_store& self, auto pred)
       requires requires(base& container) {
         std::erase_if(container, pred);
@@ -580,7 +619,7 @@ namespace chttpp::detail::inline cookie_related {
                  c.push_back(std::move(cookie));
                  std::ranges::sort(c);
                }
-    void sort_by_send_order_to(Out& store, R&& additional_cookies) const & {
+    void sort_by_send_order_to(Out& store, R& additional_cookies) const & {
       
       if constexpr (std::ranges::sized_range<R> and requires { store.reserve(1ull); }) {
         store.reserve(this->size() + std::ranges::size(additional_cookies));
