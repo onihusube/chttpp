@@ -428,4 +428,84 @@ void cookie_test() {
       ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::value));
     }
   };
+
+  "create_cookie_list_to"_test = []
+  {
+    cookie_store cookies{};
+    std::array<std::pair<std::string_view, std::string_view>, 0> add_cookie{};
+
+    // ドメイン名のマッチング確認
+    {
+      cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/"});
+      cookies.insert(cookie{.name = "test2", .value = "v", .domain = "www.example.com", .path = "/"});
+      cookies.insert(cookie{.name = "test3", .value = "v", .domain = "www.abcdef.example.com", .path = "/"});
+      cookies.insert(cookie{.name = "ignore1", .value = "vv", .domain = "google.com", .path = "/"});
+      cookies.insert(cookie{.name = "ignore2", .value = "vv", .domain = "bing.com", .path = "/"});
+
+      ut::expect(cookies.size() == 5u);
+
+      std::vector<cookie_ref> for_sort;
+      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/", false);
+
+      ut::expect(for_sort.size() == 3u) << for_sort.size();
+
+      std::string_view corect[] = {
+          "test1",
+          "test2",
+          "test3"
+      };
+      // クッキー名の一致を見ることで間接的にソートの正確性をチェック
+      ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::name));
+    }
+
+    cookies.clear();
+
+    // パスのマッチング確認
+    {
+      cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/"});
+      cookies.insert(cookie{.name = "test2", .value = "v", .domain = "example.com", .path = "/abc/"});
+      cookies.insert(cookie{.name = "test3", .value = "v", .domain = "example.com", .path = "/abc"});
+      cookies.insert(cookie{.name = "test4", .value = "v", .domain = "example.com", .path = "/abc/def"});
+      cookies.insert(cookie{.name = "ignore1", .value = "v", .domain = "example.com", .path = "/abcdef"});
+      cookies.insert(cookie{.name = "ignore2", .value = "v", .domain = "example.com", .path = "/ab"});
+      cookies.insert(cookie{.name = "ignore3", .value = "v", .domain = "example.com", .path = "/abc/def/ghi"});
+
+      ut::expect(cookies.size() == 7u);
+
+      std::vector<cookie_ref> for_sort;
+      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/abc/def", false);
+
+      ut::expect(for_sort.size() == 4u) << for_sort.size();
+
+      std::string_view corect[] = {
+          "test1",
+          "test2",
+          "test3",
+          "test4"
+      };
+      // クッキー名の一致を見ることで間接的にソートの正確性をチェック
+      ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::name));
+    }
+
+    cookies.clear();
+
+    // Secure属性の確認
+    {
+      cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/", .secure = true});
+      cookies.insert(cookie{.name = "ignore1", .value = "v", .domain = "example.com", .path = "/", .secure = false});
+
+      ut::expect(cookies.size() == 2u);
+
+      std::vector<cookie_ref> for_sort;
+      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/", true);
+
+      ut::expect(for_sort.size() == 1u) << for_sort.size();
+
+      std::string_view corect[] = {
+          "test1"
+      };
+      // クッキー名の一致を見ることで間接的にソートの正確性をチェック
+      ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::name));
+    }
+  };
 }

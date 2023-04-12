@@ -445,6 +445,7 @@ chttpp::get(...).then([](auto&& hr) {
 }
 
 namespace chttpp::detail::inline cookie_related {
+  // memo : https://tex2e.github.io/rfc-translater/html/rfc6265.html
 
   struct cookie {
     // 必須
@@ -492,7 +493,7 @@ namespace chttpp::detail::inline cookie_related {
     cookie_ref(const std::pair<std::string_view, std::string_view>& c, std::string_view path = "/")
       : m_name{c.first}
       , m_path_length{path.length()}
-      , m_create_time{std::chrono::system_clock::time_point::max()}
+      , m_create_time{std::chrono::system_clock::time_point::max()} // つまり、パスが同じ長さならより後ろに並べる
       , m_value{c.second}
     {}
 
@@ -589,6 +590,7 @@ namespace chttpp::detail::inline cookie_related {
     using base::merge;
     using base::extract;
     using base::erase;
+    using base::clear;
 
     using base::get_allocator;
 
@@ -628,6 +630,83 @@ namespace chttpp::detail::inline cookie_related {
       constexpr auto to_cookie_ref = [](const auto& c) { return cookie_ref{c}; };
 
       std::ranges::copy(*this | std::views::transform(to_cookie_ref), std::back_inserter(store));
+      std::ranges::copy(additional_cookies | std::views::transform(to_cookie_ref), std::back_inserter(store));
+
+      // 同名ならPathが長い方が先、同じ長さなら作成時間が早い方が先、になるようにソート
+      std::ranges::sort(store);
+    }
+
+    template <typename Out, std::ranges::input_range R>
+      requires std::constructible_from<cookie_ref, std::ranges::range_reference_t<R>> and
+               std::is_same_v<cookie_ref, std::ranges::range_value_t<Out>> and
+               requires(Out& c, cookie_ref&& cookie) {
+                 c.push_back(std::move(cookie));
+                 std::ranges::sort(c);
+               }
+    void create_cookie_list_to(Out& store, R& additional_cookies, std::string_view domain, std::string_view path, bool is_secure_request) const & {
+      
+      if constexpr (std::ranges::sized_range<R> and requires { store.reserve(1ull); }) {
+        store.reserve(this->size() + std::ranges::size(additional_cookies));
+      }
+
+      // ドメイン文字列は正規化されている
+      // すくなくとも全て小文字らしい
+
+      // パス文字列は'/'で始まる、少なくとも1文字
+      // クエリ文字列やアンカーを含まない
+      assert(not path.empty());
+      assert(path.front() == '/');
+      assert(path.find('?') == std::string_view::npos);
+      assert(path.find('#') == std::string_view::npos);
+
+      // パスとドメインをマッチングし送信すべきクッキーを弁別する
+      auto cookie_filter = [is_secure_request, domain_str = domain, request_path = path](const detail::cookie& c) -> bool {
+        // HTTPSの場合はSecure属性があるクッキーのみを送信
+        if (is_secure_request and not c.secure) return false;
+
+        // ドメインのマッチング
+        do {
+          // ドメインはクッキードメインのサフィックスになっていなければならない
+          if (c.domain.ends_with(domain_str) == false) return false;
+          
+          // ドメインが完全一致している
+          if (c.domain.length() == domain_str.length()) break;
+
+          // サフィックスの手前の位置
+          const std::size_t sufix_pos = c.domain.length() - domain_str.length() - 1;
+          // サフィックスとなっていない文字列の最後（サフィックスの直前）は`.`
+          if (c.domain[sufix_pos] == '.') {
+            // ホスト名である（IPアドレスではない）
+            break;
+          }
+
+          // マッチしない
+          return false;
+        } while (false);
+
+        // パスのマッチング
+        // 少なくとも、クッキーパスはリクエストパスのプリフィックスになっていなければならない
+        // /abc/defというリクエスパスに対しては
+        // /, /abc/, /abc というクッキーパスはマッチするが、/abc/def, /abcdefはマッチしない
+        if (request_path.starts_with(c.path)) {
+          // パスの完全一致
+          if (c.path.length() == request_path.length()) return true;
+
+          // プリフィックスであり、クッキーパスの最後の文字が'/'でおわる
+          if (c.path.back() == '/') return true;
+
+          // クッキーパスに含まれないリクエストパスの最初の文字は'/'
+          if (request_path[c.path.length()] == '/') return true;
+        }
+
+        return false;
+      };
+
+      // agent本体登録のものとリクエスト時の一時的なものとを統一的に扱い、またソートするためのクッキー参照へ変換する
+      constexpr auto to_cookie_ref = [](const auto& c) { return cookie_ref{c}; };
+
+      std::ranges::copy(*this | std::views::filter(cookie_filter) | std::views::transform(to_cookie_ref), std::back_inserter(store));
+      // リクエスト時クッキーは、同じドメインかつSecure等の属性も合致しているものと仮定
       std::ranges::copy(additional_cookies | std::views::transform(to_cookie_ref), std::back_inserter(store));
 
       // 同名ならPathが長い方が先、同じ長さなら作成時間が早い方が先、になるようにソート
