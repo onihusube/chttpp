@@ -665,6 +665,9 @@ namespace chttpp::detail::inline cookie_related {
         if (is_secure_request and not c.secure) return false;
 
         // ドメインのマッチング
+        // クッキードメイン aaa.example.com に対しては
+        // ドメイン文字列（ホスト名） example.com, aaa.example.com はマッチするが
+        // bbb.aaa.example.com, a.example.com はマッチしない
         do {
           // ドメインはクッキードメインのサフィックスになっていなければならない
           if (c.domain.ends_with(domain_str) == false) return false;
@@ -677,6 +680,7 @@ namespace chttpp::detail::inline cookie_related {
           // サフィックスとなっていない文字列の最後（サフィックスの直前）は`.`
           if (c.domain[sufix_pos] == '.') {
             // ホスト名である（IPアドレスではない）
+            // 要実装
             break;
           }
 
@@ -687,7 +691,7 @@ namespace chttpp::detail::inline cookie_related {
         // パスのマッチング
         // 少なくとも、クッキーパスはリクエストパスのプリフィックスになっていなければならない
         // /abc/defというリクエスパスに対しては
-        // /, /abc/, /abc というクッキーパスはマッチするが、/abc/def, /abcdefはマッチしない
+        // /, /abc/, /abc というクッキーパスはマッチするが、/abc/def/ghi, /abcdefはマッチしない
         if (request_path.starts_with(c.path)) {
           // パスの完全一致
           if (c.path.length() == request_path.length()) return true;

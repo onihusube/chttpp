@@ -441,8 +441,9 @@ void cookie_test() {
       cookies.insert(cookie{.name = "test3", .value = "v", .domain = "www.abcdef.example.com", .path = "/"});
       cookies.insert(cookie{.name = "ignore1", .value = "vv", .domain = "google.com", .path = "/"});
       cookies.insert(cookie{.name = "ignore2", .value = "vv", .domain = "bing.com", .path = "/"});
+      cookies.insert(cookie{.name = "ignore3", .value = "vv", .domain = "wwwexample.com", .path = "/"});
 
-      ut::expect(cookies.size() == 5u);
+      ut::expect(cookies.size() == 6u);
 
       std::vector<cookie_ref> for_sort;
       cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/", false);
@@ -469,8 +470,11 @@ void cookie_test() {
       cookies.insert(cookie{.name = "ignore1", .value = "v", .domain = "example.com", .path = "/abcdef"});
       cookies.insert(cookie{.name = "ignore2", .value = "v", .domain = "example.com", .path = "/ab"});
       cookies.insert(cookie{.name = "ignore3", .value = "v", .domain = "example.com", .path = "/abc/def/ghi"});
+      // 多分これはマッチしないはず・・・
+      // https://please-sleep.cou929.nu/cookie-path-behavior-difference-of-browsers.html
+      cookies.insert(cookie{.name = "ignore4", .value = "v", .domain = "example.com", .path = "/abc/def/"});
 
-      ut::expect(cookies.size() == 7u);
+      ut::expect(cookies.size() == 8u);
 
       std::vector<cookie_ref> for_sort;
       cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/abc/def", false);
