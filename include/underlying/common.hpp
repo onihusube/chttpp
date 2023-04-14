@@ -444,6 +444,89 @@ chttpp::get(...).then([](auto&& hr) {
   };
 }
 
+namespace chttpp::detail {
+
+  class url_info {
+    string_t m_urlstr;
+    
+    bool m_is_https = true;
+    bool m_is_ipv4_host = false;
+    bool m_is_ipv6_host = false;
+
+    std::size_t m_host_begin_pos;
+    std::size_t m_path_begin_pos;
+
+    bool parse_host_name() {
+      // 後からパスが追加されるので、ある程度確保しておく
+      m_urlstr.reserve(10);
+
+      // パース注目位置、先頭から順番に見ていく
+      std::size_t pos = 0;
+
+      // 想定するURLは次の3タイプ（認証情報やポート番号はあってもいい）
+      // http(s)://example.com/...
+      // example.com/...
+      // example.com
+
+      // httpから始まっているか
+      if (m_urlstr.starts_with("http")) {
+        pos = 4;
+        // httpsであるか
+        if (m_urlstr[pos] != 's') {
+          m_is_https = false;
+          ++pos;
+        }
+        // '://'のパース
+        if (m_urlstr[pos] == ':') {
+          ++pos;
+          if (m_urlstr[pos] == '/' and m_urlstr[pos + 1] == '/') {
+            pos += 2;
+          } else {
+            // ':/example.com'とか':example.com'みたいなの
+            return false;
+          }
+        } else {
+          // 'http(s)'の後に':'が続かない
+          return false;
+        }
+      }
+      
+      // ホスト部のパース
+      m_host_begin_pos = pos;
+
+      // ホスト部の終わりを見つける
+      const auto slash_pos = m_urlstr.find_first_of('/', pos);
+
+      if (slash_pos != string_t::npos) {
+        m_path_begin_pos = slash_pos + 1;
+      } else {
+        // 終わりの'/'がない時、'/'を加えておく
+        m_urlstr += '/';
+        m_path_begin_pos = m_urlstr.length() + 1;
+      }
+
+      return true;
+    }
+
+  public:
+    url_info(std::string_view url_head)
+      : m_urlstr(url_head) 
+    {
+
+    }
+
+    auto host() const & -> std::string_view {
+      const auto p = m_urlstr.data() + m_host_begin_pos;
+
+      return std::string_view(p, p + m_path_begin_pos - 1);
+    }
+
+    auto request_path() const & -> std::string_view {
+      return std::string_view(m_urlstr).substr(m_path_begin_pos);
+    }
+  };
+}
+
 namespace chttpp::detail::inline cookie_related {
   // memo : https://tex2e.github.io/rfc-translater/html/rfc6265.html
 
