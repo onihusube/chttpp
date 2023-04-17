@@ -512,4 +512,84 @@ void cookie_test() {
       ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::name));
     }
   };
+
+  "url_info"_test = [] {
+    using chttpp::detail::url_info;
+
+    {
+      url_info ui1{"https://example.com"};
+      url_info ui2{"http://example.com"};
+      url_info ui3{"example.com"};
+
+      ut::expect(ui1.is_valid());
+      ut::expect(ui2.is_valid());
+      ut::expect(ui3.is_valid());
+
+      ut::expect(ui1.secure());
+      ut::expect(not ui2.secure());
+      ut::expect(ui3.secure());
+
+      ut::expect(ui1.host() == "example.com") << ui1.host();
+      ut::expect(ui2.host() == "example.com") << ui2.host();
+      ut::expect(ui3.host() == "example.com") << ui3.host();
+
+      ut::expect(ui1.request_path() == "");
+      ut::expect(ui2.request_path() == "");
+      ut::expect(ui3.request_path() == "");
+    }
+
+    {
+      url_info ui1{"https://example.com/path/path/path"};
+      url_info ui2{"http://example.com/path/path/path"};
+      url_info ui3{"example.com/path/path/path"};
+
+      ut::expect(ui1.is_valid());
+      ut::expect(ui2.is_valid());
+      ut::expect(ui3.is_valid());
+
+      ut::expect(ui1.secure());
+      ut::expect(not ui2.secure());
+      ut::expect(ui3.secure());
+
+      ut::expect(ui1.host() == "example.com");
+      ut::expect(ui2.host() == "example.com");
+      ut::expect(ui3.host() == "example.com");
+
+      ut::expect(ui1.request_path() == "path/path/path");
+      ut::expect(ui2.request_path() == "path/path/path");
+      ut::expect(ui3.request_path() == "path/path/path");
+    }
+
+    {
+      url_info ui1{"://example.com"};
+      url_info ui2{"httpexample.com"};
+      url_info ui3{""};
+      url_info ui4{":/example.com"};
+      url_info ui5{"/example.com"};
+      url_info ui6{"http:example.com"};
+      url_info ui7{"http:/example.com"};
+      url_info ui8{"http//example.com"};
+      url_info ui9{"http/example.com"};
+      url_info ui10{"httpsexample.com"};
+      url_info ui11{"https:example.com"};
+      url_info ui12{"https:/example.com"};
+      url_info ui13{"https//example.com"};
+      url_info ui14{"https/example.com"};
+
+      ut::expect(ui1.is_valid() == false);
+      ut::expect(ui2.is_valid() == false);
+      ut::expect(ui3.is_valid() == false);
+      ut::expect(ui4.is_valid() == false);
+      ut::expect(ui5.is_valid() == false);
+      ut::expect(ui6.is_valid() == false);
+      ut::expect(ui7.is_valid() == false);
+      ut::expect(ui8.is_valid() == false);
+      ut::expect(ui9.is_valid() == false);
+      ut::expect(ui10.is_valid() == false);
+      ut::expect(ui11.is_valid() == false);
+      ut::expect(ui12.is_valid() == false);
+      ut::expect(ui13.is_valid() == false);
+      ut::expect(ui14.is_valid() == false);
+    }
+  };
 }

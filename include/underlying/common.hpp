@@ -457,6 +457,10 @@ namespace chttpp::detail {
     std::size_t m_path_begin_pos;
 
     bool parse_host_name() {
+      if (m_urlstr.empty()) {
+        return false;
+      }
+
       // 後からパスが追加されるので、ある程度確保しておく
       m_urlstr.reserve(10);
 
@@ -474,8 +478,11 @@ namespace chttpp::detail {
         // httpsであるか
         if (m_urlstr[pos] != 's') {
           m_is_https = false;
+        } else {
+          // sを消費
           ++pos;
         }
+
         // '://'のパース
         if (m_urlstr[pos] == ':') {
           ++pos;
@@ -489,8 +496,16 @@ namespace chttpp::detail {
           // 'http(s)'の後に':'が続かない
           return false;
         }
+      } else {
+        // http始まりではない時、httpsを仮定
+        m_is_https = true;
       }
-      
+
+      // ホスト部の先頭は少なくともアルファベット（だよね？
+      if (not std::isalpha(static_cast<unsigned char>(m_urlstr[pos]))) {
+        return false;
+      }
+
       // ホスト部のパース
       m_host_begin_pos = pos;
 
@@ -502,27 +517,89 @@ namespace chttpp::detail {
       } else {
         // 終わりの'/'がない時、'/'を加えておく
         m_urlstr += '/';
-        m_path_begin_pos = m_urlstr.length() + 1;
+        m_path_begin_pos = m_urlstr.length();
       }
 
       return true;
     }
 
   public:
+
+    [[nodiscard]]
     url_info(std::string_view url_head)
       : m_urlstr(url_head) 
     {
+      if (this->parse_host_name() == false) {
+        m_path_begin_pos = string_t::npos;
+        m_host_begin_pos = m_path_begin_pos - 1;
+      }
 
+      // 事後条件
+      assert(m_host_begin_pos < m_path_begin_pos);
     }
 
-    auto host() const & -> std::string_view {
-      const auto p = m_urlstr.data() + m_host_begin_pos;
-
-      return std::string_view(p, p + m_path_begin_pos - 1);
+    [[nodiscard]]
+    bool is_valid() const noexcept {
+      return m_host_begin_pos < m_urlstr.length();
     }
 
-    auto request_path() const & -> std::string_view {
-      return std::string_view(m_urlstr).substr(m_path_begin_pos);
+    [[nodiscard]]
+    auto host() const & noexcept -> std::string_view {
+      if (m_urlstr.length() < m_host_begin_pos) {
+        // パースエラーが起きている場合
+        return {};
+      }
+
+      const auto p = m_urlstr.data();
+
+      return std::string_view(p + m_host_begin_pos, p + m_path_begin_pos - 1);
+    }
+
+    [[nodiscard]]
+    auto request_path() const & noexcept -> std::string_view {
+      if (m_urlstr.length() < m_path_begin_pos) {
+        // パス部分がないとき
+        return {};
+      } else {
+        return std::string_view(m_urlstr).substr(m_path_begin_pos);
+      }
+    }
+
+    bool secure() const noexcept {
+      return m_is_https;
+    }
+
+    [[nodiscard]]
+    auto append_path(std::string_view path) & {
+      class raii {
+        string_t& str;
+        std::size_t pos;
+
+      public:
+        raii(string_t& urlstr, std::size_t org_len)
+          : str{urlstr}
+          , pos{org_len}
+        {
+          assert(pos <= str.length());
+        }
+
+        raii(const raii&) = delete;
+        raii& operator=(const raii&) = delete;
+        raii(raii&&) = delete;
+        raii& operator=(raii&&) = delete;
+
+        ~raii() {
+          str.resize(pos);
+        }
+      };
+
+      // 元の長さ
+      const auto org_len = m_urlstr.length();
+
+      m_urlstr.append(path);
+
+      // RAIIによって、後で元の長さに切り詰めることで元のURL先頭部分を復帰する
+      return raii{m_urlstr, org_len};
     }
   };
 }
