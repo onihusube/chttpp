@@ -112,8 +112,17 @@ namespace chttpp::detail::inline util {
     }
   };
 
+  //template<typename CharT>
+  //using str_auto_clear = scoped_clear<basic_string_t<CharT>>;
+
   template<typename CharT>
-  using str_auto_clear = scoped_clear<basic_string_t<CharT>>;
+  struct str_auto_clear {
+    basic_string_t<CharT>& str;
+
+    ~str_auto_clear() {
+      str.clear();
+    }
+  };
 
   template<typename CharT>
   class basic_string_buffer {
@@ -160,6 +169,7 @@ namespace chttpp::detail::inline util {
   template<typename T>
     requires requires (T& t) {
       t.clear();
+      {t.empty()} -> std::convertible_to<bool>;
     }
   class pinned_buffer {
     T m_buffer;
@@ -177,7 +187,15 @@ namespace chttpp::detail::inline util {
       using func_ret_t = std::remove_cvref_t<decltype(std::invoke(func, m_buffer))>;
       using ret_pair = std::pair<func_ret_t, scoped_clear<T>>;
 
-      return ret_pair(std::piecewise_construct, std::forward_as_tuple(std::invoke(func, m_buffer)), std::tie(m_buffer));
+      // 空であるはず
+      assert(m_buffer.empty());
+
+      if constexpr (std::is_same_v<func_ret_t, void>) {
+        std::invoke(func, m_buffer);
+        return scoped_clear<T>{m_buffer};
+      } else {
+        return ret_pair(std::piecewise_construct, std::forward_as_tuple(std::invoke(func, m_buffer)), std::tie(m_buffer));
+      }
     }
   };
 

@@ -323,10 +323,9 @@ namespace chttpp::underlying {
 
     // 使いまわす共有バッファ
     wstring_buffer buffer;
-    string_buffer char_buf;
 
-    // ヘッダ構成用
-    umap_t<std::string_view, std::string_view, string_hash> tmp_header;
+    // ヘッダ文字列構成時に使用する
+    string_buffer char_buf;
 
     auto init(std::wstring_view url, const detail::config::proxy_config& prxy_cfg, std::chrono::milliseconds timeout, cfg::http_version version) & -> detail::error_code {
 
@@ -647,9 +646,16 @@ namespace chttpp::underlying::agent_impl {
     umap_t<string_t, string_t> headers{};
     detail::cookie_store cookie_vault{};
 
-    // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
+    // agentの状態詳細など（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     winhttp_session_state state{};
-    vector_t<detail::cookie_ref> cookie_buf{};
+    // クッキー並べ替え用
+    //detail::vector_buffer<detail::cookie_ref> cookie_buf{};
+    // クッキーヘッダを構成するためのバッファ
+    detail::pinned_buffer<string_t> cookie_header;
+    // ヘッダ構成用
+    detail::pinned_buffer<umap_t<std::string_view, std::string_view, string_hash>> tmp_header;
+    // ヘッダ文字列化用
+    detail::pinned_buffer<wstring_t> send_header;
   };
 
 
@@ -749,115 +755,105 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
-    // 後でお掃除
-    [[maybe_unused]]
-    struct raii_clear_tmp_header {
-      decltype(state.tmp_header)& ref;
-
-      ~raii_clear_tmp_header() {
-        ref.clear();
-      }
-    } raii{ .ref = state.tmp_header };
-
-    assert(state.tmp_header.empty());
-
-    // まずヘッダをマージする
-    state.tmp_header.insert(resource.headers.begin(), resource.headers.end());
-    // agent本体設定を上書きする形でリクエスト時ヘッダを指定
-    for (const auto& [key, value] : req_cfg.headers) {
-      state.tmp_header.insert_or_assign(key, value);
-    }
-
-    constexpr auto make_one_cookie = [](std::string_view name, std::string_view value, string_t& out) {
-      out.append(name);
-      out.append("=");
-      out.append(value);
-      out.append("; ");
-    };
-
-    // cookieヘッダの構成
-
     // 期限切れクッキー削除
     resource.cookie_vault.remove_expired_cookies();
 
-    // 並べ替え
-    vector_t<detail::cookie_ref> sorted_cookie;
-    resource.cookie_vault.sort_by_send_order_to(sorted_cookie, req_cfg.cookies);
+    // cookieヘッダの構成、ヘッダ全体が文字列化されるまで保持する必要がある
+    const auto [cookie_header, token] = resource.cookie_header.pin([&](string_t& cookie_header_str) {
+      // 並べ替え
+      vector_t<detail::cookie_ref> sorted_cookie;
+      resource.cookie_vault.sort_by_send_order_to(sorted_cookie, req_cfg.cookies);
 
-    // このバッファはヘッダが文字列化されるまで保持されていなければならない
-    string_t cookie_header_str {};
-
-    for (auto& cookie : sorted_cookie) {
-      cookie_header_str.append(cookie.name());
-      cookie_header_str.append("=");
-      cookie_header_str.append(cookie.value());
-      cookie_header_str.append("; ");
-    }
-
-    if (not cookie_header_str.empty()) {
-      // 末尾の"; "を削除
-      cookie_header_str.pop_back();
-      cookie_header_str.pop_back();
-
-      // ヘッダ設定を上書き（これでよい？
-      state.tmp_header["cookie"] = cookie_header_str;
-    }
-
-
-    if constexpr (has_request_body) {
-      // Content-Typeヘッダの追加
-      const bool content_type_exists = state.tmp_header.contains("content-type") or state.tmp_header.contains("Content-Type");
-
-      // ヘッダ指定されたものを優先する
-      if (not content_type_exists) {
-        state.tmp_header.emplace("content-type", req_cfg.content_type);
+      for (auto& cookie : sorted_cookie) {
+        cookie_header_str.append(cookie.name());
+        cookie_header_str.append("=");
+        cookie_header_str.append(cookie.value());
+        cookie_header_str.append("; ");
       }
 
-      // この時点で、ヘッダは空ではない
-    }
+      if (not cookie_header_str.empty()) {
+        // 末尾の"; "を削除
+        cookie_header_str.pop_back();
+        cookie_header_str.pop_back();
+      }
 
-    // ヘッダを文字列化
-    LPCWSTR add_header = WINHTTP_NO_ADDITIONAL_HEADERS;
-    wstring_t send_header_buf;
-    auto& headers = state.tmp_header;
+      return std::string_view{cookie_header_str};
+    });
+
+    // ヘッダを構成、文字列化されるまで保持
+    const auto [send_headers, token2] = resource.tmp_header.pin([&](auto& tmp_header) {
+
+      tmp_header.insert(resource.headers.begin(), resource.headers.end());
+
+      // まずヘッダをマージする
+      // agent本体設定を上書きする形でリクエスト時ヘッダを指定
+      for (const auto& [key, value] : req_cfg.headers) {
+        tmp_header.insert_or_assign(key, value);
+      }
+
+      if (not cookie_header.empty()) {
+        // cookieヘッダは上書き（これでよい？
+        tmp_header["cookie"] = cookie_header;
+      }
+
+      if constexpr (has_request_body) {
+        // Content-Typeヘッダの追加
+        const bool content_type_exists = tmp_header.contains("content-type") or tmp_header.contains("Content-Type");
+
+        // ヘッダ指定されたものを優先する
+        if (not content_type_exists) {
+          tmp_header.emplace("content-type", req_cfg.content_type);
+        }
+      }
+
+      return std::views::all(tmp_header);
+    });
+
+    // ヘッダ文字列化中の文字コード変換の失敗を検知
+    bool headerstr_convert_failed = false;
+
+    // ヘッダを文字列化、送信完了まで保持
+    const auto [send_header_str, token3] = resource.send_header.pin([&](wstring_t& send_header_buf) {
 
 #pragma warning(push)
 #pragma warning(disable:4127)
-    if (has_request_body or (not headers.empty())) {
+      if (has_request_body or (not send_headers.empty())) {
 #pragma warning(pop)
-      // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
-      const std::size_t total_len = std::transform_reduce(headers.begin(), headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
+        // ヘッダ名+ヘッダ値+デリミタ（2文字）+\r\n（2文字）
+        const std::size_t total_len = std::transform_reduce(send_headers.begin(), send_headers.end(), 0ull, std::plus<>{}, [](const auto& p) { return p.first.length() + p.second.length() + 2 + 2; });
 
-      bool failed = state.char_buf.use([&](string_t& tmp_buf) {
-        tmp_buf.resize(total_len, '\0');
+        state.char_buf.use([&](string_t& tmp_buf) {
+          tmp_buf.resize(total_len, '\0');
 
-        auto pos = tmp_buf.begin();
+          auto pos = tmp_buf.begin();
 
-        // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
-        for (auto& [name, value] : headers) {
-          // name: value\r\n のフォーマット
-          pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
-        }
+          // ヘッダ文字列を連結して送信するヘッダ文字列を構成する
+          for (auto& [name, value] : send_headers) {
+            // name: value\r\n のフォーマット
+            pos = std::format_to(pos, "{:s}: {:s}\r\n", name, value);
+          }
 
-        // まとめてWCHAR文字列へ文字コード変換
-        return char_to_wchar(tmp_buf, send_header_buf);
-      });
-
-      if (failed) {
-        return http_result{ ::GetLastError() };
+          // まとめてWCHAR文字列へ文字コード変換
+          headerstr_convert_failed = char_to_wchar(tmp_buf, send_header_buf);
+        });
       }
 
-      add_header = send_header_buf.c_str();
+      return std::wstring_view{send_header_buf};
+    });
+
+    // ヘッダ文字列化中の変換エラー
+    if (headerstr_convert_failed) {
+      return http_result{ ::GetLastError() };
     }
 
     // リクエスト送信とレスポンスの受信
     if constexpr (has_request_body) {
-      if (not ::WinHttpSendRequest(request.get(), add_header, static_cast<DWORD>(send_header_buf.length()), const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
+      if (not ::WinHttpSendRequest(request.get(), send_header_str.data(), (DWORD)-1, const_cast<char*>(req_body.data()), static_cast<DWORD>(req_body.size_bytes()), static_cast<DWORD>(req_body.size_bytes()), 0) or
           not ::WinHttpReceiveResponse(request.get(), nullptr)) {
         return http_result{ ::GetLastError() };
       }
     } else {
-      if (not ::WinHttpSendRequest(request.get(), add_header, (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
+      if (not ::WinHttpSendRequest(request.get(), send_header_str.data(), (DWORD)-1, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) or
           not ::WinHttpReceiveResponse(request.get(), nullptr)) {
         return http_result{ ::GetLastError() };
       }
