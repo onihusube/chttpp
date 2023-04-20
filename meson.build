@@ -20,12 +20,7 @@ elif cppcompiler == 'gcc'
 endif
 
 if not meson.is_subproject()
-
-# デバッグ用設定
-env = environment()
-env.set('cpp_debugstl', 'true')
-env.set('b_sanitize', 'address')
-meson.add_devenv(env)
+# デバッグ時は meson setup build -Dcpp_debugstl=true -Db_sanitize='address,undefined' のようにすることを推奨
 
 # テストプロジェクト用の設定追加
 if cppcompiler == 'msvc'

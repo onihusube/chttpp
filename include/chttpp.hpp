@@ -472,12 +472,13 @@ namespace chttpp {
         erase_if(cookies, [](const auto& c) { return c.secure; });
       }
 
-      // 指定クッキーをマージ
-      cookie_vault.merge(cookies);
-
       // 既に存在するものについては上書き
-      // あらかじめ重複を削除してからマージすれば効率的になる・・・？
-      cookie_vault.erase(cookies.cbegin(), cookies.cend());
+      // あらかじめ重複を削除してからマージする
+      erase_if(cookie_vault, [&](const auto& c) {
+        return cookies.contains(c);
+      });
+
+      // 指定クッキーをマージ
       cookie_vault.merge(cookies);
 
       // 空になるはず

@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <ctime>
 #include <charconv>
+#include <climits>
 
 #if __has_include(<memory_resource>)
 
@@ -457,12 +458,14 @@ namespace chttpp::detail {
     std::size_t m_path_begin_pos;
 
     bool parse_host_name() {
+      // memo : https://tex2e.github.io/rfc-translater/html/rfc3986.html
+
       if (m_urlstr.empty()) {
         return false;
       }
 
       // 後からパスが追加されるので、ある程度確保しておく
-      m_urlstr.reserve(10);
+      m_urlstr.reserve(m_urlstr.length() + 15u);
 
       // パース注目位置、先頭から順番に見ていく
       std::size_t pos = 0;
@@ -501,24 +504,126 @@ namespace chttpp::detail {
         m_is_https = true;
       }
 
-      // ホスト部の先頭は少なくともアルファベット（だよね？
-      if (not std::isalpha(static_cast<unsigned char>(m_urlstr[pos]))) {
-        return false;
-      }
-
-      // ホスト部のパース
+      // Authority（ホスト部を含むURLの部分）のパース
       m_host_begin_pos = pos;
 
-      // ホスト部の終わりを見つける
-      const auto slash_pos = m_urlstr.find_first_of('/', pos);
+      // Authorityの終わりを見つける
+      auto slash_pos = m_urlstr.find_first_of("/#?", pos);
 
       if (slash_pos != string_t::npos) {
-        m_path_begin_pos = slash_pos + 1;
+        if (m_urlstr[slash_pos] != '/') {
+          // Authorityの終了が/ではない場合、パスはない
+          // #?以降を消して、/を置いておく
+          m_urlstr.resize(slash_pos);
+          m_urlstr += '/';
+          m_path_begin_pos = m_urlstr.length();
+          slash_pos = m_path_begin_pos - 1;
+        } else {
+          m_path_begin_pos = slash_pos + 1;
+        }
       } else {
         // 終わりの'/'がない時、'/'を加えておく
         m_urlstr += '/';
         m_path_begin_pos = m_urlstr.length();
+        slash_pos = m_path_begin_pos - 1;
       }
+
+      // userinfo（認証情報）の探索
+      // 例えば、http://name:pass@example.com/ みたいな感じ
+
+      const auto authority_part = std::string_view{m_urlstr}.substr(pos, slash_pos - pos);
+
+      // Authority部先頭文字のチェック（最低限の検証）
+      if (not authority_part.empty()) {
+        const auto c = authority_part[0];
+
+        do {
+          // アルファベットと数字は当然
+          if (std::isalnum(static_cast<unsigned char>(c)) != 0) break;
+          // ハイフン始まりはあり得る
+          if (c == '-') break;
+          // IPv6アドレスホストの囲いとして現れうる
+          if (c == '[') break;
+
+          // それ以外の文字は現れない
+          return false;
+        } while (false);
+      } else {
+        // ホスト部空はありえない
+        return false;
+      }
+
+      // Authority内部でのhost部の開始位置
+      std::size_t host_begin = 0;
+      
+      if (auto atpos = authority_part.find_first_of('@'); atpos != std::string_view::npos) {
+        // userinfoがある場合、ホスト部は@の次から
+        m_host_begin_pos += atpos + 1;
+        host_begin = atpos + 1;
+      }
+
+      // hostがIPアドレスであるかを判定
+      // IPv4の場合 : http://172.0.0.1/
+      // IPv6の場合 : http://[::1]/
+
+      const auto host_part = authority_part.substr(host_begin);
+
+      // http://user:pass@/ みたいなの？
+      if (host_part.empty()) {
+        return false;
+      }
+
+      if (host_part[0] == '[') {
+        // IP-literal すなわちIPv6アドレス指定と思われる
+        m_is_ipv6_host = true;
+
+        // 一応続く]をチェック
+        // IPv6アドレスの最短は'::'の2文字（全部0）
+        // 次点が'::1'の3文字（ループバックアドレス）
+        if (host_part.find(']', 3) == std::string_view::npos) {
+          // 閉じの]が見つからないのはおかしい
+          return false;
+        }
+      } else {
+        // IPv4をチェック
+        using namespace std::views;
+
+        // ポートの前の文字列を取り出して、その前半部分をチェック
+        for (auto exclude_port : host_part | split(':') 
+                                           | take(1))
+        {
+          // IPパートのカウント
+          unsigned int count = 0;
+
+          for (const auto part : exclude_port | split('.')
+                                              | take(5)
+                                              | transform([](auto&& inner_rng) { return std::string_view{inner_rng}; }))
+          {
+            // unsigned char（0~255）を使用することで、値チェックを省略する
+            static_assert(CHAR_BIT == 8);
+            unsigned char n;
+
+            if (auto [ptr, ec] = std::from_chars(std::to_address(part.begin()), std::to_address(part.end()), n); ec == std::errc{}) {
+              ++count;
+              continue;
+            } else {
+              // IPv4ではなかった
+              break;
+            }
+          }
+
+          if (count == 4) {
+            m_is_ipv4_host = true;
+          } else if (4 < count) {
+            // .区切りが5回以上続くものはURLではない
+            m_is_ipv4_host = true;
+            return false;
+          }
+        }
+      }
+
+      // 両方同時にtrueになることはない
+      assert((m_is_ipv4_host && m_is_ipv6_host) == false);
 
       return true;
     }
@@ -530,6 +635,7 @@ namespace chttpp::detail {
       : m_urlstr(url_head) 
     {
       if (this->parse_host_name() == false) {
+        // パースエラー
         m_path_begin_pos = string_t::npos;
         m_host_begin_pos = m_path_begin_pos - 1;
       }
@@ -540,12 +646,13 @@ namespace chttpp::detail {
 
     [[nodiscard]]
     bool is_valid() const noexcept {
-      return m_host_begin_pos < m_urlstr.length();
+      return m_path_begin_pos != string_t::npos;
+      //return m_host_begin_pos < m_urlstr.length();
     }
 
     [[nodiscard]]
     auto host() const & noexcept -> std::string_view {
-      if (m_urlstr.length() < m_host_begin_pos) {
+      if (not is_valid()) {
         // パースエラーが起きている場合
         return {};
       }
@@ -565,8 +672,24 @@ namespace chttpp::detail {
       }
     }
 
+    [[nodiscard]]
     bool secure() const noexcept {
       return m_is_https;
+    }
+
+    [[nodiscard]]
+    bool is_ip_host() const noexcept {
+      return m_is_ipv4_host or m_is_ipv6_host;
+    }
+
+    [[nodiscard]]
+    bool is_ipv4_host() const noexcept {
+      return m_is_ipv4_host;
+    }
+
+    [[nodiscard]]
+    bool is_ipv6_host() const noexcept {
+      return m_is_ipv6_host;
     }
 
     [[nodiscard]]
@@ -746,6 +869,7 @@ namespace chttpp::detail::inline cookie_related {
     using base::empty;
     
     using base::find;
+    using base::contains;
     using base::insert;
     using base::merge;
     using base::extract;

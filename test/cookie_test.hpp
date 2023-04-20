@@ -516,28 +516,52 @@ void cookie_test() {
   "url_info"_test = [] {
     using chttpp::detail::url_info;
 
+    // ホスト部分のテスト
     {
       url_info ui1{"https://example.com"};
       url_info ui2{"http://example.com"};
       url_info ui3{"example.com"};
+      url_info ui4{"https://example.com/"};
+      url_info ui5{"http://example.com#fragment"};
+      url_info ui6{"example.com?query"};
 
       ut::expect(ui1.is_valid());
       ut::expect(ui2.is_valid());
       ut::expect(ui3.is_valid());
+      ut::expect(ui4.is_valid());
+      ut::expect(ui5.is_valid());
+      ut::expect(ui6.is_valid());
 
       ut::expect(ui1.secure());
       ut::expect(not ui2.secure());
       ut::expect(ui3.secure());
+      ut::expect(ui4.secure());
+      ut::expect(not ui5.secure());
+      ut::expect(ui6.secure());
 
-      ut::expect(ui1.host() == "example.com") << ui1.host();
-      ut::expect(ui2.host() == "example.com") << ui2.host();
-      ut::expect(ui3.host() == "example.com") << ui3.host();
+      ut::expect(not ui1.is_ip_host());
+      ut::expect(not ui2.is_ip_host());
+      ut::expect(not ui3.is_ip_host());
+      ut::expect(not ui4.is_ip_host());
+      ut::expect(not ui5.is_ip_host());
+      ut::expect(not ui6.is_ip_host());
+
+      ut::expect(ui1.host() == "example.com");
+      ut::expect(ui2.host() == "example.com");
+      ut::expect(ui3.host() == "example.com");
+      ut::expect(ui4.host() == "example.com");
+      ut::expect(ui5.host() == "example.com");
+      ut::expect(ui6.host() == "example.com");
 
       ut::expect(ui1.request_path() == "");
       ut::expect(ui2.request_path() == "");
       ut::expect(ui3.request_path() == "");
+      ut::expect(ui4.request_path() == "");
+      ut::expect(ui5.request_path() == "");
+      ut::expect(ui6.request_path() == "");
     }
 
+    // パス部分のテスト
     {
       url_info ui1{"https://example.com/path/path/path"};
       url_info ui2{"http://example.com/path/path/path"};
@@ -551,6 +575,10 @@ void cookie_test() {
       ut::expect(not ui2.secure());
       ut::expect(ui3.secure());
 
+      ut::expect(not ui1.is_ip_host());
+      ut::expect(not ui2.is_ip_host());
+      ut::expect(not ui3.is_ip_host());
+
       ut::expect(ui1.host() == "example.com");
       ut::expect(ui2.host() == "example.com");
       ut::expect(ui3.host() == "example.com");
@@ -558,6 +586,58 @@ void cookie_test() {
       ut::expect(ui1.request_path() == "path/path/path");
       ut::expect(ui2.request_path() == "path/path/path");
       ut::expect(ui3.request_path() == "path/path/path");
+    }
+
+    // IPアドレスによるホスト構成のテスト
+    {
+      url_info ui1{"http://127.0.0.1:8080"};
+      url_info ui2{"http://[::1]:8080"};
+      url_info ui3{"https://192.168.100.141/path"};
+      url_info ui4{"https://[2001:DB8:0:0:8:800:200C:417A]/path"};
+      url_info ui5{"user:pass@127.0.0.1:8080/"};
+      url_info ui6{"user:pass@[::1]:8080/"};
+
+      ut::expect(ui1.is_valid());
+      ut::expect(ui2.is_valid());
+      ut::expect(ui3.is_valid());
+      ut::expect(ui4.is_valid());
+      ut::expect(ui5.is_valid());
+      ut::expect(ui6.is_valid());
+
+      ut::expect(not ui1.secure());
+      ut::expect(not ui2.secure());
+      ut::expect(ui3.secure());
+      ut::expect(ui4.secure());
+      ut::expect(ui5.secure());
+      ut::expect(ui6.secure());
+
+      ut::expect(ui1.is_ip_host());
+      ut::expect(ui2.is_ip_host());
+      ut::expect(ui3.is_ip_host());
+      ut::expect(ui4.is_ip_host());
+      ut::expect(ui5.is_ip_host());
+      ut::expect(ui6.is_ip_host());
+
+      ut::expect(ui1.is_ipv4_host());
+      ut::expect(ui2.is_ipv6_host());
+      ut::expect(ui3.is_ipv4_host());
+      ut::expect(ui4.is_ipv6_host());
+      ut::expect(ui5.is_ipv4_host());
+      ut::expect(ui6.is_ipv6_host());
+
+      ut::expect(ui1.host() == "127.0.0.1:8080");
+      ut::expect(ui2.host() == "[::1]:8080");
+      ut::expect(ui3.host() == "192.168.100.141");
+      ut::expect(ui4.host() == "[2001:DB8:0:0:8:800:200C:417A]");
+      ut::expect(ui5.host() == "127.0.0.1:8080");
+      ut::expect(ui6.host() == "[::1]:8080");
+
+      ut::expect(ui1.request_path() == "");
+      ut::expect(ui2.request_path() == "");
+      ut::expect(ui3.request_path() == "path");
+      ut::expect(ui4.request_path() == "path");
+      ut::expect(ui5.request_path() == "");
+      ut::expect(ui6.request_path() == "");
     }
 
     {
@@ -575,6 +655,7 @@ void cookie_test() {
       url_info ui12{"https:/example.com"};
       url_info ui13{"https//example.com"};
       url_info ui14{"https/example.com"};
+      url_info ui15{"http://user:pass@/"};
 
       ut::expect(ui1.is_valid() == false);
       ut::expect(ui2.is_valid() == false);
@@ -590,6 +671,7 @@ void cookie_test() {
       ut::expect(ui12.is_valid() == false);
       ut::expect(ui13.is_valid() == false);
       ut::expect(ui14.is_valid() == false);
+      ut::expect(ui15.is_valid() == false);
     }
   };
 }
