@@ -43,7 +43,7 @@ namespace chttpp::detail {
     http_status_code status_code;
   };
 
-  class http_result {
+  class [[nodiscard]] http_result {
     // exception_ptrも入れ込みたい、そのうち
     std::variant<http_response, error_code> m_either;
 

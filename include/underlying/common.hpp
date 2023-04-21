@@ -472,7 +472,9 @@ namespace chttpp::detail {
     bool m_is_ipv4_host = false;
     bool m_is_ipv6_host = false;
 
+    // ホスト部の開始位置
     std::size_t m_host_begin_pos;
+    // パス部分の開始位置、必ず'/'で始まる
     std::size_t m_path_begin_pos;
 
     bool parse_host_name() {
@@ -534,16 +536,16 @@ namespace chttpp::detail {
           // #?以降を消して、/を置いておく
           m_urlstr.resize(slash_pos);
           m_urlstr += '/';
-          m_path_begin_pos = m_urlstr.length();
-          slash_pos = m_path_begin_pos - 1;
+          m_path_begin_pos = m_urlstr.length() - 1;
+          slash_pos = m_path_begin_pos;
         } else {
-          m_path_begin_pos = slash_pos + 1;
+          m_path_begin_pos = slash_pos;
         }
       } else {
         // 終わりの'/'がない時、'/'を加えておく
         m_urlstr += '/';
-        m_path_begin_pos = m_urlstr.length();
-        slash_pos = m_path_begin_pos - 1;
+        m_path_begin_pos = m_urlstr.length() - 1;
+        slash_pos = m_path_begin_pos;
       }
 
       // userinfo（認証情報）の探索
@@ -558,7 +560,7 @@ namespace chttpp::detail {
         do {
           // アルファベットと数字は当然
           if (std::isalnum(static_cast<unsigned char>(c)) != 0) break;
-          // ハイフン始まりはあり得る
+          // ハイフン始まりはあり得る（？
           if (c == '-') break;
           // IPv6アドレスホストの囲いとして現れうる
           if (c == '[') break;
@@ -665,7 +667,6 @@ namespace chttpp::detail {
     [[nodiscard]]
     bool is_valid() const noexcept {
       return m_path_begin_pos != string_t::npos;
-      //return m_host_begin_pos < m_urlstr.length();
     }
 
     [[nodiscard]]
@@ -677,17 +678,19 @@ namespace chttpp::detail {
 
       const auto p = m_urlstr.data();
 
-      return std::string_view(p + m_host_begin_pos, p + m_path_begin_pos - 1);
+      return std::string_view(p + m_host_begin_pos, p + m_path_begin_pos);
     }
 
     [[nodiscard]]
     auto request_path() const & noexcept -> std::string_view {
-      if (m_urlstr.length() < m_path_begin_pos) {
-        // パス部分がないとき
+      if (not is_valid()) {
+        // パースエラーが起きている場合
         return {};
-      } else {
-        return std::string_view(m_urlstr).substr(m_path_begin_pos);
       }
+
+      assert(m_urlstr[m_path_begin_pos] == '/');
+
+      return std::string_view(m_urlstr).substr(m_path_begin_pos);
     }
 
     [[nodiscard]]
@@ -730,14 +733,29 @@ namespace chttpp::detail {
         raii& operator=(raii&&) = delete;
 
         ~raii() {
-          str.resize(pos);
+          if (pos != string_t::npos) {
+            str.resize(pos);
+          }
         }
       };
+
+      if (not is_valid()) {
+        // 先頭URLのパースでエラーが起きている場合は何もしない
+        return raii{m_urlstr, string_t::npos};
+      }
 
       // 元の長さ
       const auto org_len = m_urlstr.length();
 
-      m_urlstr.append(path);
+      // クエリ('?')やアンカー（'#'）は除く
+      path = path.substr(0, path.find_first_of("#?"));
+
+      if (m_urlstr.back() == '/' and path.front() == '/') {
+        // '/'が重複する場合は取り除いておく
+        m_urlstr.append(path.substr(1));
+      } else {
+        m_urlstr.append(path);
+      }
 
       // RAIIによって、後で元の長さに切り詰めることで元のURL先頭部分を復帰する
       return raii{m_urlstr, org_len};
@@ -945,7 +963,9 @@ namespace chttpp::detail::inline cookie_related {
                  c.push_back(std::move(cookie));
                  std::ranges::sort(c);
                }
-    void create_cookie_list_to(Out& store, R& additional_cookies, std::string_view domain, std::string_view path, bool is_secure_request) const & {
+    void create_cookie_list_to(Out& store, R& additional_cookies, url_info& urlinfo) const & {
+
+      assert(urlinfo.is_valid());
       
       if constexpr (std::ranges::sized_range<R> and requires { store.reserve(1ull); }) {
         store.reserve(this->size() + std::ranges::size(additional_cookies));
@@ -956,15 +976,21 @@ namespace chttpp::detail::inline cookie_related {
 
       // パス文字列は'/'で始まる、少なくとも1文字
       // クエリ文字列やアンカーを含まない
-      assert(not path.empty());
-      assert(path.front() == '/');
-      assert(path.find('?') == std::string_view::npos);
-      assert(path.find('#') == std::string_view::npos);
+      {
+        const auto path = urlinfo.request_path();
+        
+        assert(not path.empty());
+        assert(path.front() == '/');
+        assert(path.find('?') == std::string_view::npos);
+        assert(path.find('#') == std::string_view::npos);
+      }
 
       // パスとドメインをマッチングし送信すべきクッキーを弁別する
-      auto cookie_filter = [is_secure_request, domain_str = domain, request_path = path](const detail::cookie& c) -> bool {
+      auto cookie_filter = [&urlinfo = urlinfo](const detail::cookie& c) -> bool {
         // HTTPSの場合はSecure属性があるクッキーのみを送信
-        if (is_secure_request and not c.secure) return false;
+        if (urlinfo.secure() and not c.secure) return false;
+
+        const auto domain_str = urlinfo.host();
 
         // ドメインのマッチング
         // クッキードメイン aaa.example.com に対しては
@@ -982,14 +1008,16 @@ namespace chttpp::detail::inline cookie_related {
           // サフィックスとなっていない文字列の最後（サフィックスの直前）は`.`
           if (c.domain[sufix_pos] == '.') {
             // ホスト名である（IPアドレスではない）
-            // 要実装
-            break;
+            if (urlinfo.is_ip_host() == false) {
+              break;
+            }
           }
 
           // マッチしない
           return false;
         } while (false);
 
+        const auto request_path = urlinfo.request_path();
         // パスのマッチング
         // 少なくとも、クッキーパスはリクエストパスのプリフィックスになっていなければならない
         // /abc/defというリクエスパスに対しては

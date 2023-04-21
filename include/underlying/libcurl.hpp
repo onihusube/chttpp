@@ -21,6 +21,7 @@ namespace chttpp::underlying {
     using errc = ::CURLcode;
 
     static constexpr ::CURLcode no_error_value = ::CURLE_OK;
+    static constexpr ::CURLcode url_error_value = ::CURLE_URL_MALFORMAT;
 
     static auto error_to_string(::CURLcode ec) -> string_t {
       return {curl_easy_strerror(ec)};
@@ -249,6 +250,25 @@ namespace chttpp::underlying {
     // ロケールの考慮・・・？
     // 外側でコントロールしてもらう方向で・・・
     return std::wcsrtombs(out.data(), &src, required_len, &state) == static_cast<std::size_t>(-1);
+  }
+
+  inline auto to_string(std::string_view str) {
+    return str;
+  }
+
+  inline auto to_string(std::wstring_view wstr) -> string_t {
+    std::mbstate_t state{};
+    const wchar_t *src = wstr.data();
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1; // null文字の分+1
+
+    string_t buffer{};
+    buffer.resize(required_len);
+
+    if (std::wcsrtombs(buffer.data(), &src, required_len, &state) == static_cast<std::size_t>(-1)) {
+      return "";
+    } else {
+      return buffer;
+    }
   }
 
   struct libcurl_session_state {
@@ -563,7 +583,9 @@ namespace chttpp::underlying::agent_impl {
 
     // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     libcurl_session_state state{};
-    //vector_t<detail::cookie_ref> cookie_buf{};
+    // URLからコンポーネント情報などを抽出する（ほぼクッキーのため）
+    detail::url_info urlinfo;
+    // vector_t<detail::cookie_ref> cookie_buf{};
     detail::vector_buffer<detail::cookie_ref> cookie_buf{};
   };
 
@@ -716,7 +738,13 @@ namespace chttpp::underlying::agent_impl {
 
       // クッキーを送信順になるようにソート
       auto [sorted_cookies, raii] = agent_resource.cookie_buf.pin([&](auto &cookie_buf) -> std::span<const detail::cookie_ref> {
-        agent_resource.cookie_vault.sort_by_send_order_to(cookie_buf, req_cfg.cookies);
+        // URL先頭にパスを付加
+        [[maybe_unused]]
+        auto autorepair = agent_resource.urlinfo.append_path(url_path);
+
+        // ソート
+        agent_resource.cookie_vault.create_cookie_list_to(cookie_buf, req_cfg.cookies, agent_resource.urlinfo);
+
         return { cookie_buf };
       });
 

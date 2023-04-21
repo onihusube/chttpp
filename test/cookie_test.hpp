@@ -431,6 +431,8 @@ void cookie_test() {
 
   "create_cookie_list_to"_test = []
   {
+    using chttpp::detail::url_info;
+
     cookie_store cookies{};
     std::array<std::pair<std::string_view, std::string_view>, 0> add_cookie{};
 
@@ -446,7 +448,8 @@ void cookie_test() {
       ut::expect(cookies.size() == 6u);
 
       std::vector<cookie_ref> for_sort;
-      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/", false);
+      url_info ui{"http://example.com/"};
+      cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
       ut::expect(for_sort.size() == 3u) << for_sort.size();
 
@@ -477,7 +480,8 @@ void cookie_test() {
       ut::expect(cookies.size() == 8u);
 
       std::vector<cookie_ref> for_sort;
-      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/abc/def", false);
+      url_info ui{"http://example.com/abc/def"};
+      cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
       ut::expect(for_sort.size() == 4u) << for_sort.size();
 
@@ -501,7 +505,8 @@ void cookie_test() {
       ut::expect(cookies.size() == 2u);
 
       std::vector<cookie_ref> for_sort;
-      cookies.create_cookie_list_to(for_sort, add_cookie, "example.com", "/", true);
+      url_info ui{"https://example.com/"};
+      cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
       ut::expect(for_sort.size() == 1u) << for_sort.size();
 
@@ -553,12 +558,12 @@ void cookie_test() {
       ut::expect(ui5.host() == "example.com");
       ut::expect(ui6.host() == "example.com");
 
-      ut::expect(ui1.request_path() == "");
-      ut::expect(ui2.request_path() == "");
-      ut::expect(ui3.request_path() == "");
-      ut::expect(ui4.request_path() == "");
-      ut::expect(ui5.request_path() == "");
-      ut::expect(ui6.request_path() == "");
+      ut::expect(ui1.request_path() == "/");
+      ut::expect(ui2.request_path() == "/");
+      ut::expect(ui3.request_path() == "/");
+      ut::expect(ui4.request_path() == "/");
+      ut::expect(ui5.request_path() == "/");
+      ut::expect(ui6.request_path() == "/");
     }
 
     // パス部分のテスト
@@ -583,9 +588,9 @@ void cookie_test() {
       ut::expect(ui2.host() == "example.com");
       ut::expect(ui3.host() == "example.com");
 
-      ut::expect(ui1.request_path() == "path/path/path");
-      ut::expect(ui2.request_path() == "path/path/path");
-      ut::expect(ui3.request_path() == "path/path/path");
+      ut::expect(ui1.request_path() == "/path/path/path");
+      ut::expect(ui2.request_path() == "/path/path/path");
+      ut::expect(ui3.request_path() == "/path/path/path");
     }
 
     // IPアドレスによるホスト構成のテスト
@@ -596,6 +601,8 @@ void cookie_test() {
       url_info ui4{"https://[2001:DB8:0:0:8:800:200C:417A]/path"};
       url_info ui5{"user:pass@127.0.0.1:8080/"};
       url_info ui6{"user:pass@[::1]:8080/"};
+      url_info ui7{"http://255.255.255.255"};
+      url_info ui8{"http://0.0.0.0"};
 
       ut::expect(ui1.is_valid());
       ut::expect(ui2.is_valid());
@@ -603,6 +610,8 @@ void cookie_test() {
       ut::expect(ui4.is_valid());
       ut::expect(ui5.is_valid());
       ut::expect(ui6.is_valid());
+      ut::expect(ui7.is_valid());
+      ut::expect(ui8.is_valid());
 
       ut::expect(not ui1.secure());
       ut::expect(not ui2.secure());
@@ -610,6 +619,8 @@ void cookie_test() {
       ut::expect(ui4.secure());
       ut::expect(ui5.secure());
       ut::expect(ui6.secure());
+      ut::expect(not ui7.secure());
+      ut::expect(not ui8.secure());
 
       ut::expect(ui1.is_ip_host());
       ut::expect(ui2.is_ip_host());
@@ -617,6 +628,8 @@ void cookie_test() {
       ut::expect(ui4.is_ip_host());
       ut::expect(ui5.is_ip_host());
       ut::expect(ui6.is_ip_host());
+      ut::expect(ui7.is_ip_host());
+      ut::expect(ui8.is_ip_host());
 
       ut::expect(ui1.is_ipv4_host());
       ut::expect(ui2.is_ipv6_host());
@@ -624,6 +637,8 @@ void cookie_test() {
       ut::expect(ui4.is_ipv6_host());
       ut::expect(ui5.is_ipv4_host());
       ut::expect(ui6.is_ipv6_host());
+      ut::expect(ui7.is_ipv4_host());
+      ut::expect(ui8.is_ipv4_host());
 
       ut::expect(ui1.host() == "127.0.0.1:8080");
       ut::expect(ui2.host() == "[::1]:8080");
@@ -631,13 +646,17 @@ void cookie_test() {
       ut::expect(ui4.host() == "[2001:DB8:0:0:8:800:200C:417A]");
       ut::expect(ui5.host() == "127.0.0.1:8080");
       ut::expect(ui6.host() == "[::1]:8080");
+      ut::expect(ui7.host() == "255.255.255.255");
+      ut::expect(ui8.host() == "0.0.0.0");
 
-      ut::expect(ui1.request_path() == "");
-      ut::expect(ui2.request_path() == "");
-      ut::expect(ui3.request_path() == "path");
-      ut::expect(ui4.request_path() == "path");
-      ut::expect(ui5.request_path() == "");
-      ut::expect(ui6.request_path() == "");
+      ut::expect(ui1.request_path() == "/");
+      ut::expect(ui2.request_path() == "/");
+      ut::expect(ui3.request_path() == "/path");
+      ut::expect(ui4.request_path() == "/path");
+      ut::expect(ui5.request_path() == "/");
+      ut::expect(ui6.request_path() == "/");
+      ut::expect(ui7.request_path() == "/");
+      ut::expect(ui8.request_path() == "/");
     }
 
     {
@@ -673,5 +692,63 @@ void cookie_test() {
       ut::expect(ui14.is_valid() == false);
       ut::expect(ui15.is_valid() == false);
     }
+  };
+
+  "url_info::append_path()"_test = [] {
+    using chttpp::detail::url_info;
+
+    url_info ui1{"https://example.com"};
+
+    ut::expect(ui1.request_path() == "/");
+    {
+      [[maybe_unused]]
+      auto token = ui1.append_path("append/path/path");
+
+      auto path = ui1.request_path();
+
+      ut::expect(path == "/append/path/path");
+    }
+    ut::expect(ui1.request_path() == "/");
+    {
+      [[maybe_unused]]
+      auto token = ui1.append_path("/another/path");
+
+      auto path = ui1.request_path();
+
+      ut::expect(path == "/another/path");
+    }
+    ut::expect(ui1.request_path() == "/");
+
+
+    // 最初からパスがある場合
+    url_info ui2{"https://example.com/base/path"};
+
+    ut::expect(ui2.request_path() == "/base/path");
+    {
+      [[maybe_unused]]
+      auto token = ui2.append_path("/addpath/path");
+      ut::expect(ui2.request_path() == "/base/path/addpath/path");
+    }
+    ut::expect(ui2.request_path() == "/base/path");
+    {
+      [[maybe_unused]]
+      auto token = ui2.append_path("continue/path");
+      ut::expect(ui2.request_path() == "/base/pathcontinue/path");
+    }
+    ut::expect(ui2.request_path() == "/base/path");
+    {
+      // クエリ文字列は無視される
+      [[maybe_unused]]
+      auto token = ui2.append_path("/query?param=value");
+      ut::expect(ui2.request_path() == "/base/path/query");
+    }
+    ut::expect(ui2.request_path() == "/base/path");
+    {
+      // アンカーも無視される
+      [[maybe_unused]]
+      auto token = ui2.append_path("/anchor#abcdefg");
+      ut::expect(ui2.request_path() == "/base/path/anchor");
+    }
+    ut::expect(ui2.request_path() == "/base/path");
   };
 }

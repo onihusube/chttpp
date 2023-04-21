@@ -400,9 +400,14 @@ namespace chttpp {
     [[nodiscard]]
     agent(string_view base_url, detail::agent_initial_config initial_cfg = {})
       : m_base_url(base_url)
-      , m_resource{ .config = std::move(initial_cfg) }
+      , m_resource{ .config = std::move(initial_cfg), .urlinfo = {underlying::to_string(m_base_url)} }
       , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
-    {}
+    {
+      if (m_resource.urlinfo.is_valid() == false) {
+        // 指定されたURLが変であるか、変換エラー
+        m_config_ec = detail::error_code{underlying::lib_error_code_tratis::url_error_value};
+      }
+    }
 
     agent(const agent&) = delete;
     agent& operator=(const agent&) = delete;
