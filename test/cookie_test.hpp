@@ -441,22 +441,24 @@ void cookie_test() {
       cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/"});
       cookies.insert(cookie{.name = "test2", .value = "v", .domain = "www.example.com", .path = "/"});
       cookies.insert(cookie{.name = "test3", .value = "v", .domain = "www.abcdef.example.com", .path = "/"});
+      cookies.insert(cookie{.name = "test4", .value = "v", .domain = "", .path = "/"}); // 例外対応
       cookies.insert(cookie{.name = "ignore1", .value = "vv", .domain = "google.com", .path = "/"});
       cookies.insert(cookie{.name = "ignore2", .value = "vv", .domain = "bing.com", .path = "/"});
       cookies.insert(cookie{.name = "ignore3", .value = "vv", .domain = "wwwexample.com", .path = "/"});
 
-      ut::expect(cookies.size() == 6u);
+      ut::expect(cookies.size() == 7u);
 
       std::vector<cookie_ref> for_sort;
       url_info ui{"http://example.com/"};
       cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
-      ut::expect(for_sort.size() == 3u) << for_sort.size();
+      ut::expect(for_sort.size() == 4u) << for_sort.size();
 
       std::string_view corect[] = {
           "test1",
           "test2",
-          "test3"
+          "test3",
+          "test4"
       };
       // クッキー名の一致を見ることで間接的にソートの正確性をチェック
       ut::expect(std::ranges::equal(corect, for_sort, {}, {}, &cookie_ref::name));
@@ -499,13 +501,14 @@ void cookie_test() {
 
     // Secure属性の確認
     {
-      cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/", .secure = true});
-      cookies.insert(cookie{.name = "ignore1", .value = "v", .domain = "example.com", .path = "/", .secure = false});
+      // Scure属性を持つクッキーはhttpで送信されない
+      cookies.insert(cookie{.name = "test1", .value = "v", .domain = "example.com", .path = "/", .secure = false});
+      cookies.insert(cookie{.name = "ignore1", .value = "v", .domain = "example.com", .path = "/", .secure = true});
 
       ut::expect(cookies.size() == 2u);
 
       std::vector<cookie_ref> for_sort;
-      url_info ui{"https://example.com/"};
+      url_info ui{"http://example.com/"};
       cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
       ut::expect(for_sort.size() == 1u) << for_sort.size();
@@ -750,5 +753,20 @@ void cookie_test() {
       ut::expect(ui2.request_path() == "/base/path/anchor");
     }
     ut::expect(ui2.request_path() == "/base/path");
+  };
+
+  "agent test check"_test = [] {
+    using chttpp::detail::url_info;
+
+    url_info ui{"https://httpbin.org/cookies"};
+    cookie_store cookies{};
+    cookies.insert(cookie{.name = "preset", .value = "cookie", .domain = "httpbin.org", .path = "/cookies"});
+
+    std::array<std::pair<std::string_view, std::string_view>, 0> add_cookie{};
+
+    std::vector<cookie_ref> for_sort;
+    cookies.create_cookie_list_to(for_sort, add_cookie, ui);
+
+    ut::expect(for_sort.size() == 1u);
   };
 }

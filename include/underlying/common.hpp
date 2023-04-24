@@ -987,8 +987,10 @@ namespace chttpp::detail::inline cookie_related {
 
       // パスとドメインをマッチングし送信すべきクッキーを弁別する
       auto cookie_filter = [&urlinfo = urlinfo](const detail::cookie& c) -> bool {
-        // HTTPSの場合はSecure属性があるクッキーのみを送信
-        if (urlinfo.secure() and not c.secure) return false;
+        // Secure属性があるクッキーはhttpsでのみ送信
+        if (c.secure) {
+          if (not urlinfo.secure()) return false;
+        }
 
         const auto domain_str = urlinfo.host();
 
@@ -997,6 +999,10 @@ namespace chttpp::detail::inline cookie_related {
         // ドメイン文字列（ホスト名） example.com, aaa.example.com はマッチするが
         // bbb.aaa.example.com, a.example.com はマッチしない
         do {
+          // 例外対応として、ドメインが空ならば一致しているものとして扱う
+          // set-cookieパース処理の都合（できればそっちを書き換えたほうがいいと思う）
+          if (c.domain.empty()) break;
+
           // ドメインはクッキードメインのサフィックスになっていなければならない
           if (c.domain.ends_with(domain_str) == false) return false;
           
