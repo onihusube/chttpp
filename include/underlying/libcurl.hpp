@@ -796,7 +796,7 @@ namespace chttpp::underlying::agent_impl {
 
     // サーバからのクッキーを保存する（あれば
     if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-      agent_resource.cookie_vault.insert_from_set_cookie((*pos).second);
+      agent_resource.cookie_vault.insert_from_set_cookie((*pos).second, agent_resource.urlinfo.host());
     }
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};

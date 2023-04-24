@@ -1000,7 +1000,7 @@ namespace chttpp::detail::inline cookie_related {
         // bbb.aaa.example.com, a.example.com はマッチしない
         do {
           // 例外対応として、ドメインが空ならば一致しているものとして扱う
-          // set-cookieパース処理の都合（できればそっちを書き換えたほうがいいと思う）
+          // set-cookieパース処理（対応予定）とagent::set_cookiesの都合（必ずしもdomeinが指定されるとは限らない）
           if (c.domain.empty()) break;
 
           // ドメインはクッキードメインのサフィックスになっていなければならない
@@ -1053,7 +1053,7 @@ namespace chttpp::detail::inline cookie_related {
       std::ranges::sort(store);
     }
 
-    void insert_from_set_cookie(std::string_view set_cookie_str) {
+    void insert_from_set_cookie(std::string_view set_cookie_str, std::string_view host = "") {
       // memo : https://triple-underscore.github.io/http-cookie-ja.html#sane-set-cookie
       // memo : https://qiita.com/sekai/items/489378d60267cc85fd34
 
@@ -1212,7 +1212,7 @@ namespace chttpp::detail::inline cookie_related {
         }
 
         // クッキー値は空でも良い
-        cookie tmp_cookie{ .name = string_t{name}, .value = string_t{*it} };
+        cookie tmp_cookie{ .name = string_t{name}, .value = string_t{*it}, .domain = string_t{host} };
 
         // 属性の読み取りループ、次のクッキー本体が現れるまで
         for (; primary_it != primary_end; ++primary_it) {

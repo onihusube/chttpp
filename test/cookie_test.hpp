@@ -178,6 +178,15 @@ void cookie_test() {
       ut::expect(time <= expires);
       ut::expect(expires < std::chrono::system_clock::time_point::max());
     }
+    cookies.insert_from_set_cookie("hostspec=test; Path=/path; Secure", "example.com");
+    {
+      cookie c{.name = "hostspec", .value = "test", .domain = "example.com", .path = "/path", .secure = true};
+
+      const auto pos = cookies.find(c);
+
+      ut::expect(pos != cookies.end());
+      ut::expect(cmp_cookie_all(*pos, c));
+    }
   };
 
   "duplicate_cookie"_test = [] {
