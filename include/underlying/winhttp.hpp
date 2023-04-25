@@ -23,6 +23,8 @@ namespace chttpp::underlying {
 
     static constexpr DWORD no_error_value = ERROR_SUCCESS;
 
+    static constexpr DWORD url_error_value = ERROR_WINHTTP_INVALID_URL;
+
     static auto error_to_string(DWORD err) -> string_t {
       constexpr std::size_t max_len = 192;
       string_t str{};
@@ -113,6 +115,42 @@ namespace chttpp::underlying {
 
     return res == 0;
   }
+
+  inline auto to_string(std::string_view str) {
+    return str;
+  }
+
+  inline auto to_string(std::wstring_view wstr) -> string_t {
+    assert(not wstr.empty());
+
+    // この長さはnull文字を含む
+    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
+    
+    string_t converted_str{};
+    converted_str.resize(converted_len - 1);
+
+    if (::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, converted_str.data(), static_cast<int>(converted_str.length()), nullptr, nullptr) != 0) {
+      return converted_str;
+    } else {
+      converted_str.clear();
+      return converted_str;
+    }
+  }
+
+  inline auto wchar_to_char(std::wstring_view wstr, string_t& out) -> bool {
+    // この長さはnull文字を含む
+    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
+
+    // 入力が空？
+    if (converted_len <= 1) {
+      return true;
+    }
+
+    out.resize(converted_len - 1);
+
+    return ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, out.data(), static_cast<int>(out.length()), nullptr, nullptr) == 0;
+  }
+
 
   inline auto init_winhttp_session(const detail::proxy_config& proxy_conf) -> hinet {
     if (proxy_conf.address.empty()) {
@@ -648,6 +686,10 @@ namespace chttpp::underlying::agent_impl {
 
     // agentの状態詳細など（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     winhttp_session_state state{};
+    // URLの簡易チェックと抽出
+    detail::url_info request_url;
+    // URL変換用
+    detail::string_buffer url_conv_buf;
     // クッキー並べ替え用
     //detail::vector_buffer<detail::cookie_ref> cookie_buf{};
     // クッキーヘッダを構成するためのバッファ
@@ -762,7 +804,7 @@ namespace chttpp::underlying::agent_impl {
     const auto [cookie_header, token] = resource.cookie_header.pin([&](string_t& cookie_header_str) {
       // 並べ替え
       vector_t<detail::cookie_ref> sorted_cookie;
-      resource.cookie_vault.sort_by_send_order_to(sorted_cookie, req_cfg.cookies);
+      resource.cookie_vault.create_cookie_list_to(sorted_cookie, req_cfg.cookies, resource.request_url);
 
       for (auto& cookie : sorted_cookie) {
         cookie_header_str.append(cookie.name());
@@ -919,7 +961,7 @@ namespace chttpp::underlying::agent_impl {
 
       // クッキーの取り出し
       if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-        resource.cookie_vault.insert_from_set_cookie((*pos).second);
+        resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.request_url.host());
       }
 
       return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code{status_code}}};
@@ -927,20 +969,36 @@ namespace chttpp::underlying::agent_impl {
   }
 
   template<typename... Args>
-  auto request_impl(std::wstring_view url_path, dummy_buffer, Args&&... args) -> http_result {
-    // bufferをはがすだけ
-    return request_impl(url_path, std::forward<Args>(args)...);
+  auto request_impl(std::wstring_view url_path, dummy_buffer, agent_resource& resource, Args&&... args) -> http_result {
+    return resource.url_conv_buf.use([](string_t& path) {
+      // 追加するパスの変換
+      if (wchar_to_char(url_path, path)) {
+        return http_result{ ::GetLastError() };
+      }
+
+      // URL情報の構成
+      [[maybe_unused]]
+      auto pinning_fullurl = resource.request_url.append_path(path);
+
+      // bufferをはがすだけ
+      return request_impl(url_path, resource, std::forward<Args>(args)...);
+    });
+
   }
 
   template<typename... Args>
-  auto request_impl(std::string_view url_path, detail::wstring_buffer& buffer, Args&&... args) -> http_result {
+  auto request_impl(std::string_view url_path, detail::wstring_buffer& buffer, agent_resource& resource, Args&&... args) -> http_result {
     // path文字列をwchar_tへ変換する
     return buffer.use([&](wstring_t& converted_url) {
+        // URL情報の構成
+        [[maybe_unused]]
+        auto pinning_fullurl = resource.request_url.append_path(url_path);
+
         if (char_to_wchar(url_path, converted_url)) {
           return http_result{ ::GetLastError() };
         }
 
-        return request_impl(converted_url, std::forward<Args>(args)...);
+        return request_impl(converted_url, resource, std::forward<Args>(args)...);
       });
   }
 

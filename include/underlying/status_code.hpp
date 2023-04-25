@@ -55,6 +55,7 @@ namespace chttpp::detail {
     }
 
     explicit operator bool() const noexcept {
+      // エラーの時にtrue
       return m_ec != ::chttpp::underlying::lib_error_code_tratis::no_error_value;
     }
 
