@@ -403,7 +403,7 @@ namespace chttpp {
       , m_resource{ 
                     .config = std::move(initial_cfg),
                     .cookie_management = {chttpp::cookie_management::enable},
-                    .urlinfo{underlying::to_string(m_base_url)} 
+                    .request_url{underlying::to_string(m_base_url)}
                   }
       , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
     {
@@ -465,17 +465,7 @@ namespace chttpp {
       // 以降の処理は、アロケータの一致を前提とする（agent初期化後にset_default_resource()を変更されるとしぬ）
       assert(cookie_vault.get_allocator() == cookies.get_allocator());
 
-      constexpr string_view https_prefix = [] {
-        if constexpr (std::is_same_v<CharT, char>) {
-          return "https";
-        } else {
-          return L"https";
-        }
-      }();
-
-      const bool is_https = m_base_url.starts_with(https_prefix);
-
-      if (not is_https) {
+      if (not m_resource.request_url.secure()) {
         // secure属性付き（secure=true）のクッキーは無視する
         // デフォルトはsecure=falseなので、気にしなければ全てのクッキーが保存される
         erase_if(cookies, [](const auto& c) { return c.secure; });

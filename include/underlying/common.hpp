@@ -1450,7 +1450,7 @@ namespace chttpp::detail {
 
   public:
 
-    explicit toggle() = default;
+    //explicit toggle() = default;
 
     explicit constexpr toggle(bool conf) noexcept
       : m_value{conf}
@@ -1464,6 +1464,10 @@ namespace chttpp::detail {
 
     constexpr explicit operator bool() const noexcept {
       return m_value;
+    }
+
+    constexpr bool enabled() const noexcept {
+      return m_value == true;
     }
 
     friend auto operator<=>(toggle, toggle) noexcept = default;

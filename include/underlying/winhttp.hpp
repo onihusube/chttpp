@@ -683,6 +683,7 @@ namespace chttpp::underlying::agent_impl {
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
     detail::cookie_store cookie_vault{};
+    chttpp::cookie_management cookie_management;
 
     // agentの状態詳細など（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     winhttp_session_state state{};
@@ -797,11 +798,16 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
-    // 期限切れクッキー削除
-    resource.cookie_vault.remove_expired_cookies();
-
     // cookieヘッダの構成、ヘッダ全体が文字列化されるまで保持する必要がある
     const auto [cookie_header, token] = resource.cookie_header.pin([&](string_t& cookie_header_str) {
+      // クッキー管理が有効かをチェック
+      if (resource.cookie_management == chttpp::cookie_management::disable) {
+        return std::string_view{};
+      }
+
+      // 期限切れクッキー削除
+      resource.cookie_vault.remove_expired_cookies();
+
       // 並べ替え
       vector_t<detail::cookie_ref> sorted_cookie;
       resource.cookie_vault.create_cookie_list_to(sorted_cookie, req_cfg.cookies, resource.request_url);
@@ -959,9 +965,11 @@ namespace chttpp::underlying::agent_impl {
       // ヘッダの分割
       auto headers = chttpp::detail::parse_response_header_on_winhttp(converted_header);
 
-      // クッキーの取り出し
-      if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-        resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.request_url.host());
+      if (resource.cookie_management.enabled()) {
+        // クッキーの取り出し
+        if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
+          resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.request_url.host());
+        }
       }
 
       return http_result{ chttpp::detail::http_response{.body = std::move(body), .headers = std::move(headers), .status_code{status_code}}};
