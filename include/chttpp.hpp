@@ -400,7 +400,11 @@ namespace chttpp {
     [[nodiscard]]
     agent(string_view base_url, detail::agent_initial_config initial_cfg = {})
       : m_base_url(base_url)
-      , m_resource{ .config = std::move(initial_cfg), .urlinfo = {underlying::to_string(m_base_url)} }
+      , m_resource{ 
+                    .config = std::move(initial_cfg),
+                    .cookie_management = {chttpp::cookie_management::enable},
+                    .urlinfo = {underlying::to_string(m_base_url)} 
+                  }
       , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
     {
       if (m_resource.urlinfo.is_valid() == false) {
@@ -490,6 +494,13 @@ namespace chttpp {
       assert(cookies.empty());
     }
 
+    void config_impl(chttpp::cookie_management cfg) {
+      this->m_resource.cookie_management = cfg;
+    }
+
+    // 未対応or知らない設定項目
+    void config_impl(...) = delete;
+
   public:
 
     void set_headers(umap_t<string_t, string_t> headers) & {
@@ -509,6 +520,17 @@ namespace chttpp {
     [[nodiscard]]
     auto set_cookies(detail::cookie_store cookies) && -> agent&& {
       merge_cookie(std::move(cookies));
+      return std::move(*this);
+    }
+
+    void set_configs(auto... cfgs) & requires (0 < sizeof...(cfgs)) {
+      std::ignore = int{(this->config_impl(cfgs), 0)...};
+    }
+
+    auto configs(auto... cfgs) && -> agent&&
+      requires (0 < sizeof...(cfgs))
+    {
+      std::ignore = int{(this->config_impl(cfgs), 0)...};
       return std::move(*this);
     }
   };
