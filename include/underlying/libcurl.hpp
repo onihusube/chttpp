@@ -581,6 +581,8 @@ namespace chttpp::underlying::agent_impl {
     umap_t<string_t, string_t> headers{};
     detail::cookie_store cookie_vault{};
 
+    chttpp::cookie_management cookie_management;
+
     // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     libcurl_session_state state{};
     // URLからコンポーネント情報などを抽出する（ほぼクッキーのため）
@@ -590,7 +592,7 @@ namespace chttpp::underlying::agent_impl {
   };
 
   template<typename MethodTag>
-  inline auto request_impl(std::string_view url_path, agent_resource& agent_resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  inline auto request_impl(std::string_view url_path, agent_resource& resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -605,7 +607,7 @@ namespace chttpp::underlying::agent_impl {
     constexpr bool is_del = std::is_same_v<detail::tag::delete_t, MethodTag>;
     constexpr bool is_patch = std::is_same_v<detail::tag::patch_t, MethodTag>;
 
-    auto& state = agent_resource.state;
+    auto& state = resource.state;
     auto& session = state.session;
 
     // 認証情報の取得とセット、configに指定された方を優先する
@@ -628,8 +630,12 @@ namespace chttpp::underlying::agent_impl {
       return http_result{CURLcode::CURLE_OUT_OF_MEMORY};
     }
 
-    // URLパスをセット
-    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, url_path.data(), 0); ec != CURLUE_OK) {
+    // URL先頭にパスを付加
+    [[maybe_unused]]
+    auto pinning_fullurl = resource.urlinfo.append_path(url_path);
+
+    // URLパスをセット（CURLUPART_PATHは上書きする）
+    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, resource.urlinfo.request_path().data(), 0); ec != CURLUE_OK) {
       // エラーコード要検討
       return http_result{CURLcode::CURLE_FAILED_INIT};
     }
@@ -696,7 +702,7 @@ namespace chttpp::underlying::agent_impl {
       };
 
       // agentに直接設定されたヘッダ、リクエスト間で共通
-      for (const auto& [key, value] : agent_resource.headers) {
+      for (const auto& [key, value] : resource.headers) {
         state.buffer.use([&](string_t& buf) { set_headers(buf, key, value); });
       }
 
@@ -709,8 +715,8 @@ namespace chttpp::underlying::agent_impl {
 
         // Content-Type指定はヘッダ設定を優先する
         const bool set_content_type =
-            agent_resource.headers.contains("Content-Type") or
-            agent_resource.headers.contains("content-type") or
+            resource.headers.contains("Content-Type") or
+            resource.headers.contains("content-type") or
             std::ranges::any_of(req_cfg.headers, [](auto name) { return name == "Content-Type" or name == "content-type"; }, &std::pair<std::string_view, std::string_view>::first);
 
         if (not set_content_type) {
@@ -734,16 +740,12 @@ namespace chttpp::underlying::agent_impl {
     // クッキーの設定など
     {
       // 期限切れクッキーの削除
-      agent_resource.cookie_vault.remove_expired_cookies();
+      resource.cookie_vault.remove_expired_cookies();
 
       // クッキーを送信順になるようにソート
-      auto [sorted_cookies, raii] = agent_resource.cookie_buf.pin([&](auto &cookie_buf) -> std::span<const detail::cookie_ref> {
-        // URL先頭にパスを付加
-        [[maybe_unused]]
-        auto autorepair = agent_resource.urlinfo.append_path(url_path);
-
+      auto [sorted_cookies, pinning_cookies] = resource.cookie_buf.pin([&](auto &cookie_buf) -> std::span<const detail::cookie_ref> {
         // ソート
-        agent_resource.cookie_vault.create_cookie_list_to(cookie_buf, req_cfg.cookies, agent_resource.urlinfo);
+        resource.cookie_vault.create_cookie_list_to(cookie_buf, req_cfg.cookies, resource.urlinfo);
 
         return { cookie_buf };
       });
@@ -796,7 +798,7 @@ namespace chttpp::underlying::agent_impl {
 
     // サーバからのクッキーを保存する（あれば
     if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-      agent_resource.cookie_vault.insert_from_set_cookie((*pos).second, agent_resource.urlinfo.host());
+      resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.urlinfo.host());
     }
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};

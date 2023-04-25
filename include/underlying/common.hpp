@@ -1000,7 +1000,7 @@ namespace chttpp::detail::inline cookie_related {
         // bbb.aaa.example.com, a.example.com はマッチしない
         do {
           // 例外対応として、ドメインが空ならば一致しているものとして扱う
-          // set-cookieパース処理（対応予定）とagent::set_cookiesの都合（必ずしもdomeinが指定されるとは限らない）
+          // agent::set_cookiesの都合（必ずしもdomainが指定されるとは限らない）
           if (c.domain.empty()) break;
 
           // ドメインはクッキードメインのサフィックスになっていなければならない
@@ -1402,6 +1402,11 @@ namespace chttpp::detail::inline config {
     umap_t<string_t, string_t> headers{};
     cookie_store cookie_vault{};
   };
+
+  enum class toggle_enum : bool {
+    enable = true,
+    disable = false
+  };
 }
 
 namespace chttpp {
@@ -1426,6 +1431,53 @@ namespace chttpp {
   namespace cfg_prxy {
     using enum chttpp::detail::config::enums::proxy_scheme;
   }
+
+  // 設定の有効/無効を切り替える値
+  using enum detail::toggle_enum;
+}
+
+namespace chttpp::detail {
+
+  // これのパクリです・・・
+  // https://github.com/Reputeless/YesNo
+  template<typename Tag>
+  class [[nodiscard]] toggle {
+    bool m_value;
+
+    struct helper {
+      bool b;
+    };
+
+  public:
+
+    explicit toggle() = default;
+
+    explicit constexpr toggle(bool conf) noexcept
+      : m_value{conf}
+    {}
+
+    constexpr toggle(helper conf) noexcept
+      : m_value{conf.b}
+    {}
+
+    toggle& operator=(const toggle&) & = default;
+
+    constexpr explicit operator bool() const noexcept {
+      return m_value;
+    }
+
+    friend auto operator<=>(toggle, toggle) noexcept = default;
+
+    static constexpr helper enable{true};
+    static constexpr helper disable{false};
+  };
+}
+
+namespace chttpp::inline cfg_agent {
+
+  // クッキー管理を行うかどうか
+  using cookie_management = chttpp::detail::toggle<struct cookie_management_tag>;
+
 }
 
 namespace chttpp::detail::tag {

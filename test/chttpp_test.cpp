@@ -1038,7 +1038,10 @@ int main() {
     using namespace chttpp::method_object;
 
     auto req = chttpp::agent{"https://httpbin.org/", {}}
-                            .set_headers({{"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"}});
+                            .set_headers({{"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"}})
+                            .configs(chttpp::cookie_management::disable);
+
+    req.set_configs(chttpp::cookie_management::enable);
 
     {
       auto result = req.request<get>("get", {.params = {
