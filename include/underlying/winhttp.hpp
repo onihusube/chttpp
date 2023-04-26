@@ -683,7 +683,9 @@ namespace chttpp::underlying::agent_impl {
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
     detail::cookie_store cookie_vault{};
+
     chttpp::cookie_management cookie_management;
+    chttpp::follow_redirects follow_redirect;
 
     // agentの状態詳細など（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     winhttp_session_state state{};
@@ -798,15 +800,20 @@ namespace chttpp::underlying::agent_impl {
       }
     }
 
-    // cookieヘッダの構成、ヘッダ全体が文字列化されるまで保持する必要がある
-    const auto [cookie_header, token] = resource.cookie_header.pin([&](string_t& cookie_header_str) {
-      // クッキー管理が有効かをチェック
-      if (resource.cookie_management == chttpp::cookie_management::disable) {
-        return std::string_view{};
-      }
+    if (resource.follow_redirect == follow_redirects::disable) {
+      DWORD disable_redirect = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
+      // 失敗してもスルーで（いいかな？
+      ::WinHttpSetOption(request.get(), WINHTTP_OPTION_REDIRECT_POLICY, &disable_redirect, sizeof(disable_redirect));
+    }
 
+    // クッキー管理が無効化されていても、クッキーの送信は行う
+    if (resource.cookie_management.enabled()) {
       // 期限切れクッキー削除
       resource.cookie_vault.remove_expired_cookies();
+    }
+
+    // cookieヘッダの構成、ヘッダ全体が文字列化されるまで保持する必要がある
+    const auto [cookie_header, token] = resource.cookie_header.pin([&](string_t& cookie_header_str) {
 
       // 並べ替え
       vector_t<detail::cookie_ref> sorted_cookie;

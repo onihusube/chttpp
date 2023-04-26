@@ -1409,11 +1409,6 @@ namespace chttpp::detail::inline config {
     umap_t<string_t, string_t> headers{};
     cookie_store cookie_vault{};
   };
-
-  enum class toggle_enum : bool {
-    enable = true,
-    disable = false
-  };
 }
 
 namespace chttpp {
@@ -1438,9 +1433,6 @@ namespace chttpp {
   namespace cfg_prxy {
     using enum chttpp::detail::config::enums::proxy_scheme;
   }
-
-  // 設定の有効/無効を切り替える値
-  using enum detail::toggle_enum;
 }
 
 namespace chttpp::detail {
