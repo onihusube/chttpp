@@ -582,11 +582,12 @@ namespace chttpp::underlying::agent_impl {
     detail::cookie_store cookie_vault{};
 
     chttpp::cookie_management cookie_management;
+    chttpp::follow_redirects follow_redirect;
 
     // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     libcurl_session_state state{};
     // URLからコンポーネント情報などを抽出する（ほぼクッキーのため）
-    detail::url_info urlinfo;
+    detail::url_info request_url;
     // vector_t<detail::cookie_ref> cookie_buf{};
     detail::vector_buffer<detail::cookie_ref> cookie_buf{};
   };
@@ -632,10 +633,10 @@ namespace chttpp::underlying::agent_impl {
 
     // URL先頭にパスを付加
     [[maybe_unused]]
-    auto pinning_fullurl = resource.urlinfo.append_path(url_path);
+    auto pinning_fullurl = resource.request_url.append_path(url_path);
 
     // URLパスをセット（CURLUPART_PATHは上書きする）
-    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, resource.urlinfo.request_path().data(), 0); ec != CURLUE_OK) {
+    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, resource.request_url.request_path().data(), 0); ec != CURLUE_OK) {
       // エラーコード要検討
       return http_result{CURLcode::CURLE_FAILED_INIT};
     }
@@ -653,7 +654,7 @@ namespace chttpp::underlying::agent_impl {
 
     // ヘッダで指定された場合の扱いに注意？
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
-    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1);
+    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, long(resource.follow_redirect.enabled()));
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
 
     if constexpr (has_request_body) {
@@ -739,13 +740,16 @@ namespace chttpp::underlying::agent_impl {
 
     // クッキーの設定など
     {
-      // 期限切れクッキーの削除
-      resource.cookie_vault.remove_expired_cookies();
+      // 自動クッキー管理が無効だとしても、クッキーを送信しないわけではない
+      if (resource.cookie_management.enabled()) {
+        // 期限切れクッキーの削除
+        resource.cookie_vault.remove_expired_cookies();
+      }
 
       // クッキーを送信順になるようにソート
       auto [sorted_cookies, pinning_cookies] = resource.cookie_buf.pin([&](auto &cookie_buf) -> std::span<const detail::cookie_ref> {
         // ソート
-        resource.cookie_vault.create_cookie_list_to(cookie_buf, req_cfg.cookies, resource.urlinfo);
+        resource.cookie_vault.create_cookie_list_to(cookie_buf, req_cfg.cookies, resource.request_url);
 
         return { cookie_buf };
       });
@@ -796,9 +800,11 @@ namespace chttpp::underlying::agent_impl {
     long http_status;
     curl_easy_getinfo(session.get(), CURLINFO_RESPONSE_CODE, &http_status);
 
-    // サーバからのクッキーを保存する（あれば
-    if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
-      resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.urlinfo.host());
+    if (resource.cookie_management.enabled()) {
+      // サーバからのクッキーを保存する（あれば
+      if (const auto pos = headers.find("set-cookie"); pos != headers.end()) {
+        resource.cookie_vault.insert_from_set_cookie((*pos).second, resource.request_url.host());
+      }
     }
 
     return http_result{chttpp::detail::http_response{ {}, std::move(body), std::move(headers), detail::http_status_code{http_status} }};

@@ -650,9 +650,16 @@ namespace chttpp::detail {
 
   public:
 
+    /*[[nodiscard]]
+    url_info(string_t&& url_head)
+      : m_urlstr(std::move(url_head)) 
+    {
+    }*/
+
     [[nodiscard]]
     url_info(std::string_view url_head)
-      : m_urlstr(url_head) 
+      //: url_info(string_t{url_head})
+      : m_urlstr(std::move(url_head))
     {
       if (this->parse_host_name() == false) {
         // パースエラー
@@ -1477,11 +1484,19 @@ namespace chttpp::detail {
   };
 }
 
-namespace chttpp::inline cfg_agent {
+namespace chttpp::cfg_agent {
 
-  // クッキー管理を行うかどうか
+  // 自動クッキー管理を行うかどうか（クッキーの読み込みと自動削除が行われなくなるだけで、クッキーの送信は行われる）
   using cookie_management = chttpp::detail::toggle<struct cookie_management_tag>;
 
+  // httpリダイレクトを自動で処理するかどうか
+  using follow_redirects = chttpp::detail::toggle<struct follow_redirect_tag>;
+}
+
+namespace chttpp {
+
+  using cfg_agent::cookie_management;
+  using cfg_agent::follow_redirects;
 }
 
 namespace chttpp::detail::tag {

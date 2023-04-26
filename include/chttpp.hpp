@@ -403,6 +403,7 @@ namespace chttpp {
       , m_resource{ 
                     .config = std::move(initial_cfg),
                     .cookie_management = {chttpp::cookie_management::enable},
+                    .follow_redirect = {chttpp::follow_redirects::enable},
                     .request_url{underlying::to_string(m_base_url)}
                   }
       , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
@@ -486,6 +487,10 @@ namespace chttpp {
 
     void config_impl(chttpp::cookie_management cfg) {
       this->m_resource.cookie_management = cfg;
+    }
+
+    void config_impl(chttpp::follow_redirects cfg) {
+      this->m_resource.follow_redirect = cfg;
     }
 
     // 未対応or知らない設定項目
