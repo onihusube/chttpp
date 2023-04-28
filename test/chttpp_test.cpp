@@ -1038,7 +1038,7 @@ int main() {
     using namespace chttpp::method_object;
 
     auto req = chttpp::agent{"https://httpbin.org/", {}}
-                            .set_headers({{"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"}})
+                            .headers({{"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15"}})
                             .configs(chttpp::cookie_management::disable);
 
     req.set_configs(chttpp::cookie_management::enable);
@@ -1162,6 +1162,28 @@ int main() {
           ut::expect(cookies.at("request").get<std::string>() == "cookie");
         }
       }
+    }
+  };
+
+  "agent config"_test = [] {
+    using namespace chttpp::method_object;
+
+    auto req = chttpp::agent{L"https://httpbin.org/", {}}
+                   .configs(chttpp::follow_redirects::disable, chttpp::cookie_management::disable);
+
+    {
+      auto [initconfig, managecookie, redirect] = req.inspect_config();
+
+      ut::expect(managecookie == chttpp::cookie_management::disable);
+      ut::expect(redirect == chttpp::follow_redirects::disable);
+    }
+
+    auto result = req.request<get>(L"/redirect-to", { .params = {{"url", "https://www.google.com/"}} });
+
+    ut::expect(bool(result)) << result.error_message();
+
+    if (result) {
+      ut::expect(result.status_code().Found()) << result.status_code().value();
     }
   };
 

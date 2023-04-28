@@ -92,6 +92,11 @@ namespace chttpp::detail {
     }
 
     [[nodiscard]]
+    bool Found() const noexcept {
+      return std::cmp_equal(m_code, 302);
+    }
+
+    [[nodiscard]]
     bool Unauthorized() const noexcept {
       return std::cmp_equal(m_code, 401);
     }

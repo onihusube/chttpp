@@ -1401,14 +1401,14 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
   };
 
-  struct agent_config {
+  /*struct agent_config {
     // コンストラクタで渡す設定
     agent_initial_config init_cfg;
 
     // その他のタイミングで渡される設定
     umap_t<string_t, string_t> headers{};
     cookie_store cookie_vault{};
-  };
+  };*/
 }
 
 namespace chttpp {

@@ -654,8 +654,14 @@ namespace chttpp::underlying::agent_impl {
 
     // ヘッダで指定された場合の扱いに注意？
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
-    curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, long(resource.follow_redirect.enabled()));
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
+
+    // なんか効いてないっぽい・・・
+    if (resource.follow_redirect.enabled()) {
+      curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1L);
+    } else {
+      curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 0L);
+    }
 
     if constexpr (has_request_body) {
 

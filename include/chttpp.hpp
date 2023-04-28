@@ -395,6 +395,7 @@ namespace chttpp {
     // 初期化や各種設定中に起きたエラーを記録する
     detail::error_code m_config_ec;
 
+  // 基本関数群
   public:
 
     [[nodiscard]]
@@ -496,6 +497,7 @@ namespace chttpp {
     // 未対応or知らない設定項目
     void config_impl(...) = delete;
 
+  // 各種設定変更
   public:
 
     void set_headers(umap_t<string_t, string_t> headers) & {
@@ -503,7 +505,7 @@ namespace chttpp {
     }
 
     [[nodiscard]]
-    auto set_headers(umap_t<string_t, string_t> headers) && -> agent&& {
+    auto headers(umap_t<string_t, string_t> headers) && -> agent&& {
       merge_header(std::move(headers));
       return std::move(*this);
     }
@@ -513,20 +515,38 @@ namespace chttpp {
     }
 
     [[nodiscard]]
-    auto set_cookies(detail::cookie_store cookies) && -> agent&& {
+    auto cookies(detail::cookie_store cookies) && -> agent&& {
       merge_cookie(std::move(cookies));
       return std::move(*this);
     }
 
     void set_configs(auto... cfgs) & requires (0 < sizeof...(cfgs)) {
-      std::ignore = int{(this->config_impl(cfgs), 0)...};
+      (this->config_impl(cfgs), ...);
     }
 
+    [[nodiscard]]
     auto configs(auto... cfgs) && -> agent&&
       requires (0 < sizeof...(cfgs))
     {
-      std::ignore = int{(this->config_impl(cfgs), 0)...};
+      (this->config_impl(cfgs), ...);
       return std::move(*this);
+    }
+
+  // 状態の覗き見
+  public:
+
+    std::ranges::input_range auto inspect_header() const & {
+      const auto& headers = this->m_resource.headers;
+      return std::ranges::subrange{headers.cbegin(), headers.cend()};
+    }
+
+    std::ranges::input_range auto inspect_cookie() const & {
+      const auto& cookies = this->m_resource.cookie_vault;
+      return std::ranges::subrange{cookies.cbegin(), cookies.cend()};
+    }
+
+    auto inspect_config() const & {
+      return std::make_tuple(this->m_resource.config, this->m_resource.cookie_management, this->m_resource.follow_redirect);
     }
   };
 
