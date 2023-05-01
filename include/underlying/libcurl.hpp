@@ -228,9 +228,12 @@ namespace chttpp::underlying {
   inline auto wchar_to_char(std::wstring_view wstr) -> std::pair<string_t, std::size_t> {
     std::mbstate_t state{};
     const wchar_t *src = wstr.data();
-    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
+
+    // この長さはnull文字を含まない
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state);
 
     string_t buffer{};
+    // resize()はnull文字を含まない長さを指定する
     buffer.resize(required_len);
 
     // ロケールの考慮・・・？
@@ -243,8 +246,11 @@ namespace chttpp::underlying {
   inline auto wchar_to_char(std::wstring_view wstr, string_t& out) -> bool {
     std::mbstate_t state{};
     const wchar_t *src = wstr.data();
-    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1;  // null文字の分+1
 
+    // この長さはnull文字を含まない
+    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state);
+
+    // resize()はnull文字を含まない長さを指定する
     out.resize(required_len);
 
     // ロケールの考慮・・・？
@@ -257,14 +263,9 @@ namespace chttpp::underlying {
   }
 
   inline auto to_string(std::wstring_view wstr) -> string_t {
-    std::mbstate_t state{};
-    const wchar_t *src = wstr.data();
-    const std::size_t required_len = std::wcsrtombs(nullptr, &src, 0, &state) + 1; // null文字の分+1
-
     string_t buffer{};
-    buffer.resize(required_len);
 
-    if (std::wcsrtombs(buffer.data(), &src, required_len, &state) == static_cast<std::size_t>(-1)) {
+    if (wchar_to_char(wstr, buffer)) {
       return "";
     } else {
       return buffer;
@@ -656,7 +657,6 @@ namespace chttpp::underlying::agent_impl {
     curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
 
-    // なんか効いてないっぽい・・・
     if (resource.follow_redirect.enabled()) {
       curl_easy_setopt(session.get(), CURLOPT_FOLLOWLOCATION, 1L);
     } else {

@@ -762,6 +762,20 @@ void cookie_test() {
       ut::expect(ui2.request_path() == "/base/path/anchor");
     }
     ut::expect(ui2.request_path() == "/base/path");
+
+
+    // '/'で終わる場合
+    url_info ui3{"https://httpbin.org/"};
+    ut::expect(ui3.request_path() == "/");
+    {
+      [[maybe_unused]] auto token = ui3.append_path("/redirect-to");
+
+      auto path = ui3.request_path();
+
+      ut::expect(path == "/redirect-to");
+    }
+    ut::expect(ui3.request_path() == "/");
+
   };
 
   "agent test check"_test = [] {
