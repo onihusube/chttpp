@@ -1400,15 +1400,6 @@ namespace chttpp::detail::inline config {
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
   };
-
-  /*struct agent_config {
-    // コンストラクタで渡す設定
-    agent_initial_config init_cfg;
-
-    // その他のタイミングで渡される設定
-    umap_t<string_t, string_t> headers{};
-    cookie_store cookie_vault{};
-  };*/
 }
 
 namespace chttpp {
@@ -1461,14 +1452,17 @@ namespace chttpp::detail {
 
     toggle& operator=(const toggle&) & = default;
 
+    [[nodiscard]]
     constexpr explicit operator bool() const noexcept {
       return m_value;
     }
 
+    [[nodiscard]]
     constexpr bool enabled() const noexcept {
       return m_value == true;
     }
 
+    [[nodiscard]]
     friend auto operator<=>(toggle, toggle) noexcept = default;
 
     static constexpr helper enable{true};
