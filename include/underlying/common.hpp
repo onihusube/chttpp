@@ -1483,12 +1483,16 @@ namespace chttpp::cfg_agent {
 
   // httpリダイレクトを自動で処理するかどうか
   using follow_redirects = chttpp::detail::toggle<struct follow_redirect_tag>;
+
+  // レスポンスを自動で解凍するかどうか
+  using automatic_decompression = chttpp::detail::toggle<struct automatic_decompression_tag>;
 }
 
 namespace chttpp {
 
   using cfg_agent::cookie_management;
   using cfg_agent::follow_redirects;
+  using cfg_agent::automatic_decompression;
 }
 
 namespace chttpp::detail::tag {

@@ -405,6 +405,7 @@ namespace chttpp {
                     .config = std::move(initial_cfg),
                     .cookie_management = {chttpp::cookie_management::enable},
                     .follow_redirect = {chttpp::follow_redirects::enable},
+                    .auto_decomp = {chttpp::automatic_decompression::enable},
                     .request_url{underlying::to_string(m_base_url)}
                   }
       , m_config_ec{ m_resource.state.init(base_url, convert_buffer, m_resource.config) }
@@ -494,6 +495,10 @@ namespace chttpp {
       this->m_resource.follow_redirect = cfg;
     }
 
+    void config_impl(chttpp::automatic_decompression cfg) {
+      this->m_resource.auto_decomp = cfg;
+    }
+
     // 未対応or知らない設定項目
     void config_impl(...) = delete;
 
@@ -535,18 +540,21 @@ namespace chttpp {
   // 状態の覗き見
   public:
 
+    [[nodiscard]]
     std::ranges::input_range auto inspect_header() const & {
       const auto& headers = this->m_resource.headers;
       return std::ranges::subrange{headers.cbegin(), headers.cend()};
     }
 
+    [[nodiscard]]
     std::ranges::input_range auto inspect_cookie() const & {
       const auto& cookies = this->m_resource.cookie_vault;
       return std::ranges::subrange{cookies.cbegin(), cookies.cend()};
     }
 
+    [[nodiscard]]
     auto inspect_config() const & {
-      return std::make_tuple(this->m_resource.config, this->m_resource.cookie_management, this->m_resource.follow_redirect);
+      return std::make_tuple(this->m_resource.config, this->m_resource.cookie_management, this->m_resource.follow_redirect, this->m_resource.auto_decomp);
     }
   };
 

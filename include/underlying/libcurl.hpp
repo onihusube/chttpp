@@ -584,6 +584,7 @@ namespace chttpp::underlying::agent_impl {
 
     chttpp::cookie_management cookie_management;
     chttpp::follow_redirects follow_redirect;
+    chttpp::automatic_decompression auto_decomp;
 
     // agentの状態詳細（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     libcurl_session_state state{};
@@ -653,8 +654,16 @@ namespace chttpp::underlying::agent_impl {
     // フルに構成したURLをセット
     curl_easy_setopt(session.get(), CURLOPT_URL, purl.get());
 
-    // ヘッダで指定された場合の扱いに注意？
-    curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    if (resource.auto_decomp.enabled()) {
+      // この指定はlibcurlが対応する全ての圧縮を自動解凍する指定
+      // ヘッダで指定された場合はそちらが送信される
+      // その場合、自動解凍はされる？（ChatGPTはされるって言ってる）
+      curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, "");
+    } else {
+      // Accept-Encodingヘッダがない場合、サーバーは好きな圧縮で送ってくる
+      curl_easy_setopt(session.get(), CURLOPT_ACCEPT_ENCODING, nullptr);
+    }
+
     curl_easy_setopt(session.get(), CURLOPT_USERAGENT, detail::default_UA.data());
 
     if (resource.follow_redirect.enabled()) {

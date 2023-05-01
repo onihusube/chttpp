@@ -1172,10 +1172,11 @@ int main() {
                    .configs(chttpp::follow_redirects::disable, chttpp::cookie_management::disable);
 
     {
-      auto [initconfig, managecookie, redirect] = req.inspect_config();
+      auto [initconfig, managecookie, redirect, autodecomp] = req.inspect_config();
 
       ut::expect(managecookie == chttpp::cookie_management::disable);
       ut::expect(redirect == chttpp::follow_redirects::disable);
+      ut::expect(autodecomp == chttpp::automatic_decompression::enable);
     }
 
     auto result = req.request<get>(L"/redirect-to", { .params = {{"url", "https://www.google.com/"}} });
@@ -1184,6 +1185,16 @@ int main() {
 
     if (result) {
       ut::expect(result.status_code().Found()) << result.status_code().value();
+    }
+
+    req.set_configs(chttpp::automatic_decompression::disable);
+
+    {
+      auto [initconfig, managecookie, redirect, autodecomp] = req.inspect_config();
+
+      ut::expect(managecookie == chttpp::cookie_management::disable);
+      ut::expect(redirect == chttpp::follow_redirects::disable);
+      ut::expect(autodecomp == chttpp::automatic_decompression::disable);
     }
   };
 
