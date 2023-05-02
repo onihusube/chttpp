@@ -8,6 +8,8 @@
 
 void test_req(std::string_view, chttpp::detail::request_config = {}) {}
 
+void test_agent_req(std::string_view, chttpp::detail::agent_request_config = {}) {}
+
 // 呼び出しが意図通りに行えるかのチェックのみ（コンパイルが通ればそれでﾖｼ）
 void http_config_test() {
   using namespace chttpp::mime_types;
@@ -41,4 +43,9 @@ void http_config_test() {
   // chrono::durationの変換
   test_req("https://example.com", { .timeout = 10s });
   test_req("https://example.com", { .timeout = 1min });
+
+  // agentのリクエスト時設定のテスト
+
+  //test_agent_req("https://example.com", { .streaming_reciever = reentrant_function{[](std::span<const char>) {}} });
+  test_agent_req("https://example.com", { .streaming_reciever = [](std::span<const char>) {} });
 }

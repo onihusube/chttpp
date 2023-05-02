@@ -1139,7 +1139,7 @@ int main() {
       if (result) {
         ut::expect(result.status_code().OK()) << result.status_code().value();
 
-        std::cout << result.response_body() << '\n';
+        //std::cout << result.response_body() << '\n';
 
         auto res_json = result | to_json;
       
@@ -1196,6 +1196,38 @@ int main() {
       ut::expect(redirect == chttpp::follow_redirects::disable);
       ut::expect(autodecomp == chttpp::automatic_decompression::disable);
     }
+  };
+
+  "chunk encoding"_test = [] {
+    using namespace chttpp::method_object;
+    using namespace std::chrono_literals;
+
+    auto req = chttpp::agent{"http://anglesharp.azurewebsites.net/Chunked", { .version = chttpp::cfg_ver::http1_1, .timeout = 5s }}
+                   .configs(chttpp::cookie_management::disable);
+
+    std::vector<std::string> chunked_response;
+
+    auto callback = [&](std::span<const char> data) {
+      chunked_response.emplace_back(data.begin(), data.end());
+    };
+
+    req.request<get>("", { .streaming_reciever = callback })
+      .then([&](auto &&response) {
+        ut::expect(response.status_code.OK()) << response.status_code.value();
+        ut::expect(response.body.empty());
+
+        const auto len = chunked_response.size();
+        ut::expect(4u < len && len <= 6u) << chunked_response.size();
+
+        for (std::string_view str : chunked_response) {
+          std::cout << "|" << str << "|\n";
+        }
+      }).catch_error([](auto&& ec) {
+        ut::expect(false) << ec.message();
+      }).catch_exception([](auto&&) {
+        ut::expect(false);
+      });
+
   };
 
   underlying_test();

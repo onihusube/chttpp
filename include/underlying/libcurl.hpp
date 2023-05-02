@@ -792,13 +792,23 @@ namespace chttpp::underlying::agent_impl {
     header_t headers;
 
     // レスポンスボディコールバックの指定
-    if constexpr (has_request_body or is_get or is_opt) { 
-      auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
-        buffer.reserve(buffer.size() + data_len);
-        std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
-      }>;
-      curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
-      curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+    if constexpr (has_request_body or is_get or is_opt) {
+      if (req_cfg.streaming_reciever) {
+        // カスタムのコールバックによる応答本文受け取り
+        auto* body_recieve = write_callback<decltype(req_cfg.streaming_reciever), [](decltype(req_cfg.streaming_reciever)& callback, char* data_ptr, std::size_t data_len) {
+          callback(std::span<const char>{data_ptr, data_len});
+        }>;
+        curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+        curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &req_cfg.streaming_reciever);
+      } else {
+        // デフォルトのコールバック
+        auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {
+          buffer.reserve(buffer.size() + data_len);
+          std::ranges::copy(data_ptr, data_ptr + data_len, std::back_inserter(buffer));
+        }>;
+        curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
+        curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &body);
+      }
     }
 
     // レスポンスヘッダコールバックの指定

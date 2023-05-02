@@ -1362,6 +1362,8 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
   };
 
+  using streaming_callback = std::function<void(std::span<const char>)>;
+
 #define common_request_config \
     vector_t<std::pair<std::string_view, std::string_view>> headers{}; \
     vector_t<std::pair<std::string_view, std::string_view>> params{}; \
@@ -1399,6 +1401,7 @@ namespace chttpp::detail::inline config {
 #endif
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
+    streaming_callback streaming_reciever{};
   };
 }
 
