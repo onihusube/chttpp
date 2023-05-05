@@ -353,6 +353,64 @@ namespace chttpp::underlying {
     return common_authentication_setting(req_handle, auth, {}, buffer, WINHTTP_AUTH_TARGET_PROXY);
   }
 
+  inline bool receive_response_body(HINTERNET req_handle, vector_t<char>& body) {
+    DWORD read_len{};
+    std::size_t total_read{};
+
+    // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
+    // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
+    do {
+      DWORD data_len{};
+      if (not ::WinHttpQueryDataAvailable(req_handle, &data_len)) {
+        return false;
+      }
+
+      // 実際にはここで止まるらしい
+      if (data_len == 0) break;
+
+      body.resize(total_read + data_len);
+
+      // WinHttpReadDataが最初に0にセットするらしいよ
+      //read_len = 0;
+      if (not ::WinHttpReadData(req_handle, body.data() + total_read, data_len, &read_len)) {
+        return false;
+      }
+
+      total_read += read_len;
+    } while (0 < read_len);
+
+    return true;
+  }
+
+  inline bool receive_response_body(HINTERNET req_handle, detail::streaming_callback& receiver, vector_t<char>& buffer) {
+    DWORD read_len{};
+
+    // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
+    // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
+    do {
+      DWORD data_len{};
+      if (not ::WinHttpQueryDataAvailable(req_handle, &data_len)) {
+        return false;
+      }
+
+      // 実際にはここで止まるらしい
+      if (data_len == 0) break;
+
+      // vector的に要素を有効化してくれなくてもいいので、reserve()（にしたかったけどAsanに怒られた）
+      // 欲しいのは、指定されたサイズを下回る限り追加のメモリ確保をしないバッファ
+      //buffer.reserve(data_len);
+      buffer.resize(data_len);
+
+      if (not ::WinHttpReadData(req_handle, buffer.data(), data_len, &read_len)) {
+        return false;
+      }
+
+      receiver({ buffer.data(), read_len });
+    } while (0 < read_len);
+
+    return true;
+  }
+
 
   struct winhttp_session_state {
     hinet session;
@@ -926,30 +984,18 @@ namespace chttpp::underlying::agent_impl {
     // レスポンスデータの取得
     vector_t<char> body{};
     if constexpr (has_request_body or is_get or is_opt) {
-      DWORD read_len{};
-      std::size_t total_read{};
-
-      // QueryDataAvailableもReadDataも少しづつ（8000バイトちょい）しか読み込んでくれないので、全部読み取るにはデータがなくなるまでループする
-      // ここでの読み込みバイト数は解凍後のものなので、Content-Lengthの値とは異なりうる
-      do {
-        DWORD data_len{};
-        if (not ::WinHttpQueryDataAvailable(request.get(), &data_len)) {
+      if (bool(req_cfg.streaming_receiver)) {
+        // データ受信時コールバックの呼び出し
+        if (not receive_response_body(request.get(), req_cfg.streaming_receiver, body)) {
           return http_result{ ::GetLastError() };
         }
-
-        // 実際にはここで止まるらしい
-        if (data_len == 0) break;
-
-        body.resize(total_read + data_len);
-
-        // WinHttpReadDataが最初に0にセットするらしいよ
-        //read_len = 0;
-        if (not ::WinHttpReadData(request.get(), body.data() + total_read, data_len, &read_len)) {
+        body.clear();
+      } else {
+        // 通常のデータ受信
+        if (not receive_response_body(request.get(), body)) {
           return http_result{ ::GetLastError() };
         }
-
-        total_read += read_len;
-      } while (0 < read_len);
+      }
     }
 
     // ステータスコードの取得
@@ -994,7 +1040,7 @@ namespace chttpp::underlying::agent_impl {
 
   template<typename... Args>
   auto request_impl(std::wstring_view url_path, dummy_buffer, agent_resource& resource, Args&&... args) -> http_result {
-    return resource.url_conv_buf.use([](string_t& path) {
+    return resource.url_conv_buf.use([&](string_t& path) {
       // 追加するパスの変換
       if (wchar_to_char(url_path, path)) {
         return http_result{ ::GetLastError() };
@@ -1018,8 +1064,12 @@ namespace chttpp::underlying::agent_impl {
         [[maybe_unused]]
         auto pinning_fullurl = resource.request_url.append_path(url_path);
 
+        if (not url_path.empty()) {
         if (char_to_wchar(url_path, converted_url)) {
           return http_result{ ::GetLastError() };
+        }
+        } else {
+          converted_url = L"";
         }
 
         return request_impl(converted_url, resource, std::forward<Args>(args)...);
