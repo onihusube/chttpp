@@ -1362,7 +1362,11 @@ namespace chttpp::detail::inline config {
     authorization_config auth{};
   };
 
+#ifdef __cpp_lib_move_only_function
+  using streaming_callback = std::move_only_function<void(std::span<const char>)>;
+#else
   using streaming_callback = std::function<void(std::span<const char>)>;
+#endif
 
 #define common_request_config \
     vector_t<std::pair<std::string_view, std::string_view>> headers{}; \
@@ -1401,7 +1405,7 @@ namespace chttpp::detail::inline config {
 #endif
     vector_t<std::pair<std::string_view, std::string_view>> params{};
     authorization_config auth{};
-    streaming_callback streaming_reciever{};
+    streaming_callback streaming_receiver{};
   };
 }
 

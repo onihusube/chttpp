@@ -47,5 +47,5 @@ void http_config_test() {
   // agentのリクエスト時設定のテスト
 
   //test_agent_req("https://example.com", { .streaming_reciever = reentrant_function{[](std::span<const char>) {}} });
-  test_agent_req("https://example.com", { .streaming_reciever = [](std::span<const char>) {} });
+  test_agent_req("https://example.com", { .streaming_receiver = [](std::span<const char>) {} });
 }

@@ -1211,7 +1211,7 @@ int main() {
       chunked_response.emplace_back(data.begin(), data.end());
     };
 
-    req.request<get>("", { .streaming_reciever = callback })
+    req.request<get>("", { .streaming_receiver = callback })
       .then([&](auto &&response) {
         ut::expect(response.status_code.OK()) << response.status_code.value();
         ut::expect(response.body.empty());
