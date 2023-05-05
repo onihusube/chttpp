@@ -690,6 +690,7 @@ namespace chttpp::underlying::agent_impl {
 
     chttpp::cookie_management cookie_management;
     chttpp::follow_redirects follow_redirect;
+    chttpp::automatic_decompression auto_decomp;
 
     // agentの状態詳細など（agentでしか使わないバッファなどはsession_stateに置かないようにする）
     winhttp_session_state state{};
@@ -797,11 +798,15 @@ namespace chttpp::underlying::agent_impl {
     }
 
     if constexpr (has_request_body or is_get or is_opt) {
+      if (resource.auto_decomp.enabled()) {
       // レスポンスデータを自動で解凍する
+        // libcurlと異なりwinhttpの場合、ここの設定はユーザーのヘッダ指定を上書きする
+        // 従って、Accept-Encodingの指定と自動解凍設定を分離できない・・・
       DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
       if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
         return http_result{ ::GetLastError() };
       }
+    }
     }
 
     if (resource.follow_redirect == follow_redirects::disable) {
