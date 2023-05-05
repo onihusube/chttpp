@@ -26,22 +26,26 @@ namespace chttpp::underlying {
     static constexpr DWORD url_error_value = ERROR_WINHTTP_INVALID_URL;
 
     static auto error_to_string(DWORD err) -> string_t {
-      constexpr std::size_t max_len = 192;
+      constexpr std::ptrdiff_t max_len = 192;
       string_t str{};
       str.resize(max_len);
 
-      if (const std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, str.data(), max_len, nullptr); len == 0) {
-        // 失敗（対応する文字列表現が見つからないとき）
-        const auto [_, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} (see https://learn.microsoft.com/en-us/windows/win32/winhttp/error-messages).", err);
-
+      // まずエラーコードを記載
+      const auto [add_pos, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} ", err);
         assert(msglen <= max_len);
+
+      if (const std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, std::to_address(add_pos), static_cast<DWORD>(max_len - msglen), nullptr); len == 0) {
+        // 失敗（対応する文字列表現が見つからないとき）
         // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
         str.resize(msglen);
+
+        // おそらく説明が記載されているリンクを付加
+        str.append("(see https://learn.microsoft.com/en-us/windows/win32/winhttp/error-messages).");
       } else {
         // lenは終端\0を含まない長さ
         assert(len <= max_len);
         // null文字の位置を変更する（切り詰める）だけなのでアロケートは発生しないはず
-        str.resize(len);
+        str.resize(msglen + len);
       }
 
       // 暗黙ムーブ
