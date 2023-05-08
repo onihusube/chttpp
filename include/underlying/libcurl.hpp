@@ -148,12 +148,12 @@ namespace chttpp::underlying {
     plist.reset(curl_slist_append(ptr, value));
   }
 
-  template<typename T, std::invocable<T&, char*, std::size_t> auto reciever>
+  template<typename T, std::invocable<T&, char*, std::size_t> auto receiver>
   auto write_callback(char* data_ptr, std::size_t one, std::size_t length, void* buffer_ptr) -> std::size_t {
     auto& buffer_obj = *reinterpret_cast<T*>(buffer_ptr);
     const std::size_t data_len = one * length;  // 第二引数(one)は常に1
 
-    reciever(buffer_obj, data_ptr, data_len);
+    receiver(buffer_obj, data_ptr, data_len);
 
     // 返さないと失敗扱い
     return data_len;
@@ -793,13 +793,13 @@ namespace chttpp::underlying::agent_impl {
 
     // レスポンスボディコールバックの指定
     if constexpr (has_request_body or is_get or is_opt) {
-      if (req_cfg.streaming_reciever) {
+      if (req_cfg.streaming_receiver) {
         // カスタムのコールバックによる応答本文受け取り
-        auto* body_recieve = write_callback<decltype(req_cfg.streaming_reciever), [](decltype(req_cfg.streaming_reciever)& callback, char* data_ptr, std::size_t data_len) {
+        auto* body_recieve = write_callback<decltype(req_cfg.streaming_receiver), [](decltype(req_cfg.streaming_receiver)& callback, char* data_ptr, std::size_t data_len) {
           callback(std::span<const char>{data_ptr, data_len});
         }>;
         curl_easy_setopt(session.get(), CURLOPT_WRITEFUNCTION, body_recieve);
-        curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &req_cfg.streaming_reciever);
+        curl_easy_setopt(session.get(), CURLOPT_WRITEDATA, &req_cfg.streaming_receiver);
       } else {
         // デフォルトのコールバック
         auto* body_recieve = write_callback<decltype(body), [](decltype(body)& buffer, char* data_ptr, std::size_t data_len) {

@@ -732,7 +732,7 @@ int main() {
 
     auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", {.content_type = text/html });
 
-    ut::expect(bool(result) >> ut::fatal);
+    ut::expect(bool(result) >> ut::fatal) << result.error_message();
     ut::expect(result.status_code() == 200) << result.status_code().value();
 /*
 なんかこんな感じのが得られるはず
