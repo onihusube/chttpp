@@ -450,6 +450,14 @@ namespace chttpp {
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
     }
 
+    auto get(string_view url_path, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+      return this->request<get>(url_path, std::move(req_cfg));
+    }
+
+    auto post(string_view url_path, byte_serializable auto&& request_body, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+      return this->request<post>(url_path, request_body, std::move(req_cfg));
+    }
+
   private:
 
     void merge_header(umap_t<string_t, string_t>&& add_headers) {
