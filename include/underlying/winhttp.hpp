@@ -32,7 +32,7 @@ namespace chttpp::underlying {
 
       // まずエラーコードを記載
       const auto [add_pos, msglen] = std::format_to_n(str.begin(), max_len, "GetLastError() = {} ", err);
-        assert(msglen <= max_len);
+      assert(msglen <= max_len);
 
       if (const std::size_t len = ::FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, err, LANG_USER_DEFAULT, std::to_address(add_pos), static_cast<DWORD>(max_len - msglen), nullptr); len == 0) {
         // 失敗（対応する文字列表現が見つからないとき）
@@ -112,10 +112,12 @@ namespace chttpp::underlying {
   }
 
   auto char_to_wchar(std::string_view cstr, wstring_t& out) -> bool {
-    const std::size_t converted_len = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
+    const int converted_len = ::MultiByteToWideChar(CP_ACP, 0, cstr.data(), static_cast<int>(cstr.length()), nullptr, 0);
+
+    assert(0 <= converted_len);
     
     out.resize(converted_len);
-    int res = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED | MB_ERR_INVALID_CHARS, cstr.data(), static_cast<int>(cstr.length()), out.data(), static_cast<int>(converted_len));
+    int res = ::MultiByteToWideChar(CP_ACP, 0, cstr.data(), static_cast<int>(cstr.length()), out.data(), converted_len);
 
     return res == 0;
   }
@@ -127,13 +129,16 @@ namespace chttpp::underlying {
   inline auto to_string(std::wstring_view wstr) -> string_t {
     assert(not wstr.empty());
 
-    // この長さはnull文字を含む
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
-    
-    string_t converted_str{};
-    converted_str.resize(converted_len - 1);
+    const int converted_len = ::WideCharToMultiByte(CP_ACP, 0, wstr.data(), static_cast<int>(wstr.length()), nullptr, 0, nullptr, nullptr);
 
-    if (::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, converted_str.data(), static_cast<int>(converted_str.length()), nullptr, nullptr) != 0) {
+    assert(0 <= converted_len);
+
+    string_t converted_str(converted_len, '\0');
+
+    const auto reslen = ::WideCharToMultiByte(CP_ACP, 0, wstr.data(), static_cast<int>(wstr.length()), converted_str.data(), converted_len, nullptr, nullptr);
+
+    if (reslen != 0) {
+      converted_str.resize(std::string_view{converted_str.data()}.length());
       return converted_str;
     } else {
       converted_str.clear();
@@ -142,17 +147,25 @@ namespace chttpp::underlying {
   }
 
   inline auto wchar_to_char(std::wstring_view wstr, string_t& out) -> bool {
-    // この長さはnull文字を含む
-    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
-
-    // 入力が空？
-    if (converted_len <= 1) {
-      return true;
+    if (wstr.empty()) {
+      out = "";
+      return false;
     }
 
-    out.resize(converted_len - 1);
+    // この長さはnull文字を含む
+    const std::size_t converted_len = ::WideCharToMultiByte(CP_ACP, 0, wstr.data(), -1, nullptr, 0, nullptr, nullptr);
 
-    return ::WideCharToMultiByte(CP_ACP, WC_NO_BEST_FIT_CHARS, wstr.data(), -1, out.data(), static_cast<int>(out.length()), nullptr, nullptr) == 0;
+    assert(0 <= converted_len);
+
+    out.resize(converted_len);
+
+    const bool failed = ::WideCharToMultiByte(CP_ACP, 0, wstr.data(), -1, out.data(), static_cast<int>(out.length()), nullptr, nullptr) == 0;
+
+    if (not failed) {
+      out.resize(std::string_view{out.data()}.length());
+    }
+
+    return failed;
   }
 
 
@@ -768,7 +781,7 @@ namespace chttpp::underlying::agent_impl {
 
 
   template<typename MethodTag>
-  auto request_impl(std::wstring_view url_path, agent_resource& resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
+  auto request_impl(std::wstring_view, agent_resource& resource, detail::agent_request_config&& req_cfg, [[maybe_unused]] std::span<const char> req_body, MethodTag) -> http_result {
     // メソッドタイプ判定
     constexpr bool has_request_body = detail::tag::has_reqbody_method<MethodTag>;
 
@@ -789,22 +802,29 @@ namespace chttpp::underlying::agent_impl {
     auto& state = resource.state;
 
     // ホスト名がきちんとしていないとWinHttpCrackUrl()は分解してくれない（エラーコード 12006 で失敗する）
-    hinet request{state.buffer.use([&](wstring_t& full_url) -> ::HINTERNET {
-      // パス解析のためにURLの頭はでっちあげる
-      full_url = L"http://example.com";
+    hinet request{state.buffer.use([&](wstring_t& request_path) -> ::HINTERNET {
+      
+      // リクエストパス全体の取得と文字コード変換
+      const auto req_path = resource.request_url.request_path();
 
-      // ホストとパスの間の/を補う
-      if (url_path.front() != L'/') {
-        full_url.append(1, L'/');
+      if (char_to_wchar(req_path, request_path)) {
+        return nullptr;
       }
 
-      full_url.append(url_path);
+      {
+        // ここでは先頭は何でもいいのでなんかでっちあげる
+        constexpr std::wstring_view url_head = L"http://example.com";
+
+        // なんかうまい事メモリ確保回避したい
+        request_path.reserve(request_path.length() + url_head.length());
+        request_path.insert(0, url_head);
+      }
 
       // pathの解析
-      // URL_COMPONENTSは元の文字列の一部を参照するだけなので、full_urlはこれが使用される間は生存していなければならない
+      // URL_COMPONENTSは元の文字列の一部を参照するだけなので、request_pathはこれが使用される間は生存していなければならない
       ::URL_COMPONENTS url_path_component{ .dwStructSize = sizeof(::URL_COMPONENTS), .dwUrlPathLength = (DWORD)-1, .dwExtraInfoLength = (DWORD)-1 };
 
-      if (not ::WinHttpCrackUrl(full_url.data(), static_cast<DWORD>(full_url.length()), 0, &url_path_component)) {
+      if (not ::WinHttpCrackUrl(request_path.data(), static_cast<DWORD>(request_path.length()), 0, &url_path_component)) {
         return nullptr;
       }
 
@@ -857,14 +877,14 @@ namespace chttpp::underlying::agent_impl {
 
     if constexpr (has_request_body or is_get or is_opt) {
       if (resource.auto_decomp.enabled()) {
-      // レスポンスデータを自動で解凍する
+        // レスポンスデータを自動で解凍する
         // libcurlと異なりwinhttpの場合、ここの設定はユーザーのヘッダ指定を上書きする
         // 従って、Accept-Encodingの指定と自動解凍設定を分離できない・・・
-      DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
-      if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
-        return http_result{ ::GetLastError() };
+        DWORD auto_decomp_opt = WINHTTP_DECOMPRESSION_FLAG_ALL;
+        if (not ::WinHttpSetOption(request.get(), WINHTTP_OPTION_DECOMPRESSION, &auto_decomp_opt, sizeof(auto_decomp_opt))) {
+          return http_result{ ::GetLastError() };
+        }
       }
-    }
     }
 
     if (resource.follow_redirect == follow_redirects::disable) {
@@ -1065,9 +1085,9 @@ namespace chttpp::underlying::agent_impl {
         auto pinning_fullurl = resource.request_url.append_path(url_path);
 
         if (not url_path.empty()) {
-        if (char_to_wchar(url_path, converted_url)) {
-          return http_result{ ::GetLastError() };
-        }
+          if (char_to_wchar(url_path, converted_url)) {
+            return http_result{ ::GetLastError() };
+          }
         } else {
           converted_url = L"";
         }
