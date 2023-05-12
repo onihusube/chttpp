@@ -27,6 +27,7 @@ void http_result_test() {
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
   using chttpp::detail::http_response;
+  using chttpp::detail::error_code;
 
   static_assert(not std::copyable<http_response>);
   static_assert(std::movable<http_response>);
@@ -141,5 +142,26 @@ void http_result_test() {
     });
 
     ut::expect(count == 2);
+  };
+
+  "match"_test = [] {
+    hr_ok().match(
+      [](http_response&& res) {
+        ut::expect(res.body.empty());
+      },
+      [](auto&&) {
+        ut::expect(false);
+      });
+
+    [[maybe_unused]]
+    constexpr auto err_v = ::chttpp::underlying::lib_error_code_tratis::no_error_value;
+
+    hr_err().match(
+        [](http_response &&) {
+          ut::expect(false);
+        },
+        [](error_code &&err) {
+          ut::expect(err == err_v);
+        });
   };
 }

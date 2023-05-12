@@ -184,6 +184,20 @@ namespace chttpp::detail {
       }, std::move(this->m_either)).catch_error(std::forward<F>(func));
     }
 
+    template<std::invocable<http_response&&> F, std::invocable<error_code&&> EH>
+    void match(F&& on_success, EH&& on_error) && {
+      using ret_then_t = then_impl<http_response, error_code>;
+      
+      return std::visit(overloaded{
+        [](http_response&& value) {
+          return ret_then_t{ std::move(value)};
+        },
+        [](error_code&& err) {
+          return ret_then_t{ std::move(err)};
+        },
+      }, std::move(this->m_either)).match(std::forward<F>(on_success), std::forward<EH>(on_error));
+    }
+
     /**
      * @brief 結果を文字列として任意の継続処理を実行する
      * @param f std::string_viewを1つ受けて呼び出し可能なもの

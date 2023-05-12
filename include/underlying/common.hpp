@@ -460,6 +460,24 @@ chttpp::get(...).then([](auto&& hr) {
     } catch (...) {
       return then_impl{std::current_exception()};
     }
+
+    template<std::invocable<T&&> F, std::invocable<E&&> EH>
+    void match(F&& on_success, EH&& on_error) && {
+      std::visit(overloaded{
+          [&](T&& v) {
+            std::invoke(std::forward<F>(on_success), std::move(v));
+          },
+          [&](E&& err) {
+            std::invoke(std::forward<EH>(on_error), std::move(err));
+          },
+          [&](std::exception_ptr&& exptr) {
+            if constexpr (std::invocable<EH, std::exception_ptr&&>) {
+              std::invoke(std::forward<EH>(on_error), std::move(exptr));
+            }
+          }
+        }, std::move(this->outcome));
+    }
+
   };
 }
 
