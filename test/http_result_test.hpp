@@ -163,5 +163,41 @@ void http_result_test() {
         [](error_code &&err) {
           ut::expect(err == err_v);
         });
+
+    auto n = hr_ok().match(
+      [](http_response&& res) {
+        ut::expect(res.body.empty());
+        return 10u;
+      },
+      [](auto&&) {
+        ut::expect(false);
+        return 0;
+      });
+
+    ut::expect(*n == 10u);
+
+    auto d = hr_err().match(
+      [](http_response&&) {
+        ut::expect(false);
+        return 0.0f;
+      },
+      [](error_code&& err) {
+        ut::expect(err == err_v);
+        return 3.1415;
+      });
+
+    ut::expect(*d == 3.1415);
+
+    auto opt = hr_exptr().match(
+      [](int) {
+        ut::expect(false);
+        return 0.0f;
+      },
+      [](error_code&&) {
+        ut::expect(false);
+        return 3.1415;
+      });
+
+    ut::expect(opt == std::nullopt);
   };
 }

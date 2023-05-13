@@ -312,7 +312,10 @@ namespace chttpp::detail {
   using void_to_monostate = std::conditional_t<std::same_as<std::remove_cvref_t<T>, void>, std::monostate, std::remove_cvref_t<T>>;
 
   template<typename T, typename E>
-    requires (not std::same_as<T, E>)
+    requires requires {
+      // 短絡評価によって、右辺の制約を省略してる
+      requires (not std::same_as<T, E>) || std::same_as<T, std::monostate>;
+    }
   struct then_impl {
     std::variant<T, E, std::exception_ptr> outcome;
     using V = std::variant<T, E, std::exception_ptr>;
@@ -321,7 +324,7 @@ namespace chttpp::detail {
       : outcome{std::in_place_index<0>, std::move(value)}
     {}
 
-    then_impl(E&& err)
+    then_impl(E&& err) requires (not std::same_as<T, E>)
       : outcome{std::in_place_index<1>, std::move(err)}
     {}
 
@@ -462,20 +465,39 @@ chttpp::get(...).then([](auto&& hr) {
     }
 
     template<std::invocable<T&&> F, std::invocable<E&&> EH>
-    void match(F&& on_success, EH&& on_error) && {
-      std::visit(overloaded{
+    auto match(F&& on_success, EH&& on_error) && noexcept {
+      using SR = std::remove_cvref_t<std::invoke_result_t<F&&, T&&>>;
+      using ER = std::remove_cvref_t<std::invoke_result_t<EH&&, E&&>>;
+
+      if constexpr (std::is_same_v<SR, void> and std::is_same_v<ER, void>) {
+        std::visit(overloaded{
           [&](T&& v) {
             std::invoke(std::forward<F>(on_success), std::move(v));
           },
           [&](E&& err) {
             std::invoke(std::forward<EH>(on_error), std::move(err));
           },
-          [&](std::exception_ptr&& exptr) {
-            if constexpr (std::invocable<EH, std::exception_ptr&&>) {
-              std::invoke(std::forward<EH>(on_error), std::move(exptr));
-            }
+          [&](std::exception_ptr&&) {}
+        }, std::move(this->outcome));
+
+        return;
+      } else if constexpr (requires { typename std::common_type_t<SR, ER>; }) {
+        using ret_t = std::optional<std::common_type_t<SR, ER>>;
+
+        return std::visit(overloaded{
+          [&](T&& v) {
+            return ret_t{ std::invoke(std::forward<F>(on_success), std::move(v)) };
+          },
+          [&](E&& err) {
+            return ret_t{ std::invoke(std::forward<EH>(on_error), std::move(err)) };
+          },
+          [&](std::exception_ptr&&) {
+            return ret_t{ std::nullopt };
           }
         }, std::move(this->outcome));
+      } else {
+        static_assert([] {return false; }(), "Success and error return types cannot be deduced to a common type.");
+      }
     }
 
   };

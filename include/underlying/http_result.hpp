@@ -185,7 +185,7 @@ namespace chttpp::detail {
     }
 
     template<std::invocable<http_response&&> F, std::invocable<error_code&&> EH>
-    void match(F&& on_success, EH&& on_error) && {
+    auto match(F&& on_success, EH&& on_error) && noexcept {
       using ret_then_t = then_impl<http_response, error_code>;
       
       return std::visit(overloaded{
