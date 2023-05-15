@@ -185,17 +185,35 @@ namespace chttpp::detail {
     }
 
     template<std::invocable<http_response&&> F, std::invocable<error_code&&> EH>
-    auto match(F&& on_success, EH&& on_error) && noexcept {
-      using ret_then_t = then_impl<http_response, error_code>;
-      
-      return std::visit(overloaded{
-        [](http_response&& value) {
-          return ret_then_t{ std::move(value)};
-        },
-        [](error_code&& err) {
-          return ret_then_t{ std::move(err)};
-        },
-      }, std::move(this->m_either)).match(std::forward<F>(on_success), std::forward<EH>(on_error));
+    auto match(F&& on_success, EH&& on_error) && {
+      using SR = std::remove_cvref_t<std::invoke_result_t<F&&, http_response&&>>;
+      using ER = std::remove_cvref_t<std::invoke_result_t<EH&&, error_code&&>>;
+
+      if constexpr (std::is_same_v<SR, void> and std::is_same_v<ER, void>) {
+        std::visit(overloaded{
+          [&](http_response&& v) {
+            std::invoke(std::forward<F>(on_success), std::move(v));
+          },
+          [&](error_code&& err) {
+            std::invoke(std::forward<EH>(on_error), std::move(err));
+          }
+        }, std::move(this->m_either));
+
+        return;
+      } else if constexpr (requires { typename std::common_type_t<SR, ER>; }) {
+        using ret_t = std::common_type_t<SR, ER>;
+
+        return std::visit(overloaded{
+          [&](http_response&& v) {
+            return ret_t(std::invoke(std::forward<F>(on_success), std::move(v)));
+          },
+          [&](error_code&& err) {
+            return ret_t(std::invoke(std::forward<EH>(on_error), std::move(err)));
+          }
+        }, std::move(this->m_either));
+      } else {
+        static_assert([] {return false; }(), "Success and error return types cannot be deduced to a common type.");
+      }
     }
 
     /**

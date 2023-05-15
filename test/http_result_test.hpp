@@ -174,7 +174,7 @@ void http_result_test() {
         return 0;
       });
 
-    ut::expect(*n == 10u);
+    ut::expect(n == 10u);
 
     auto d = hr_err().match(
       [](http_response&&) {
@@ -186,7 +186,7 @@ void http_result_test() {
         return 3.1415;
       });
 
-    ut::expect(*d == 3.1415);
+    ut::expect(d == 3.1415);
 
     auto opt = hr_exptr().match(
       [](int) {
