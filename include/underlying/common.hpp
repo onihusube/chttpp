@@ -285,6 +285,99 @@ namespace chttpp::detail {
 }
 
 namespace chttpp::detail {
+
+  template<typename...>
+  struct check_handler_impl;
+
+  template<>
+  struct check_handler_impl<> {
+    static void call_handler(auto&, const std::exception_ptr& exptr) {
+      std::rethrow_exception(exptr);
+    }
+  };
+
+  template<typename Head, typename... Args>
+  struct check_handler_impl<Head, Args...> {
+
+    static void call_handler(std::invocable<Head> auto& handler, const std::exception_ptr& exptr) {
+      try {
+        check_handler_impl<Args...>::call_handler(handler, exptr);
+      } catch(Head ex) {
+        // Headを受けられるならば、catchを追加
+        std::invoke(handler, ex);
+      }
+    }
+
+    static void call_handler(auto& handler, const std::exception_ptr& exptr) {
+      check_handler_impl<Args...>::call_handler(handler, exptr);
+    }
+  };
+
+  class exptr_wrapper {
+    std::exception_ptr m_exptr;
+
+    template<typename... T>
+    bool visit_impl(auto& handler) const & {
+      try {
+        check_handler_impl<
+          T...,
+          const std::exception&,
+          const std::string&,
+          const std::wstring&,
+          const char*,
+          const wchar_t*,
+          signed long long,
+          unsigned long long,
+          signed long,
+          unsigned long,
+          signed int,
+          unsigned int,
+          signed short,
+          unsigned short,
+          signed char,
+          unsigned char,
+          bool
+        >::call_handler(handler, m_exptr);
+      } catch(...) {
+        // なんもしない（でいい？
+        return false;
+      }
+
+      return true;
+    }
+
+  public:
+    exptr_wrapper()
+      : m_exptr{std::current_exception()}
+    {
+      assert(bool(m_exptr));
+    }
+
+    exptr_wrapper(exptr_wrapper&&) = default;
+    exptr_wrapper& operator=(exptr_wrapper&&) & = default;
+    //exptr_wrapper(const exptr_wrapper&) = default;
+    //exptr_wrapper& operator=(const exptr_wrapper&) & = default;
+
+    [[noreturn]]
+    void rethrow() const {
+      assert(bool(m_exptr));
+      std::rethrow_exception(m_exptr);
+    }
+
+    template<typename T>
+    friend bool visit(std::in_place_type_t<T>, std::invocable<T> auto&& handler, const exptr_wrapper& self) {
+      assert(bool(m_exptr));
+      return self.visit_impl<T>(handler);
+    }
+
+    friend bool visit(auto&& handler, const exptr_wrapper& self) {
+      assert(bool(m_exptr));
+      return self.visit_impl<>(handler);
+    }
+  };
+}
+
+namespace chttpp::detail {
   /**
 	* @brief オーバーロード関数オブジェクトを生成する
 	* @tparam Fs... オーバーロードする関数呼び出し可能な型のリスト
