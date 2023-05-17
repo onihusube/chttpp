@@ -19,12 +19,13 @@ namespace chttpp::detail {
   using std::ranges::size;
 
   template<typename CharT>
-  concept character = 
-    std::same_as<CharT, char> or
-    std::same_as<CharT, wchar_t> or 
-    std::same_as<CharT, char8_t> or
-    std::same_as<CharT, char16_t> or
-    std::same_as<CharT, char32_t>;
+  concept character = requires {
+    requires std::is_same_v<CharT, char> or
+             std::is_same_v<CharT, wchar_t> or 
+             std::is_same_v<CharT, char8_t> or
+             std::is_same_v<CharT, char16_t> or
+             std::is_same_v<CharT, char32_t>;
+  };
 
   struct enable_move_only {
     enable_move_only() = default;
@@ -39,7 +40,6 @@ namespace chttpp::detail {
   struct http_response : enable_move_only {
     vector_t<char> body;
     header_t headers;
-    //std::uint16_t status_code;
     http_status_code status_code;
   };
 
@@ -111,7 +111,7 @@ namespace chttpp::detail {
     }
 
     template<substantial ElementType>
-    auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<const ElementType> {
+    auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<ElementType> {
       assert(bool(*this));
       auto& response = std::get<0>(m_either);
       const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
@@ -120,7 +120,7 @@ namespace chttpp::detail {
     }
 
     template<substantial ElementType>
-    auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<ElementType> {
+    auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<const ElementType> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_either);
       const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
