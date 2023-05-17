@@ -40,6 +40,14 @@ auto throw_true() -> chttpp::detail::exptr_wrapper {
   }
 }
 
+auto throw_optint() -> chttpp::detail::exptr_wrapper {
+  try {
+    throw std::optional<int>{20};
+  } catch (...) {
+    return chttpp::detail::exptr_wrapper{};
+  }
+}
+
 void exptr_wrapper_test() {
   using namespace std::string_view_literals;
   using namespace boost::ut::literals;
@@ -88,11 +96,10 @@ void exptr_wrapper_test() {
       }, exptr_runtimerr)
     );
 
-    // 現状、標準例外型はリストにない。std::exceptionで受けることを想定
     ut::expect(
-      visit([](const std::runtime_error&) {
-        ut::expect(false);
-      }, exptr_runtimerr) == false
+      visit([](const std::runtime_error& ex) {
+        ut::expect(ex.what() == "test runtime_error"sv);
+      }, exptr_runtimerr)
     );
 
     auto exptr_bool = throw_true();
@@ -105,13 +112,22 @@ void exptr_wrapper_test() {
   };
 
   "exptr_wrapper visit<T>"_test = [] {
-    auto exptr_runtimerr = throw_exception();
+    auto exptr_opt = throw_optint();
 
+    // デフォルトではあらかじめ登録されていない型以外は呼べない
     ut::expect(
-      visit(std::in_place_type<const std::runtime_error&>,
-        [](const std::runtime_error& ex) {
-          ut::expect(ex.what() == "test runtime_error"sv);
-        }, exptr_runtimerr)
+      visit([](const std::optional<int>&) {
+        ut::expect(false);
+      }, exptr_opt) == false
     );
+
+    // 明示的に型を指定する
+    ut::expect(
+      visit(std::in_place_type<const std::optional<int>&>, [](const std::optional<int>& opt) {
+        ut::expect(opt.has_value());
+        ut::expect(opt == 20);
+      }, exptr_opt)
+    );
+
   };
 }

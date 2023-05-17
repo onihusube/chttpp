@@ -322,6 +322,8 @@ namespace chttpp::detail {
         check_handler_impl<
           T...,
           const std::exception&,
+          const std::runtime_error&,
+          const std::logic_error&,
           const std::string&,
           const std::wstring&,
           const char*,
@@ -366,15 +368,23 @@ namespace chttpp::detail {
 
     template<typename T>
     friend bool visit(std::in_place_type_t<T>, std::invocable<T> auto&& handler, const exptr_wrapper& self) {
-      assert(bool(m_exptr));
+      assert(bool(self.m_exptr));
       return self.visit_impl<T>(handler);
     }
 
     friend bool visit(auto&& handler, const exptr_wrapper& self) {
-      assert(bool(m_exptr));
+      assert(bool(self.m_exptr));
       return self.visit_impl<>(handler);
     }
   };
+
+  template<typename F>
+  struct exception_handler : F {
+    using F::operator();
+  };
+
+  template<typename F>
+  exception_handler(F&&) -> exception_handler<F>;
 }
 
 namespace chttpp::detail {
@@ -398,11 +408,31 @@ namespace chttpp::detail {
     std::invocable<F, Args...> and
     std::same_as<R, std::invoke_result_t<F, Args...>>;
 
+  template <template<class> typename S, typename T>
+  inline constexpr bool is_specialization_v = false;
+
+  template <template<class> typename S, typename T>
+  inline constexpr bool is_specialization_v<S, S<T>> = true;
+
+  /**
+   * @brief `T`が`S`の特殊化であることを表すコンセプト
+   */
+  template <typename T, template <class> typename S>
+  concept specialization_of = is_specialization_v<S, std::remove_cvref_t<T>>;
+
   /**
    * @brief `T`がvoidならmonostateに変換する
    */
   template <typename T>
   using void_to_monostate = std::conditional_t<std::same_as<std::remove_cvref_t<T>, void>, std::monostate, std::remove_cvref_t<T>>;
+
+  /**
+   * @brief catch節のなかで、exptr_wrapperを構築する際に指定するタグ型
+   */
+  struct from_exception_ptr_t { explicit from_exception_ptr_t() = default; };
+
+  inline constexpr from_exception_ptr_t from_exception_ptr{};
+
 
   template<typename T, typename E>
     requires requires {
@@ -410,8 +440,8 @@ namespace chttpp::detail {
       requires (not std::same_as<T, E>) || std::same_as<T, std::monostate>;
     }
   struct then_impl {
-    std::variant<T, E, std::exception_ptr> outcome;
-    using V = std::variant<T, E, std::exception_ptr>;
+    std::variant<T, E, exptr_wrapper> outcome;
+    using V = std::variant<T, E, exptr_wrapper>;
 
     then_impl(T&& value)
       : outcome{std::in_place_index<0>, std::move(value)}
@@ -421,8 +451,8 @@ namespace chttpp::detail {
       : outcome{std::in_place_index<1>, std::move(err)}
     {}
 
-    then_impl(std::exception_ptr&& exptr)
-      : outcome{std::in_place_index<2>, std::move(exptr)}
+    then_impl(from_exception_ptr_t)
+      : outcome{std::in_place_index<2>}
     {}
 
     /**
@@ -458,7 +488,7 @@ namespace chttpp::detail {
           return std::move(*this);
         } catch (...) {
           // 実質、Tを保持している場合にのみここに来るはず
-          this->outcome.template emplace<2>(std::current_exception());
+          this->outcome.template emplace<2>();
           return std::move(*this);
         }
       } else {
@@ -480,12 +510,12 @@ namespace chttpp::detail {
               [](E&& err) {
                 return ret_then_t{ std::move(err)};
               },
-              [](std::exception_ptr&& exptr) {
-                return ret_then_t{ std::move(exptr)};
+              [](exptr_wrapper&& exptr) {
+                return ret_then_t{ std::in_place_index<2>, std::move(exptr)};
               }
             }, std::move(this->outcome));
         } catch (...) {
-          return ret_then_t{ std::current_exception() };
+          return ret_then_t{ from_exception_ptr };
         }
       }
 
@@ -524,8 +554,8 @@ chttpp::get(...).then([](auto&& hr) {
           [](T&& v) {
             return ret_then_t{ std::move(v)};
           },
-          [](std::exception_ptr &&exptr) {
-            return ret_then_t{ std::move(exptr)};
+          [](exptr_wrapper&& exptr) {
+            return ret_then_t{ std::in_place_index<2>, std::move(exptr) };
           }
         }, std::move(this->outcome));
 
@@ -533,11 +563,11 @@ chttpp::get(...).then([](auto&& hr) {
       using ret_t = std::invoke_result_t<F, E&&>;
       using ret_then_t = then_impl<T, void_to_monostate<ret_t>>;
 
-      return ret_then_t{ std::current_exception()};
+      return ret_then_t{ from_exception_ptr };
     }
 
-    template<std::invocable<const std::exception_ptr&> F>
-      requires requires(F&& f, const std::exception_ptr& exptr) {
+    template<std::invocable<const exptr_wrapper&> F>
+      requires requires(F&& f, const exptr_wrapper& exptr) {
         {std::invoke(std::forward<F>(f), exptr)} -> std::same_as<void>;
       }
     auto catch_exception(F&& func) && noexcept -> then_impl try {
@@ -548,13 +578,32 @@ chttpp::get(...).then([](auto&& hr) {
           [](E &&err) {
             return then_impl{std::move(err)};
           },
-          [&](std::exception_ptr &&exptr) {
+          [&](exptr_wrapper&& exptr) {
             std::invoke(std::forward<F>(func), exptr);
-            return then_impl{std::move(exptr)};
+            return then_impl{ std::in_place_index<2>, std::move(exptr) };
           }
         }, std::move(this->outcome));
     } catch (...) {
-      return then_impl{std::current_exception()};
+      return then_impl{from_exception_ptr};
+    }
+
+    template<specialization_of<exception_handler> F>
+    auto catch_exception(F&& func) && noexcept -> then_impl try {
+      return std::visit(overloaded{
+          [](T&& v) {
+            return then_impl{std::move(v)};
+          },
+          [](E&& err) {
+            return then_impl{std::move(err)};
+          },
+          [&](exptr_wrapper&& exptr) {
+            // exception_handlerを通した場合、直でvisitに渡すことを意図しているものとして扱う
+            visit(func, exptr);
+            return then_impl{ std::in_place_index<2>, std::move(exptr) };
+          }
+        }, std::move(this->outcome));
+    } catch (...) {
+      return then_impl{from_exception_ptr};
     }
 
     template<std::invocable<T&&> F, std::invocable<E&&> EH>
@@ -570,7 +619,7 @@ chttpp::get(...).then([](auto&& hr) {
           [&](E&& err) {
             std::invoke(std::forward<EH>(on_error), std::move(err));
           },
-          [&](std::exception_ptr&&) {}
+          [&](exptr_wrapper&&) {}
         }, std::move(this->outcome));
 
         return;
@@ -584,7 +633,7 @@ chttpp::get(...).then([](auto&& hr) {
           [&](E&& err) {
             return ret_t{ std::invoke(std::forward<EH>(on_error), std::move(err)) };
           },
-          [&](std::exception_ptr&&) {
+          [&](exptr_wrapper&&) {
             return ret_t{ std::nullopt };
           }
         }, std::move(this->outcome));

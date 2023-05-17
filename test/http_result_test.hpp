@@ -26,8 +26,9 @@ void http_result_test() {
   using namespace boost::ut::literals;
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
-  using chttpp::detail::http_response;
   using chttpp::detail::error_code;
+  using chttpp::detail::exception_handler;
+  using chttpp::detail::http_response;
 
   static_assert(not std::copyable<http_response>);
   static_assert(std::movable<http_response>);
@@ -98,24 +99,14 @@ void http_result_test() {
       }).catch_error([](const auto&) {
         ut::expect(false);
       }).catch_exception([&](const auto& exptr) {
-        try {
-          std::rethrow_exception(exptr);
-        } catch (const std::runtime_error& re) {
+        ut::expect(visit([&](const std::runtime_error& re) {
           ut::expect(re.what() == "test throw"sv);
           ++count;
-        } catch (...) {
-          ut::expect(false);
-        }
-      }).catch_exception([&](const auto& exptr) {
-        try {
-          std::rethrow_exception(exptr);
-        } catch (const std::runtime_error& re) {
-          ut::expect(re.what() == "test throw"sv);
-          ++count;
-        } catch (...) {
-          ut::expect(false);
-        }
-      });
+        }, exptr));
+      }).catch_exception(exception_handler([&](const std::runtime_error& re) {
+        ut::expect(re.what() == "test throw"sv);
+        ++count;
+      }));
 
     ut::expect(count == 2);
   };
