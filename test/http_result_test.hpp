@@ -29,6 +29,7 @@ void http_result_test() {
   using chttpp::detail::error_code;
   using chttpp::detail::exception_handler;
   using chttpp::detail::http_response;
+  using chttpp::detail::exptr_wrapper;
 
   static_assert(not std::copyable<http_response>);
   static_assert(std::movable<http_response>);
@@ -136,6 +137,7 @@ void http_result_test() {
   };
 
   "match"_test = [] {
+    // 2引数void
     hr_ok().match(
       [](http_response&& res) {
         ut::expect(res.body.empty());
@@ -154,7 +156,33 @@ void http_result_test() {
         [](error_code &&err) {
           ut::expect(err == err_v);
         });
+    
+    // 3引数void
+    hr_ok().match(
+      [](http_response&& res) {
+        ut::expect(res.body.empty());
+      },
+      [](auto&&) {
+        ut::expect(false);
+      },
+      [](exptr_wrapper&&) {
+        ut::expect(false);
+      });
+    
+    hr_exptr().match(
+      [](int) {
+        ut::expect(false);
+      },
+      [](error_code&&) {
+        ut::expect(false);
+      },
+      [](exptr_wrapper&& exptr) {
+        ut::expect(visit([](const std::runtime_error& re) {
+          ut::expect(re.what() == "test throw"sv);
+        }, exptr));
+      });
 
+    // 2引数非void
     auto n = hr_ok().match(
       [](http_response&& res) {
         ut::expect(res.body.empty());
@@ -190,5 +218,49 @@ void http_result_test() {
       });
 
     ut::expect(opt == std::nullopt);
+
+    // 3引数非void
+    auto n2 = hr_ok().match(
+      [](http_response&& res) {
+        ut::expect(res.body.empty());
+        return 10l;
+      },
+      [](auto&&) {
+        ut::expect(false);
+        return 0;
+      },
+      [](exptr_wrapper&&) {
+        ut::expect(false);
+        return -1;
+      });
+    
+    ut::expect(n2 == 10l);
+
+    // デフォルト値の指定
+    auto r1 = hr_err().match(
+        [](http_response &&) {
+          ut::expect(false);
+          return 0.0;
+        },
+        [](error_code &&err) {
+          ut::expect(err == err_v);
+          return 1.0;
+        },
+        -1.0);
+      
+    ut::expect(r1 == 1.0);
+
+    auto r2 = hr_exptr().match(
+        [](int) {
+          ut::expect(false);
+          return 0;
+        },
+        [](error_code&&) {
+          ut::expect(false);
+          return 1;
+        },
+        20);
+      
+    ut::expect(r2 == 20);
   };
 }
