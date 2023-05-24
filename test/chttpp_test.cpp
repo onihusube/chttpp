@@ -70,8 +70,8 @@ int main() {
     parse_response_header_oneline(headers, "HTTP/1.1 200 OK"sv);
 
     ut::expect(headers.size() == 1);
-    ut::expect(headers.contains("HTTP Ver"));
-    ut::expect(headers["HTTP Ver"] == "HTTP/1.1 200 OK"sv);
+    ut::expect(headers.contains("http-status-line"));
+    ut::expect(headers["http-status-line"] == "HTTP/1.1 200 OK"sv);
 
     parse_response_header_oneline(headers, "cache-control: max-age=604800");
 
@@ -1013,7 +1013,7 @@ int main() {
 
       ut::expect(bool(result) >> ut::fatal);
       ut::expect(result.status_code().OK()) << result.status_code().value();
-      const auto ver = result.response_header(HTTP_ver);
+      const auto ver = result.response_header(http_status);
       ut::expect(ver == "HTTP/1.1 200 OK") << ver;
     }
     {
@@ -1023,7 +1023,7 @@ int main() {
 
       ut::expect(bool(result) >> ut::fatal) << result.error_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
-      const auto ver = result.response_header(HTTP_ver);
+      const auto ver = result.response_header(http_status);
       ut::expect(ver == "HTTP/1.1 200 OK") << ver;
     }
   };
