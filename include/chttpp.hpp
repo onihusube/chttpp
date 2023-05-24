@@ -325,11 +325,11 @@ namespace chttpp::detail {
 
     using tag_t = MethodTag;
 
-    auto operator()(nt_string_view URL, request_config_for_get cfg = {}) const -> http_result {
+    auto operator()(nt_string_view URL, request_config_for_get cfg = {}) const noexcept -> http_result {
       return chttpp::underlying::terse::request_impl(URL, std::move(cfg), std::span<const char>{}, MethodTag{});
     }
 
-    auto operator()(nt_wstring_view URL, request_config_for_get cfg = {}) const -> http_result {
+    auto operator()(nt_wstring_view URL, request_config_for_get cfg = {}) const noexcept -> http_result {
       return chttpp::underlying::terse::request_impl(URL, std::move(cfg), std::span<const char>{}, MethodTag{});
     }
   };
@@ -340,7 +340,7 @@ namespace chttpp::detail {
     using tag_t = MethodTag;
 
     template<byte_serializable Body>
-    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+    auto operator()(nt_string_view URL, Body&& request_body, request_config cfg = {}) const noexcept -> http_result {
       // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
       if (cfg.content_type.empty()) {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
@@ -350,7 +350,7 @@ namespace chttpp::detail {
     }
 
     template<byte_serializable Body>
-    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = {}) const -> http_result {
+    auto operator()(nt_wstring_view URL, Body&& request_body, request_config cfg = {}) const noexcept -> http_result {
       // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
       if (cfg.content_type.empty()) {
         cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
@@ -423,7 +423,7 @@ namespace chttpp {
     agent& operator=(agent&&) & = default;
 
     template<auto Method>
-    auto request(string_view url_path, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+    auto request(string_view url_path, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       using tag = decltype(Method)::tag_t;
 
       if (m_config_ec) {
@@ -435,7 +435,7 @@ namespace chttpp {
 
     template<auto Method, byte_serializable Body>
       requires detail::tag::has_reqbody_method<typename decltype(Method)::tag_t>
-    auto request(string_view url_path, Body&& request_body, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+    auto request(string_view url_path, Body&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       using tag = decltype(Method)::tag_t;
 
       if (m_config_ec) {
@@ -450,11 +450,11 @@ namespace chttpp {
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
     }
 
-    auto get(string_view url_path, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+    auto get(string_view url_path, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       return this->request<get>(url_path, std::move(req_cfg));
     }
 
-    auto post(string_view url_path, byte_serializable auto&& request_body, detail::agent_request_config req_cfg = {}) & -> detail::http_result {
+    auto post(string_view url_path, byte_serializable auto&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       return this->request<post>(url_path, request_body, std::move(req_cfg));
     }
 

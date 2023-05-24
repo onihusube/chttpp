@@ -488,9 +488,9 @@ namespace chttpp::detail {
       : base{std::move(res)}
     {}
 
-    //http_result(http_result&& that) noexcept(std::is_nothrow_move_constructible_v<std::variant<http_response, error_code>>)
-    //  : base{std::move(that)}
-    //{}
+    explicit http_result(from_exception_ptr_t) noexcept(std::is_nothrow_constructible_v<base, from_exception_ptr_t>)
+      : base{from_exception_ptr}
+    {}
 
     http_result(http_result&&) = default;
     
@@ -572,12 +572,27 @@ namespace chttpp::detail {
       return (*pos).second;
     }
 
-    auto error_message() const -> string_t {
-      if (this->has_response()) {
-        return "";
-      } else {
-        return this->error().message();
-      }
+    auto error_message() const -> string_t try {
+      return std::visit<string_t>(detail::overloaded{
+        [](const http_response& res) { return res.headers.at("http-status-line"); },
+        [](const error_code& err) { return err.message(); },
+        [](const detail::exptr_wrapper& exptr) {
+          string_t message{"Exception : "};
+
+          bool handled = visit(detail::overloaded{
+            [&](const std::exception& ex) { message.append(ex.what()); },
+            [&](std::string_view str) { message.append(str); }
+          }, exptr);
+
+          if (not handled) {
+            message.append("Unstringable exception");
+          }
+
+          return message;
+        }
+      }, this->m_outcome);
+    } catch (const std::exception& ex) {
+      return string_t{"Exception during stringing : "} + ex.what();
     }
 
     using base::then;

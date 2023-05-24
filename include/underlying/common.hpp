@@ -248,7 +248,7 @@ namespace chttpp::detail {
 
     if (header_str.starts_with("HTTP")) [[unlikely]] {
       const auto line_end_pos = header_str.end();
-      headers.emplace("HTTP Ver"sv, std::string_view{ header_str.begin(), line_end_pos });
+      headers.emplace("http-status-line"sv, std::string_view{ header_str.begin(), line_end_pos });
       return;
     }
 

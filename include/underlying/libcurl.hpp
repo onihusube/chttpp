@@ -536,7 +536,7 @@ namespace chttpp::underlying::terse {
   }
 
   template<typename... Args>
-  auto request_impl(std::string_view url, auto&& cfg, Args&&... args) -> http_result {
+  auto request_impl(std::string_view url, auto&& cfg, Args&&... args) noexcept -> http_result try {
     libcurl_session_state session_obj;
 
     if (auto ec = session_obj.init(url, cfg.proxy, cfg.timeout, cfg.version); ec != CURLE_OK) {
@@ -544,10 +544,12 @@ namespace chttpp::underlying::terse {
     }
 
     return request_impl(std::move(session_obj), std::move(cfg), std::forward<Args>(args)...);
+  } catch (...) {
+    return http_result{detail::from_exception_ptr};
   }
 
   template<typename... Args>
-  auto request_impl(std::wstring_view wchar_url, Args&&... args) -> http_result {
+  auto request_impl(std::wstring_view wchar_url, Args&&... args) noexcept -> http_result try {
 
     const auto [url, length] = wchar_to_char(wchar_url);
 
@@ -556,6 +558,8 @@ namespace chttpp::underlying::terse {
     }
 
     return request_impl(std::string_view{url.data(), length}, std::forward<Args>(args)...);
+  } catch (...) {
+    return http_result{detail::from_exception_ptr};
   }
 }
 
@@ -836,13 +840,15 @@ namespace chttpp::underlying::agent_impl {
   }
 
   template<typename... Args>
-  auto request_impl(std::string_view url_path, dummy_buffer, Args&&... args) -> http_result {
+  auto request_impl(std::string_view url_path, dummy_buffer, Args&&... args) noexcept -> http_result try {
     // bufferをはがすだけ
     return request_impl(url_path, std::forward<Args>(args)...);
+  } catch (...) {
+    return http_result{detail::from_exception_ptr};
   }
 
   template<typename... Args>
-  auto request_impl(std::wstring_view url_path, detail::string_buffer& buffer, Args&&... args) -> http_result {
+  auto request_impl(std::wstring_view url_path, detail::string_buffer& buffer, Args&&... args) noexcept -> http_result try {
     // path文字列をcharへ変換する
     return buffer.use([&](string_t& converted_url) {
         if (wchar_to_char(url_path, converted_url)) {
@@ -852,6 +858,8 @@ namespace chttpp::underlying::agent_impl {
 
         return request_impl(converted_url, std::forward<Args>(args)...);
       });
+  } catch (...) {
+    return http_result{detail::from_exception_ptr};
   }
 
 }

@@ -129,7 +129,7 @@ namespace chttpp::headers {
     HEADER(vary);
     HEADER(www_authenticate);
 
-    inline constexpr chttpp::headers::detail::header_base HTTP_ver{"HTTP Ver"};
+    inline constexpr chttpp::headers::detail::header_base http_status{"http-status-line"};
   }
 
 #undef REQ_HEADER
