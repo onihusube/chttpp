@@ -55,7 +55,7 @@ void underlying_test() {
     ut::expect(headers.size() == 14);
 
     constexpr std::string_view names[] = {
-      "HTTP Ver",
+      "http-status-line",
       "content-encoding",
       "accept-ranges",
       "age",
@@ -89,7 +89,7 @@ void underlying_test() {
       ut::expect(headers.size() >= 13_i);
 
       {
-        const auto httpver = result.response_header("HTTP Ver");
+        const auto httpver = result.response_header("http-status-line");
         ut::expect(httpver == "HTTP/2 200 "sv); // なぜか後ろにスペースが入る
       }
       {
