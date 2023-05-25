@@ -109,7 +109,7 @@ void http_result_test() {
         ++count;
       }));
 
-    ut::expect(count == 2);
+    ut::expect(count == 2) << count;
   };
 
   "catch_error"_test = [] {

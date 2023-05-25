@@ -300,44 +300,45 @@ chttpp::get(...).then([](auto&& hr) {
       return ret_then_t{ from_exception_ptr };
     }
 
-    template<std::invocable<const exptr_wrapper&> F>
+    template<typename F>
       requires requires(F&& f, const exptr_wrapper& exptr) {
         {std::invoke(std::forward<F>(f), exptr)} -> std::same_as<void>;
       }
-    auto catch_exception(F&& func) && noexcept -> then_base try {
-      return std::visit(overloaded{
-          [](T&& v) {
-            return then_base{std::move(v)};
-          },
-          [](E &&err) {
-            return then_base{std::move(err)};
-          },
-          [&](exptr_wrapper&& exptr) {
-            std::invoke(std::forward<F>(func), exptr);
-            return then_base{ std::in_place_index<2>, std::move(exptr) };
-          }
-        }, std::move(this->m_outcome));
-    } catch (...) {
-      return then_base{from_exception_ptr};
+    auto catch_exception(F&& func) && noexcept -> then_base&& {
+      try {
+        std::visit(overloaded{
+            [](const T&) {},
+            [](const E&) {},
+            [&](const exptr_wrapper& exptr) {
+              std::invoke(std::forward<F>(func), exptr);
+            }
+          }, this->m_outcome);
+      } catch (...) {
+        // 上書きでいいのだろうか・・・（throw_with_nested()を使用するべき？
+        this->m_outcome.template emplace<2>();
+      }
+
+      return std::move(*this);
     }
 
     template<specialization_of<exception_handler> F>
-    auto catch_exception(F&& func) && noexcept -> then_base try {
-      return std::visit(overloaded{
-          [](T&& v) {
-            return then_base{std::move(v)};
-          },
-          [](E&& err) {
-            return then_base{std::move(err)};
-          },
-          [&](exptr_wrapper&& exptr) {
-            // exception_handlerを通した場合、直でvisitに渡すことを意図しているものとして扱う
-            visit(func, exptr);
-            return then_base{ std::in_place_index<2>, std::move(exptr) };
-          }
-        }, std::move(this->m_outcome));
-    } catch (...) {
-      return then_base{from_exception_ptr};
+    auto catch_exception(F&& func) && noexcept -> then_base&& {
+      try {
+        std::visit(overloaded{
+            [](const T&) {},
+            [](const E&) {},
+            [&](const exptr_wrapper& exptr) {
+              // exception_handlerを通した場合、直でvisitに渡すことを意図しているものとして扱う
+              visit(func, exptr);
+            }
+          }, this->m_outcome);
+
+      } catch (...) {
+        // 上書きでいいのだろうか・・・（throw_with_nested()を使用するべき？
+        this->m_outcome.template emplace<2>();
+      }
+
+      return std::move(*this);
     }
 
     template<std::invocable<T&&> F, std::invocable<E&&> EH>
