@@ -451,11 +451,11 @@ namespace chttpp {
     }
 
     auto get(string_view url_path, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
-      return this->request<get>(url_path, std::move(req_cfg));
+      return this->request<::chttpp::get>(url_path, std::move(req_cfg));
     }
 
     auto post(string_view url_path, byte_serializable auto&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
-      return this->request<post>(url_path, request_body, std::move(req_cfg));
+      return this->request<::chttpp::post>(url_path, request_body, std::move(req_cfg));
     }
 
   private:

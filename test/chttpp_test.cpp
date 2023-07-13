@@ -1168,6 +1168,11 @@ int main() {
         }
       }
     }
+    if (false) {
+      // コンパイルが通るかのチェック
+      assert(false);
+      std::ignore = req.post("", "payload", {});
+    }
   };
 
   "agent config"_test = [] {
@@ -1216,7 +1221,7 @@ int main() {
       chunked_response.emplace_back(data.begin(), data.end());
     };
 
-    req.request<get>("", { .streaming_receiver = callback })
+    req.get("", { .streaming_receiver = callback })
       .then([&](auto &&response) {
         ut::expect(response.status_code.OK()) << response.status_code.value();
         ut::expect(response.body.empty());
