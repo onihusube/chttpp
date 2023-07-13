@@ -1035,6 +1035,10 @@ int main() {
       chttpp::agent req1{ "https://example.com", {} };
       [[maybe_unused]]
       chttpp::agent req2{ L"https://example.com", {} };
+
+      const std::string url = "https://example.com";
+
+      chttpp::agent req3{url};
     }
     using namespace chttpp::method_object;
 

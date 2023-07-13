@@ -567,8 +567,8 @@ namespace chttpp {
   };
 
   template<typename... Args>
-  agent(std::string_view, detail::request_config, Args&&...) -> agent<char>;
+  agent(std::string_view, detail::request_config = {}, Args&&...) -> agent<char>;
 
   template<typename... Args>
-  agent(std::wstring_view, detail::request_config, Args&&...) -> agent<wchar_t>;
+  agent(std::wstring_view, detail::request_config = {}, Args&&...) -> agent<wchar_t>;
 }
