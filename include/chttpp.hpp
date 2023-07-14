@@ -443,6 +443,7 @@ namespace chttpp {
       }
 
       // なければデフォ値をセット（実行時の状態に基づいて決められた方が良い・・・？
+      // ヘッダで指定してた時はこれどうなるの？？
       if (req_cfg.content_type.empty()) {
         req_cfg.content_type = query_content_type<std::remove_cvref_t<Body>>;
       }
@@ -513,13 +514,33 @@ namespace chttpp {
   // 各種設定変更
   public:
 
-    void set_headers(umap_t<string_t, string_t> headers) & {
+    void set_headers(umap_t<string_t, string_t> headers) & 
+      requires true
+    {
       merge_header(std::move(headers));
     }
 
+    void set_headers(std::initializer_list<std::pair<string_view, string_view>> headers) & {
+      umap_t<string_t, string_t> tmp{};
+
+      for (auto [name, value] : headers) {
+        tmp.emplace(string_t{name}, string_t{value});
+      }
+
+      merge_header(std::move(tmp));
+    }
+
     [[nodiscard]]
-    auto headers(umap_t<string_t, string_t> headers) && -> agent&& {
+    auto headers(umap_t<string_t, string_t> headers) && -> agent&& 
+      requires true
+    {
       merge_header(std::move(headers));
+      return std::move(*this);
+    }
+
+    [[nodiscard]]
+    auto headers(std::initializer_list<std::pair<string_view, string_view>> headers) && -> agent && {
+      this->set_headers(headers);
       return std::move(*this);
     }
 

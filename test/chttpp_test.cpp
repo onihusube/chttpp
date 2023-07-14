@@ -1037,8 +1037,27 @@ int main() {
       chttpp::agent req2{ L"https://example.com", {} };
 
       const std::string url = "https://example.com";
-
+      [[maybe_unused]]
       chttpp::agent req3{url};
+    }
+    {
+      using namespace chttpp::headers;
+
+      // headers()の引数私のチェック
+      const std::string ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15";
+      [[maybe_unused]]
+      auto test_header = chttpp::agent("https://example.com")
+                      .headers({content_type = "application/atom+xml;type=entry;charset=utf-8",
+                                authorization = "token...", 
+                                {"user-agent", ua}});
+      auto r = test_header.inspect_header();
+
+      std::unordered_map<std::string_view, std::string_view> headers{r.begin(), r.end()};
+
+      ut::expect(headers.size() == 3);
+      ut::expect(headers.at(content_type) == "application/atom+xml;type=entry;charset=utf-8");
+      ut::expect(headers.at(authorization) == "token...");
+      ut::expect(headers.at("user-agent") == ua);
     }
     using namespace chttpp::method_object;
 
