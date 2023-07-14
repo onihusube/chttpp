@@ -468,6 +468,51 @@ namespace chttpp::detail {
     vector_t<char> body;
     header_t headers;
     http_status_code status_code;
+
+
+    auto response_body() const & -> std::string_view {
+      return {data(body), size(body)};
+    }
+
+    template<character CharT>
+    auto response_body() const & -> std::basic_string_view<CharT> {
+      return { reinterpret_cast<const CharT*>(data(body)), size(body) / sizeof(CharT)};
+    }
+
+    auto response_data() & -> std::span<char> {
+      return body;
+    }
+
+    auto response_data() const & -> std::span<const char> {
+      return body;
+    }
+
+    template<substantial ElementType>
+    auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<ElementType> {
+      const std::size_t count = std::min(N, size(body) / sizeof(ElementType));
+
+      return { reinterpret_cast<ElementType*>(data(body)), count };
+    }
+
+    template<substantial ElementType>
+    auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<const ElementType> {
+      const std::size_t count = std::min(N, size(body) / sizeof(ElementType));
+
+      return {reinterpret_cast<const ElementType *>(data(body)), count};
+    }
+
+    auto response_header() const & -> const header_t& {
+      return headers;
+    }
+
+    auto response_header(std::string_view header_name) const & -> std::string_view {
+      const auto pos = headers.find(header_name);
+      if (pos == headers.end()) {
+        return {};
+      }
+
+      return (*pos).second;
+    }
   };
 
   class [[nodiscard]] http_result : private then_base<http_response, error_code> {
@@ -515,14 +560,14 @@ namespace chttpp::detail {
     auto response_body() const & -> std::string_view {
       assert(bool(*this));
       const auto &response = std::get<0>(m_outcome);
-      return {data(response.body), size(response.body)};
+      return response.response_body();
     }
 
     template<character CharT>
     auto response_body() const & -> std::basic_string_view<CharT> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_outcome);
-      return { reinterpret_cast<const CharT*>(data(response.body)), size(response.body) / sizeof(CharT)};
+      return response.response_body<CharT>();
     }
 
     auto response_data() & -> std::span<char> {
@@ -541,18 +586,14 @@ namespace chttpp::detail {
     auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<ElementType> {
       assert(bool(*this));
       auto& response = std::get<0>(m_outcome);
-      const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
-
-      return { reinterpret_cast<ElementType*>(data(response.body)), count };
+      return response.response_data<ElementType>(N);
     }
 
     template<substantial ElementType>
     auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<const ElementType> {
       assert(bool(*this));
       const auto &response = std::get<0>(m_outcome);
-      const std::size_t count = std::min(N, size(response.body) / sizeof(ElementType));
-
-      return {reinterpret_cast<const ElementType *>(data(response.body)), count};
+      return response.response_data<ElementType>(N);
     }
 
     auto response_header() const & -> const header_t& {
@@ -563,14 +604,8 @@ namespace chttpp::detail {
 
     auto response_header(std::string_view header_name) const & -> std::string_view {
       assert(bool(*this));
-      const auto &headers = std::get<0>(m_outcome).headers;
-
-      const auto pos = headers.find(header_name);
-      if (pos == headers.end()) {
-        return {};
-      }
-
-      return (*pos).second;
+      const auto &response = std::get<0>(m_outcome);
+      return response.response_header(header_name);
     }
 
     auto error_message() const -> string_t try {
