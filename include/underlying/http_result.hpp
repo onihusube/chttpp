@@ -107,6 +107,11 @@ namespace chttpp::detail {
       assert(bool(self.m_exptr));
       return self.visit_impl<>(handler);
     }
+
+    bool visit(auto&& handler) const & {
+      assert(bool(this->m_exptr));
+      return this->visit_impl<>(handler);
+    }
   };
 
   template<typename F>

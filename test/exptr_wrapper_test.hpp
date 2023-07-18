@@ -130,4 +130,14 @@ void exptr_wrapper_test() {
     );
 
   };
+
+  "member visit"_test = [] {
+    auto exptr_str = throw_charptr();
+
+    ut::expect(exptr_str.visit([](std::string_view str) { ut::expect(str == "test char*"sv); }));
+
+    ut::expect(exptr_str.visit([](const char *str){ ut::expect(str == "test char*"sv); }));
+
+    ut::expect(exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
+  };
 }
