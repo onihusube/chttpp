@@ -131,7 +131,7 @@ void exptr_wrapper_test() {
 
   };
 
-  "member visit"_test = [] {
+  "exptr_wrapper member visit"_test = [] {
     auto exptr_str = throw_charptr();
 
     ut::expect(exptr_str.visit([](std::string_view str) { ut::expect(str == "test char*"sv); }));
@@ -139,5 +139,32 @@ void exptr_wrapper_test() {
     ut::expect(exptr_str.visit([](const char *str){ ut::expect(str == "test char*"sv); }));
 
     ut::expect(exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
+  };
+
+  "exptr_wrapper stream output"_test = [] {
+    {
+      auto exptr_str = throw_charptr();
+      std::stringstream ss;
+
+      ss << exptr_str;
+
+      ut::expect(ss.view() == "test char*"sv);
+    }
+    {
+      auto exptr_runtimerr = throw_exception();
+      std::stringstream ss;
+
+      ss << exptr_runtimerr;
+
+      ut::expect(ss.view() == "test runtime_error"sv);
+    }
+    {
+      auto exptr_int = throw_int<12345>();
+      std::stringstream ss;
+
+      ss << exptr_int;
+
+      ut::expect(ss.view() == "12345"sv);
+    }
   };
 }

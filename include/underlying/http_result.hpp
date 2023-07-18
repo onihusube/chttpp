@@ -14,6 +14,23 @@
 #include "status_code.hpp"
 
 namespace chttpp::detail {
+  /**
+	* @brief オーバーロード関数オブジェクトを生成する
+	* @tparam Fs... オーバーロードする関数呼び出し可能な型のリスト
+	*/
+	template<typename... Fs>
+	struct overloaded : public Fs... {
+		using Fs::operator()...;
+	};
+
+	/**
+	* @brief overloadedの推定ガイド
+	*/
+	template<typename... Fs>
+	overloaded(Fs&&...) -> overloaded<Fs...>;
+}
+
+namespace chttpp::detail {
 
   template<typename...>
   struct check_handler_impl;
@@ -112,6 +129,38 @@ namespace chttpp::detail {
       assert(bool(this->m_exptr));
       return this->visit_impl<>(handler);
     }
+
+    template<typename CharT, typename Traits>
+    friend auto operator<<(std::basic_ostream<CharT, Traits>& os, const exptr_wrapper& self) -> std::basic_ostream<CharT, Traits>& {
+      auto handler = overloaded{
+        [&os](std::basic_string_view<CharT> str) { os << str; },
+        [&os](const std::exception& ex) requires (std::is_same_v<char, CharT>) { os << ex.what(); },
+        [&os](auto err) requires requires { {os << err} -> std::same_as<std::basic_ostream<CharT, Traits>&>; } { os << err; }
+      };
+
+      try {
+        check_handler_impl<
+          const std::exception&,
+          const std::basic_string<CharT>&,
+          const CharT*,
+          signed long long,
+          unsigned long long,
+          signed long,
+          unsigned long,
+          signed int,
+          unsigned int,
+          signed short,
+          unsigned short,
+          signed char,
+          unsigned char,
+          bool
+        >::call_handler(handler, self.m_exptr);
+      } catch(...) {
+        // なんもしない（でいい？
+      }
+      
+      return os;
+    }
   };
 
   template<typename F>
@@ -124,20 +173,6 @@ namespace chttpp::detail {
 }
 
 namespace chttpp::detail {
-  /**
-	* @brief オーバーロード関数オブジェクトを生成する
-	* @tparam Fs... オーバーロードする関数呼び出し可能な型のリスト
-	*/
-	template<typename... Fs>
-	struct overloaded : public Fs... {
-		using Fs::operator()...;
-	};
-
-	/**
-	* @brief overloadedの推定ガイド
-	*/
-	template<typename... Fs>
-	overloaded(Fs&&...) -> overloaded<Fs...>;
 
   template <typename F, typename R, typename... Args>
   concept invocable_r =
