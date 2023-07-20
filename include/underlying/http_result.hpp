@@ -592,60 +592,86 @@ namespace chttpp::detail {
     }
 
     auto status_code() const -> http_status_code {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.status_code;
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.status_code;
+      } else {
+        return http_status_code{-1};
+      }
     }
 
     auto response_body() const & -> std::string_view {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.response_body();
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.response_body();
+      } else {
+        return {};
+      }
     }
 
     template<character CharT>
     auto response_body() const & -> std::basic_string_view<CharT> {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.response_body<CharT>();
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.response_body<CharT>();
+      } else {
+        return {};
+      }
     }
 
     auto response_data() & -> std::span<char> {
-      assert(bool(*this));
-      auto& response = std::get<0>(m_outcome);
-      return response.body;
+      if (*this) {
+        auto& response = std::get<0>(m_outcome);
+        return response.body;
+      } else {
+        return {};
+      }
     }
 
     auto response_data() const & -> std::span<const char> {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.body;
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.body;
+      } else {
+        return {};
+      }
     }
 
     template<substantial ElementType>
     auto response_data(std::size_t N = std::dynamic_extent) & -> std::span<ElementType> {
-      assert(bool(*this));
-      auto& response = std::get<0>(m_outcome);
-      return response.response_data<ElementType>(N);
+      if (*this) {
+        auto& response = std::get<0>(m_outcome);
+        return response.response_data<ElementType>(N);
+      } else {
+        return {};
+      }
     }
 
     template<substantial ElementType>
     auto response_data(std::size_t N = std::dynamic_extent) const & -> std::span<const ElementType> {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.response_data<ElementType>(N);
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.response_data<ElementType>(N);
+      } else {
+        return {};
+      }
     }
 
     auto response_header() const & -> const header_t& {
-      assert(bool(*this));
+      // この関数は参照を返すので、失敗時に代わりに返すものがない
+      assert(*this);
+
       const auto &response = std::get<0>(m_outcome);
       return response.headers;
     }
 
     auto response_header(std::string_view header_name) const & -> std::string_view {
-      assert(bool(*this));
-      const auto &response = std::get<0>(m_outcome);
-      return response.response_header(header_name);
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.response_header(header_name);
+      } else {
+        return {};
+      }
     }
 
     auto error_message() const -> string_t try {
