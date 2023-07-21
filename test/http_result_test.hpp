@@ -1,11 +1,15 @@
 #pragma once
 
 #include <string_view>
+#include <concepts>
 
 #include "chttpp.hpp"
 
 #define BOOST_UT_DISABLE_MODULE
 #include <boost/ut.hpp>
+
+static_assert(std::ranges::forward_range<chttpp::detail::header_ref>);
+static_assert(std::ranges::sized_range<chttpp::detail::header_ref>);
 
 auto hr_ok() -> chttpp::http_result {
   return chttpp::http_result{chttpp::detail::http_response{ {}, {}, { {"host", "http_result test"} }, chttpp::detail::http_status_code{200} }};
