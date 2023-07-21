@@ -380,7 +380,7 @@ int main() {
   auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
 
   // Get HTTP status code
-  std::cout << res.status_code()   << '\n';
+  std::cout << res.status_code().value() << '\n';
 
   // Get the response body as a string
   std::cout << res.response_body() << '\n';
