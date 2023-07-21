@@ -482,6 +482,76 @@ chttpp::get(...).then([](auto&& hr) {
 
 namespace chttpp::detail {
 
+  class header_ref {
+    header_t const* m_ptr;
+  public:
+    using iterator = header_t::const_iterator;
+
+    header_ref() : m_ptr{nullptr} {}
+
+    [[nodiscard]]
+    explicit header_ref(header_t const* ref_ptr) : m_ptr{ref_ptr} {}
+
+    header_ref(const header_ref&) = default;
+    header_ref& operator=(const header_ref&) & = default;
+
+    [[nodiscard]]
+    auto begin() const -> iterator {
+      if (m_ptr != nullptr) {
+        return m_ptr->cbegin();
+      } else {
+        return {};
+      }
+    }
+
+    [[nodiscard]]
+    auto end() const -> iterator {
+      if (m_ptr != nullptr) {
+        return m_ptr->cend();
+      } else {
+        return {};
+      }
+    }
+
+    [[nodiscard]]
+    auto operator[](std::string_view name) const -> std::string_view {
+      if (m_ptr != nullptr) {
+        if (auto pos = m_ptr->find(name); pos != m_ptr->end()) {
+          return (*pos).second;
+        }
+      }
+
+      return {};
+    }
+
+    [[nodiscard]]
+    auto contains(std::string_view name) const -> bool {
+      if (m_ptr != nullptr) {
+        return m_ptr->contains(name);
+      }
+      return false;
+    }
+
+    [[nodiscard]]
+    auto empty() const noexcept -> bool {
+      if (m_ptr != nullptr) {
+        return m_ptr->empty();
+      }
+      return true;
+    }
+
+    [[nodiscard]]
+    auto size() const noexcept -> std::size_t {
+      if (m_ptr != nullptr) {
+        return m_ptr->size();
+      }
+      return 0;
+    }
+  };
+}
+
+namespace chttpp::detail {
+
   using std::ranges::data;
   using std::ranges::size;
 
@@ -541,8 +611,8 @@ namespace chttpp::detail {
       return {reinterpret_cast<const ElementType *>(data(body)), count};
     }
 
-    auto response_header() const & -> const header_t& {
-      return headers;
+    auto response_headers() const & -> header_ref {
+      return header_ref{&headers};
     }
 
     auto response_header(std::string_view header_name) const & -> std::string_view {
@@ -657,12 +727,14 @@ namespace chttpp::detail {
       }
     }
 
-    auto response_header() const & -> const header_t& {
+    auto response_headers() const & -> header_ref {
       // この関数は参照を返すので、失敗時に代わりに返すものがない
-      assert(*this);
-
-      const auto &response = std::get<0>(m_outcome);
-      return response.headers;
+      if (*this) {
+        const auto &response = std::get<0>(m_outcome);
+        return response.response_headers();
+      } else {
+        return {};
+      }
     }
 
     auto response_header(std::string_view header_name) const & -> std::string_view {

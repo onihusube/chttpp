@@ -485,7 +485,7 @@ int main() {
       ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
       
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     {
@@ -495,7 +495,7 @@ int main() {
       ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     {
@@ -505,7 +505,7 @@ int main() {
       ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     {
@@ -515,7 +515,7 @@ int main() {
       ut::expect(result.status_code() == 200) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     {
@@ -958,7 +958,7 @@ int main() {
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     // 2. http proxy による httpsアクセス
@@ -969,7 +969,7 @@ int main() {
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
 
@@ -982,7 +982,7 @@ int main() {
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
-      const auto& headers = result.response_header();
+      const auto& headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     using namespace chttpp::mime_types;

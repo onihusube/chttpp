@@ -85,7 +85,7 @@ void underlying_test() {
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() == 0_i);
 
-      const auto &headers = result.response_header();
+      const auto &headers = result.response_headers();
       ut::expect(headers.size() >= 13_i);
 
       {
