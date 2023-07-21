@@ -31,10 +31,8 @@ Non-Windows platforms require libcurl installation.
 int main() {
   auto res = chttpp::get("https://example.com");
 
-  if (res) {
-    std::cout << res.status_code()   << '\n';
-    std::cout << res.response_body() << '\n';
-  }
+  std::cout << res.status_code()   << '\n';
+  std::cout << res.response_body() << '\n';
 }
 ```
 
@@ -46,10 +44,8 @@ int main() {
 int main() {
   auto res = chttpp::post("https://example.com", "post data", { .content_type = "text/plain" });
 
-  if (res) {
-    std::cout << res.status_code()   << '\n';
-    std::cout << res.response_body() << '\n';
-  }
+  std::cout << res.status_code()   << '\n';
+  std::cout << res.response_body() << '\n';
 }
 ```
 
@@ -66,10 +62,8 @@ int main() {
 
   auto res = chttpp::post("https://example.com", "post data",  { .content_type = text/plain }); // Specification by Objects and Operators
 
-  if (res) {
-    std::cout << res.status_code()   << '\n';
-    std::cout << res.response_body() << '\n';
-  }
+  std::cout << res.status_code()   << '\n';
+  std::cout << res.response_body() << '\n';
 }
 ```
 
@@ -231,10 +225,8 @@ int main() {
                             }
                           });
 
-  if (res) {
-    std::cout << res.status_code()   << '\n';
-    std::cout << res.response_body() << '\n';
-  }
+  std::cout << res.status_code()   << '\n';
+  std::cout << res.response_body() << '\n';
 }
 ```
 
@@ -347,7 +339,77 @@ All configs can be omitted, but not reordered.
 
 ### Consumption of request results
 
-The type of the request result is `http_result<E>`, a monadic type (`E` is the error code type of the underlying library).
+The result of the request is returned as an object of type `http_result`. This is a monadic type object that holds either success or failure (and exception) status.
+
+You can use `operator bool()` to determine success or failure and `.value()` to get the response.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+
+  if (res) {
+    // success
+    auto& response = res.value();
+    ...
+  } else {
+    // failure (Errors in the underlying library)
+    auto err = res.error();
+    ...
+  }
+}
+```
+
+In this context, failure refers to the failure of the HTTP access itself, and it does not indicate a response with an HTTP status code in the 400 series.
+
+This interface follows `std::optional` and `std::expected` and is not very user-friendly. Therefore, an interface is provided that can attempt to retrieve the response regardless of the state of the result object.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+#include "http_deaders.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+
+  // Get HTTP status code
+  std::cout << res.status_code()   << '\n';
+
+  // Get the response body as a string
+  std::cout << res.response_body() << '\n';
+
+  // Get the response body as a byte array
+  std::span<char> data = res.response_data();
+
+  // Get the response header value
+  std::cout << res.response_header(set_cookie) << '\n';       // use predefined header name object
+  std::cout << res.response_header("content-length") << '\n'; // use header name string
+
+  // Iterate all response headers
+  for (auto [name, value] : res.response_headers()) {
+    std::cout << name << " : " << value << '\n';
+  }
+}
+```
+
+These functions return an empty string or error value (`.status_code()`) or an empty object (`.response_data()`/`.response_headers()`) if the `http_result` object is in failure state.
+
+|function|return type|on success|on failure|
+|---|---|---|---|
+|`.status_code()`|`chttpp::detail::http_status_code`|http status code of response|`std::uint16_t(-1)`|
+|`.response_body()`|`std::string_view`|response body string|empty string|
+|`.response_data()`|`std::span<char>`|response body bytes|empty span|
+|`.response_header()`|`std::stirng_view`|value of specified header name|empty string|
+|`.response_headers()`|`chttpp::detail::header_ref`|response header range|empty range|
+
+#### Monadic operation
 
 `.then()` is available for continuation processing after a successful request.
 
