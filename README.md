@@ -409,6 +409,52 @@ These functions return an empty string or error value (`.status_code()`) or an e
 |`.response_header()`|`std::stirng_view`|value of specified header name|empty string|
 |`.response_headers()`|`chttpp::detail::header_ref`|response header range|empty range|
 
+`.response_body()`/`.response_data()` have overloads, and element types can be specified by template parameters.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+#include "http_deaders.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+
+  // Refer to the response body as a UTF-8 string.
+  std::u8string_view u8str = res.response_body<char8_t>();
+
+  // Refer to response data as a byte array by std::byte.
+  std::span<std::byte> bytes = res.response_data<std::byte>();
+}
+```
+
+`.response_body<CharT>()` allows `CharT` to specify built-in character types .
+
+In `.response_data<D>()`, `D` can be specified as a scalar or trivially copyable aggregate type.
+
+Some functions output (error) messages anyway, regardless of the state of `http_result`.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+#include "http_deaders.hpp"
+
+int main() {
+  using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+
+  // Outputs a uniform error message regardless of success or failure.
+  std::cout << res.error_message() << '\n';
+  // On success : "HTTP1.1 200", etc
+  // On failure : underlying library error messages
+  // On exception : If the exception is a string, output it, if std::exception, output .what()
+}
+```
+
 #### Monadic operation
 
 `.then()` is available for continuation processing after a successful request.
@@ -464,5 +510,6 @@ int main() {
 }
 ```
 
+### Another http clietn - agent
 
 ## API
