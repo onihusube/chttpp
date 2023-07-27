@@ -746,7 +746,7 @@ namespace chttpp::detail {
       }
     }
 
-    auto error_message() const -> string_t try {
+    auto status_message() const -> string_t try {
       return std::visit<string_t>(detail::overloaded{
         [](const http_response& res) { return res.headers.at("http-status-line"); },
         [](const error_code& err) { return err.message(); },

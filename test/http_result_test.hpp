@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <concepts>
+#include <ranges>
 
 #include "chttpp.hpp"
 
@@ -12,18 +13,31 @@ static_assert(std::ranges::forward_range<chttpp::detail::header_ref>);
 static_assert(std::ranges::sized_range<chttpp::detail::header_ref>);
 
 auto hr_ok() -> chttpp::http_result {
-  return chttpp::http_result{chttpp::detail::http_response{ {}, {}, { {"host", "http_result test"} }, chttpp::detail::http_status_code{200} }};
+  return chttpp::http_result{chttpp::detail::http_response{ {}, {}, { {"http-status-line", "HTTP/1.1 200 OK"}, {"host", "http_result test"} }, chttpp::detail::http_status_code{200} }};
 }
 
 auto hr_err() -> chttpp::http_result {
   return chttpp::http_result{::chttpp::underlying::lib_error_code_tratis::no_error_value};
 }
 
-decltype(auto) hr_exptr() {
+decltype(auto) tb_exptr() {
   return hr_ok().then([](auto&&) {
     throw std::runtime_error{"test throw"};
     return 10;
   });
+}
+
+auto hr_exptr() -> chttpp::http_result {
+  try {
+    throw std::runtime_error{"test throw"};
+  } catch (...) {
+    return chttpp::http_result{chttpp::detail::from_exception_ptr};
+  }
+}
+
+auto hr_ok_range() -> chttpp::http_result {
+  std::pmr::vector<char> bytes = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  return chttpp::http_result{chttpp::detail::http_response{{}, std::move(bytes), {{"http-status-line", "HTTP/1.1 200 OK"}}, chttpp::detail::http_status_code{200}}};
 }
 
 void http_result_test() {
@@ -44,7 +58,7 @@ void http_result_test() {
         ut::expect(hr.body.empty());
         return hr;
       }).then([](http_response&& hr) {
-        ut::expect(hr.headers.size() == 1_ull);
+        ut::expect(hr.headers.size() == 2_ull);
         return hr;
       }).then([](http_response&& hr) {
         ut::expect(hr.status_code.OK());
@@ -70,7 +84,7 @@ void http_result_test() {
     hr_ok().then([](const http_response& hr) {
         ut::expect(hr.body.empty());
       }).then([](http_response&& hr) {
-        ut::expect(hr.headers.size() == 1_ull);
+        ut::expect(hr.headers.size() == 2_ull);
         return hr;
       }).then([](const http_response& hr) {
         ut::expect(hr.status_code.OK());
@@ -92,7 +106,7 @@ void http_result_test() {
   {
     int count = 0;
 
-    hr_exptr().then([](int&& hr) {
+    tb_exptr().then([](int&& hr) {
         ut::expect(false);
         return hr;
       }).then([](int&& hr) {
@@ -173,7 +187,7 @@ void http_result_test() {
         ut::expect(false);
       });
     
-    hr_exptr().match(
+    tb_exptr().match(
       [](int) {
         ut::expect(false);
       },
@@ -211,7 +225,7 @@ void http_result_test() {
 
     ut::expect(d == 3.1415);
 
-    auto opt = hr_exptr().match(
+    auto opt = tb_exptr().match(
       [](int) {
         ut::expect(false);
         return 0.0f;
@@ -254,7 +268,7 @@ void http_result_test() {
       
     ut::expect(r1 == 1.0);
 
-    auto r2 = hr_exptr().match(
+    auto r2 = tb_exptr().match(
         [](int) {
           ut::expect(false);
           return 0;
@@ -266,5 +280,29 @@ void http_result_test() {
         20);
       
     ut::expect(r2 == 20);
+  };
+
+  "status_message()"_test = [] {
+    {
+      auto msg = hr_ok().status_message();
+
+      ut::expect(msg == "HTTP/1.1 200 OK");
+    }
+    {
+      auto msg = hr_exptr().status_message();
+
+      ut::expect(msg == "Exception : test throw") << msg;
+    }
+  };
+
+  "http_result |"_test = [] {
+    auto hr = hr_ok_range();
+
+    auto r = hr | std::views::filter([](auto c) { return c % 2 == 0; });
+
+    for (char c = 2; auto n : r) {
+      ut::expect(c == n);
+      c += 2;
+    }
   };
 }

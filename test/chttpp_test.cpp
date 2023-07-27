@@ -567,7 +567,7 @@ int main() {
     {
       auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .content_type = text/plain });
 
-      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(bool(result) >> ut::fatal) << result.status_message();
       ut::expect(result.status_code() == 200) << result.status_code().value();
       // std::cout << result.response_body();
       /*
@@ -627,7 +627,7 @@ int main() {
                                                                             }
                                                                           });
 
-      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(bool(result) >> ut::fatal) << result.status_message();
       ut::expect(result.status_code() == 200) << result.status_code().value();
 
       auto res_json = result | to_json;
@@ -652,7 +652,7 @@ int main() {
 
     auto result = chttpp::post("https://httpbin.org/post", "field1=value1&field2=value2", { .headers = {{"User-Agent", "Mozilla/5.0 (compatible; MSIE 9.0; Windows Phone OS 7.5; Trident/5.0; IEMobile/9.0)"}} });
 
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(bool(result) >> ut::fatal) << result.status_message();
     ut::expect((result.status_code() == 200) >> ut::fatal) << result.status_code().value();
 
     auto res_json = result | to_json;
@@ -692,7 +692,7 @@ int main() {
                                                                                                        {"Content-Language", "ja-JP"}}
                                                                                           });
 
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(bool(result) >> ut::fatal) << result.status_message();
     ut::expect(result.status_code() == 200) << result.status_code().value();
 
     auto res_json = result | to_json;
@@ -733,7 +733,7 @@ int main() {
 
     auto result = chttpp::put("https://httpbin.org/put", "<p>put test</p>", {.content_type = text/html });
 
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(bool(result) >> ut::fatal) << result.status_message();
     ut::expect(result.status_code() == 200) << result.status_code().value();
 /*
 なんかこんな感じのが得られるはず
@@ -788,7 +788,7 @@ int main() {
 
     auto result = chttpp::delete_("https://httpbin.org/delete", "delete test", {.content_type = text/plain });
 
-    ut::expect(bool(result) >> ut::fatal) << result.error_message();
+    ut::expect(bool(result) >> ut::fatal) << result.status_message();
     ut::expect(result.status_code() == 200) << result.status_code().value();
 /*
 なんかこんな感じのが得られるはず
@@ -871,7 +871,7 @@ int main() {
                                                                                            }
                                                                                          });
 
-      ut::expect(res.has_response() >> ut::fatal) << res.error_message();
+      ut::expect(res.has_response() >> ut::fatal) << res.status_message();
       ut::expect(res.status_code() == 200) << res.status_code().value();
 
       //std::cout << res.response_body() << "\n";
@@ -909,7 +909,7 @@ int main() {
                                 }
                               });
 
-      ut::expect(res.has_response() >> ut::fatal) << res.error_message();
+      ut::expect(res.has_response() >> ut::fatal) << res.status_message();
       ut::expect(res.status_code().OK()) << res.status_code().value();
 
       //std::cout << res.response_body() << "\n";
@@ -954,7 +954,7 @@ int main() {
     {
       auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "165.154.235.178:80" } });
 
-      ut::expect(result.has_response() >> ut::fatal) << " : " << result.error_message();
+      ut::expect(result.has_response() >> ut::fatal) << " : " << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
@@ -965,7 +965,7 @@ int main() {
     {
       auto result = chttpp::get("https://example.com", { .timeout = 10000ms, .proxy = { .address = "140.227.80.237:3180", .scheme = chttpp::cfg_prxy::http } });
 
-      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
+      ut::expect(result.has_response() >> ut::fatal) << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
@@ -978,7 +978,7 @@ int main() {
     {
       auto result = chttpp::get("http://example.com", {.timeout = 10000ms, .proxy = { .address = "192.111.139.163:19404", .scheme = chttpp::cfg_prxy::socks5 } });
 
-      ut::expect(result.has_response() >> ut::fatal) << result.error_message();
+      ut::expect(result.has_response() >> ut::fatal) << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
@@ -991,7 +991,7 @@ int main() {
     {
       auto result = chttpp::post("http://httpbin.org/post", "proxy test", { .content_type = text/plain, .proxy = { .address = "140.227.80.237:3180" } });
 
-      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(bool(result) >> ut::fatal) << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
 
       auto res_json = result | to_json;
@@ -1021,7 +1021,7 @@ int main() {
 
       auto result = chttpp::post("https://httpbin.org/post", "test", { .content_type = text/plain, .version = chttpp::cfg_ver::http1_1 });
 
-      ut::expect(bool(result) >> ut::fatal) << result.error_message();
+      ut::expect(bool(result) >> ut::fatal) << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
       const auto ver = result.response_header(http_status);
       ut::expect(ver == "HTTP/1.1 200 OK") << ver;
@@ -1074,7 +1074,7 @@ int main() {
                                                 {"param3", "value3"}}
                                             });
 
-      ut::expect(bool(result)) << result.error_message();
+      ut::expect(bool(result)) << result.status_message();
       if (result) {
         ut::expect(result.status_code().value() == 200_i);
 
@@ -1108,7 +1108,7 @@ int main() {
                                                 }
                                               });
 
-      ut::expect(bool(result)) << result.error_message();
+      ut::expect(bool(result)) << result.status_message();
 
       if (result) {
         ut::expect(result.status_code() == 200) << result.status_code().value();
@@ -1151,14 +1151,14 @@ int main() {
       // サーバからクッキーを取得
       {
         auto res = req.request<get>("/cookies/set/set_cookie/test");
-        ut::expect(bool(res)) << res.error_message();
+        ut::expect(bool(res)) << res.status_message();
         // 厳密にはリダイレクトが起きてるっぽい、返答がよくわからないのでとりあえず細かくチェックしない
         //ut::expect(result.status_code().OK()) << result.status_code().value();
       }
       // リクエスト時にクッキーを指定
       auto result = req.request<get>("cookies", { .cookies = { {"request", "cookie"} } });
 
-      ut::expect(bool(result)) << result.error_message();
+      ut::expect(bool(result)) << result.status_message();
 
       if (result) {
         ut::expect(result.status_code().OK()) << result.status_code().value();
@@ -1210,7 +1210,7 @@ int main() {
 
     auto result = req.request<get>(L"/redirect-to", { .params = {{"url", "https://www.google.com/"}} });
 
-    ut::expect(bool(result)) << result.error_message();
+    ut::expect(bool(result)) << result.status_message();
 
     if (result) {
       ut::expect(result.status_code().Found()) << result.status_code().value();
