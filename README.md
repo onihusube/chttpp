@@ -434,7 +434,7 @@ int main() {
 
 In `.response_data<D>()`, `D` can be specified as a scalar or trivially copyable aggregate type.
 
-Some functions output (error) messages anyway, regardless of the state of `http_result`.
+There is also a function that outputs the status of `http_result`.
 
 ```cpp
 #include "chttpp.hpp"
@@ -447,13 +447,55 @@ int main() {
 
   auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
 
-  // Outputs a uniform error message regardless of success or failure.
-  std::cout << res.error_message() << '\n';
-  // On success : "HTTP1.1 200", etc
+  // Outputs a uniform status message regardless of success or failure.
+  std::cout << res.status_message() << '\n';
+  // On success : "HTTP/1.1 200 OK", etc
   // On failure : underlying library error messages
-  // On exception : If the exception is a string, output it, if std::exception, output .what()
+  // On exception : After "Exception : ", print it if the exception is a string, or print .what() if the exception is a std::exception.
 }
 ```
+
+#### Pipe continuation processing
+
+You can chain any process by pipe operators (`operator|`) with the result as `string_view`.
+
+```cpp
+#include "chttpp.hpp"
+#include "mime_types.hpp"
+#include "http_deaders.hpp"
+
+// Convert to json type by an arbitrary library
+auto to_json(std::string_view response) -> json_type {
+  if (not response.empty()) {
+    // On success
+    ...
+  } else {
+    // On failure
+  }
+}
+
+int main() {
+  using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
+
+  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+
+  // For example, parse the response as json
+  auto json = res | to_json;
+
+  // You can also chain a range adapter
+  for (auto e : res | std::views::split(...)
+                    | std::views::transform(...)
+                    | std::views::fillter(...))
+  {
+    ...
+  }
+}
+```
+
+The right-hand side of `|` must be callable by `std::string_view`, but its return type is arbitrary.
+
+If `http_result` object is not in a successful state, an empty `std::string_view` is passed.
 
 #### Monadic operation
 
