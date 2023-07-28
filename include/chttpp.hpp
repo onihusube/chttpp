@@ -433,6 +433,11 @@ namespace chttpp {
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), std::span<const char>{}, tag{});
     }
 
+    template<auto Method>
+    auto request(detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
+      return request<Method>("", std::move(req_cfg));
+    }
+
     template<auto Method, byte_serializable Body>
       requires detail::tag::has_reqbody_method<typename decltype(Method)::tag_t>
     auto request(string_view url_path, Body&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
@@ -451,12 +456,29 @@ namespace chttpp {
       return underlying::agent_impl::request_impl(url_path, convert_buffer, m_resource, std::move(req_cfg), cpo::as_byte_seq(request_body), tag{});
     }
 
+    template<auto Method, byte_serializable Body>
+      requires detail::tag::has_reqbody_method<typename decltype(Method)::tag_t> and
+               (not std::is_same_v<Body, detail::agent_request_config>)
+    auto request(Body&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
+      return request<Method>("", std::forward<Body>(request_body), std::move(req_cfg));
+    }
+
     auto get(string_view url_path, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       return this->request<::chttpp::get>(url_path, std::move(req_cfg));
     }
 
+    auto get(detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
+      return this->request<::chttpp::get>("", std::move(req_cfg));
+    }
+
     auto post(string_view url_path, byte_serializable auto&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
       return this->request<::chttpp::post>(url_path, request_body, std::move(req_cfg));
+    }
+
+    template<byte_serializable Body>
+      requires (not std::is_same_v<Body, detail::agent_request_config>)
+    auto post(Body&& request_body, detail::agent_request_config req_cfg = {}) & noexcept -> detail::http_result {
+      return this->request<::chttpp::post>("", request_body, std::move(req_cfg));
     }
 
   private:

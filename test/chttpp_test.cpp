@@ -1043,7 +1043,7 @@ int main() {
     {
       using namespace chttpp::headers;
 
-      // headers()の引数私のチェック
+      // headers()の引数渡しのチェック
       const std::string ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6.1 Safari/605.1.15";
       [[maybe_unused]]
       auto test_header = chttpp::agent("https://example.com")
@@ -1191,6 +1191,8 @@ int main() {
       // コンパイルが通るかのチェック
       assert(false);
       std::ignore = req.post("", "payload", {});
+      std::ignore = req.post("payload", {});
+      std::ignore = req.request<post>("payload", {});
     }
   };
 
@@ -1240,7 +1242,7 @@ int main() {
       chunked_response.emplace_back(data.begin(), data.end());
     };
 
-    req.get("", { .streaming_receiver = callback })
+    req.get({ .streaming_receiver = callback })
       .then([&](auto &&response) {
         ut::expect(response.status_code.OK()) << response.status_code.value();
         ut::expect(response.body.empty());
