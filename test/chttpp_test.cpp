@@ -1187,12 +1187,44 @@ int main() {
         }
       }
     }
+    {
+      // パスを省略するオーバーロードのテスト
+      // postの場合はurlと本文が文字列同士になるので、一応チェック
+      chttpp::agent a{"https://httpbin.org/post"};
+      auto result = a.post("Tests that omit path");
+
+      ut::expect(bool(result)) << result.status_message();
+
+      auto res_json = result | to_json;
+      ut::expect(res_json.is<picojson::value::object>());
+
+      if (res_json.is<picojson::value::object>()) {
+        const auto &obj = res_json.get<picojson::value::object>();
+
+        ut::expect(obj.contains("data") >> ut::fatal);
+        ut::expect(obj.contains("url") >> ut::fatal);
+
+        // 本文がURLとして認識されていないことを確認する
+        ut::expect(obj.at("data").get<std::string>() == "Tests that omit path");
+        ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post") << obj.at("url").get<std::string>();
+      }
+    }
     if (false) {
       // コンパイルが通るかのチェック
       assert(false);
-      std::ignore = req.post("", "payload", {});
+      std::ignore = req.get({.params = { {"param1", "value1"} }});
+      std::ignore = req.get();
+      std::ignore = req.post("url", "payload", {});
       std::ignore = req.post("payload", {});
+      std::ignore = req.post("payload");
       std::ignore = req.request<post>("payload", {});
+      std::ignore = req.request<post>("payload");
+      std::ignore = req.request<get>({.params = { {"param1", "value1"} }});
+      std::ignore = req.request<get>();
+
+      // {}がstring_viewとの間で曖昧となるためエラー
+      //std::ignore = req.request<get>({});
+      //std::ignore = req.get({});
     }
   };
 
