@@ -321,7 +321,8 @@ chttpp::post("url", data, {
                             // HTTP Authentication settings (Basic authentication)
                             .auth = {
                               .username = "username",
-                              .password = "password"
+                              .password = "password",
+                              .scheme = chttpp::cfg::authentication_scheme::basic
                             },
                             // Proxy settings
                             .proxy = {
@@ -329,13 +330,111 @@ chttpp::post("url", data, {
                               .scheme = chttpp::cfg::proxy_scheme::http
                               .auth = {
                                 .username = "proxy username",
-                                .password = "proxy password"
+                                .password = "proxy password",
+                                .scheme = chttpp::cfg::authentication_scheme::basic
                               }
                             }
                           })
 ```
 
 All configs can be omitted, but not reordered.
+
+#### namespace for configs
+
+The namespace regarding configurations is as follows
+
+```cpp
+namespace chttpp {
+
+  // Namespace for accessing enums representing configuration values
+  namespace cfg {
+
+    enum class http_version {
+      http1_1,
+      http2,
+    };
+
+    enum class authentication_scheme {
+      none,
+      basic,
+    };
+
+    enum class proxy_scheme {
+      http,
+      https,
+      socks4,
+      socks4a,
+      socks5,
+      socks5h,
+    };
+  }
+
+  // Namespace for each configuration item (short names allow direct access to enumeration values)
+
+  // Authentication configs
+  namespace cfg_auth {
+    using enum chttpp::cfg::authentication_scheme;
+  }
+
+  // http version configs
+  namespace cfg_ver {
+    using enum chttpp::cfg::http_version;
+  }
+
+  // proxy schme configs
+  namespace cfg_prxy {
+    using enum chttpp::cfg::proxy_scheme;
+  }
+}
+```
+
+For example
+
+```cpp
+chttpp::post("url", data, { .auth = {
+                              .username = "username",
+                              .password = "password",
+                              .scheme = chttpp::cfg_auth::basic
+                            } });
+
+chttpp::post("url", data, { .version = chttpp::cfg_ver::http2 });
+chttpp::post("url", data, { .version = chttpp::cfg_ver::http1_1 });
+
+chttpp::post("url", data, { .proxy = {
+                              .address = "address:port",
+                              .scheme = chttpp::cfg_prxy::http
+                              .auth = {
+                                .username = "proxy username",
+                                .password = "proxy password",
+                                .scheme = chttpp::cfg_auth::basic
+                              }
+                            } });
+
+chttpp::post("url", data, { .proxy = {
+                              .address = "address:port",
+                              .scheme = chttpp::cfg_prxy::socks5
+                              .auth = {
+                                .scheme = chttpp::cfg_auth::none
+                              }
+                            } });
+```
+
+#### Numeric specification of the http version
+
+The http version can also be specified numerically. At this time, an incorrect value will result in a compilation error.
+
+```cpp
+// valid example
+chttpp::post("url", data, { .version = 1.1 });
+chttpp::post("url", data, { .version = 2 });
+chttpp::post("url", data, { .version = 2.0 });
+
+// Invalid example (compile error)
+chttpp::post("url", data, { .version = 1 });
+chttpp::post("url", data, { .version = 11 });
+chttpp::post("url", data, { .version = 0 });
+chttpp::post("url", data, { .version = 1.0 });
+```
 
 ### Consumption of request results
 

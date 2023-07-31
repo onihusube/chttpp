@@ -44,6 +44,17 @@ void http_config_test() {
   test_req("https://example.com", { .timeout = 10s });
   test_req("https://example.com", { .timeout = 1min });
 
+  // httpバージョンの数値指定（コンパイル時検査付き）
+  test_req("https://example.com", { .version = 2 });
+  test_req("https://example.com", { .version = 1.1 });
+  test_req("https://example.com", { .version = 2.0 });
+
+  // ngな値（上記3つ以外）
+  //test_req("https://example.com", { .version = 1 });
+  //test_req("https://example.com", { .version = 11 });
+  //test_req("https://example.com", { .version = 3 });
+  //test_req("https://example.com", { .version = 1.0 });
+
   // agentのリクエスト時設定のテスト
 
   //test_agent_req("https://example.com", { .streaming_reciever = reentrant_function{[](std::span<const char>) {}} });

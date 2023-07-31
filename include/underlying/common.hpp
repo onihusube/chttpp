@@ -1146,15 +1146,63 @@ namespace chttpp::detail::inline cookie_related {
 
 }
 
+namespace chttpp::detail::inline config::inline enums {
+  enum class http_version {
+    http1_1,
+    http2,
+    //http3,
+  };
+}
+
+namespace chttpp::detail {
+
+  struct http_ver_cfg {
+    config::enums::http_version ver;
+
+    constexpr http_ver_cfg(config::enums::http_version ver_enum) : ver{ver_enum} {}
+
+    consteval http_ver_cfg(int n) {
+      using enum config::enums::http_version;
+
+      switch (n) {
+        case 2 :
+          ver = http2;
+          break;
+        //case 3 :
+        //  ver = http3;
+        //  break;
+        default :
+          throw "Wrong HTTP version number";
+        }
+    }
+
+    consteval http_ver_cfg(double f) {
+      using enum config::enums::http_version;
+
+      if (f == 1.1) {
+        ver = http1_1;
+      } else if (f == 2.0) {
+        ver = http2;
+      } /*else if (f == 3.0) {
+        ver = http3;
+      }*/ else {
+        throw "Wrong HTTP version number";
+      }
+    }
+
+    constexpr operator config::enums::http_version() const noexcept {
+      return ver;
+    }
+
+    constexpr friend bool operator==(http_ver_cfg self, config::enums::http_version cmp_ver) {
+      return self.ver == cmp_ver;
+    }
+  };
+}
+
 namespace chttpp::detail::inline config {
 
   inline namespace enums {
-    enum class http_version {
-      http1_1,
-      http2,
-      //http3,
-    };
-
     enum class authentication_scheme {
       none,
       basic,
@@ -1192,7 +1240,7 @@ namespace chttpp::detail::inline config {
 #define common_request_config \
     vector_t<std::pair<std::string_view, std::string_view>> headers{}; \
     vector_t<std::pair<std::string_view, std::string_view>> params{}; \
-    http_version version = http_version::http2; \
+    http_ver_cfg version = http_version::http2; \
     std::chrono::milliseconds timeout{ 30000 }; \
     authorization_config auth{}; \
     proxy_config proxy{}
@@ -1209,7 +1257,7 @@ namespace chttpp::detail::inline config {
 #undef common_request_config
 
   struct agent_initial_config {
-    http_version version = http_version::http2;
+    http_ver_cfg version = http_version::http2;
     std::chrono::milliseconds timeout{30000};
     proxy_config proxy{};
   };
