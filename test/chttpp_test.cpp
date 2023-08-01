@@ -61,6 +61,7 @@ int main() {
   using namespace boost::ut::operators::terse;
   using namespace std::string_view_literals;
   using namespace std::chrono_literals;
+  using boost::ut::operators::operator/;
 
   "parse_response_header_oneline"_test = [] {
     using chttpp::detail::parse_response_header_oneline;
@@ -936,7 +937,7 @@ int main() {
     }
   };
 
-  "proxy"_test = [to_json] {
+  ut::skip / "proxy"_test = [to_json] {
     // Free Proxy List の稼働率90%以上のものの中から選択
     // https://www.freeproxylists.net/ja/?c=&pt=&pr=&a%5B%5D=0&a%5B%5D=1&a%5B%5D=2&u=90
     // 公開proxyサイトの比較
@@ -954,7 +955,7 @@ int main() {
     {
       auto result = chttpp::get("http://example.com", { .timeout = 10000ms, .proxy = { .address = "165.154.235.178:80" } });
 
-      ut::expect(result.has_response() >> ut::fatal) << " : " << result.status_message();
+      ut::expect(result.has_response() >> ut::fatal) << result.status_message();
       ut::expect(result.status_code().OK()) << result.status_code().value();
       ut::expect(result.response_body().length() >= 648_ull);
 
@@ -1068,11 +1069,11 @@ int main() {
     req.set_configs(chttpp::cookie_management::enable);
 
     {
-      auto result = req.request<get>("get", {.params = {
-                                                {"param1", "value1"},
-                                                {"param2", "value2"},
-                                                {"param3", "value3"}}
-                                            });
+      auto result = req.request<get>("get?param1=value1", {.params = {
+                                                              {"param2", "value2"},
+                                                              {"param3", "value3"}
+                                                            }
+                                                          });
 
       ut::expect(bool(result)) << result.status_message();
       if (result) {
@@ -1190,7 +1191,7 @@ int main() {
     {
       // パスを省略するオーバーロードのテスト
       // postの場合はurlと本文が文字列同士になるので、一応チェック
-      chttpp::agent a{"https://httpbin.org/post"};
+      chttpp::agent a{"https://httpbin.org/post?param=test"};
       auto result = a.post("Tests that omit path");
 
       ut::expect(bool(result)) << result.status_message();
@@ -1206,7 +1207,7 @@ int main() {
 
         // 本文がURLとして認識されていないことを確認する
         ut::expect(obj.at("data").get<std::string>() == "Tests that omit path");
-        ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post") << obj.at("url").get<std::string>();
+        ut::expect(obj.at("url").get<std::string>() == "https://httpbin.org/post?param=test") << obj.at("url").get<std::string>();
       }
     }
     if (false) {

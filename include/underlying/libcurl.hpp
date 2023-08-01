@@ -332,6 +332,7 @@ namespace chttpp::underlying {
         curl_easy_setopt(session.get(), CURLOPT_SSL_VERIFYHOST, 1L);
       }
 
+      // この辺のURLからの情報抽出、url_infoを使うことができるかもしれない
       hurl.reset(curl_url());
       if (not hurl) {
         // エラーコード要検討
@@ -628,23 +629,25 @@ namespace chttpp::underlying::agent_impl {
       curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(req_cfg.auth.password.data()));
     }
 
-    // URLパスとパラメータのセットのために、CURLUハンドルをコピーする
-    // コピーするのと、解析し直すのと、どっちが良いのか・・・？
-    unique_curlurl hurl{curl_url_dup(state.hurl.get())};
+    // クエリが事前に存在する場合などのハンドルが面倒なので、再構成する
+    // resourceのhurlを上書きして使いまわせばメモリ確保を回避できる？
+    // url_pathが空ならそもそも丸ごと使いまわせるのでは・・・？
+    unique_curlurl hurl{curl_url()};
 
     if (hurl == nullptr) {
       // out of memory
       return http_result{CURLcode::CURLE_OUT_OF_MEMORY};
     }
 
-    // URL先頭にパスを付加
+    // URL末尾に追加部分を付加
+    // この関数の実行中はURLを維持する
     [[maybe_unused]]
     auto pinning_fullurl = resource.request_url.append_path(url_path);
 
-    // URLパスをセット（CURLUPART_PATHは上書きする）
-    if (auto ec = curl_url_set(hurl.get(), CURLUPART_PATH, resource.request_url.request_path().data(), 0); ec != CURLUE_OK) {
+    // URLの読み込み
+    if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, resource.request_url.full_url().data(), 0); ec != CURLUE_OK) {
       // エラーコード要検討
-      return http_result{CURLcode::CURLE_FAILED_INIT};
+      return http_result{CURLcode::CURLE_URL_MALFORMAT};
     }
 
     // 指定されたURLパラメータを含むようにURLを編集、その先頭ポインタを得る

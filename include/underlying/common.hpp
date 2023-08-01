@@ -349,30 +349,31 @@ namespace chttpp::detail {
       m_host_begin_pos = pos;
 
       // Authorityの終わりを見つける
-      auto slash_pos = m_urlstr.find_first_of("/#?", pos);
+      auto authority_end = m_urlstr.find_first_of("/#?", pos);
 
-      if (slash_pos != string_t::npos) {
-        if (m_urlstr[slash_pos] != '/') {
-          // Authorityの終了が/ではない場合、パスはない
-          // #?以降を消して、/を置いておく
-          m_urlstr.resize(slash_pos);
+      if (authority_end != string_t::npos) {
+        if (m_urlstr[authority_end] == '#') {
+          // Authorityの終了が'#'の場合、パスはない
+          // #以降を消して、/を置いておく
+          m_urlstr.resize(authority_end);
           m_urlstr += '/';
           m_path_begin_pos = m_urlstr.length() - 1;
-          slash_pos = m_path_begin_pos;
+          authority_end = m_path_begin_pos;
         } else {
-          m_path_begin_pos = slash_pos;
+          // '/' or '?'はそのままにする
+          m_path_begin_pos = authority_end;
         }
       } else {
         // 終わりの'/'がない時、'/'を加えておく
         m_urlstr += '/';
         m_path_begin_pos = m_urlstr.length() - 1;
-        slash_pos = m_path_begin_pos;
+        authority_end = m_path_begin_pos;
       }
 
       // userinfo（認証情報）の探索
       // 例えば、http://name:pass@example.com/ みたいな感じ
 
-      const auto authority_part = std::string_view{m_urlstr}.substr(pos, slash_pos - pos);
+      const auto authority_part = std::string_view{m_urlstr}.substr(pos, authority_end - pos);
 
       // Authority部先頭文字のチェック（最低限の検証）
       if (not authority_part.empty()) {
@@ -516,9 +517,46 @@ namespace chttpp::detail {
         return {};
       }
 
-      assert(m_urlstr[m_path_begin_pos] == '/');
+      if (m_urlstr[m_path_begin_pos] == '/') {
+        // パス文字列以降を取得
+        const auto path_and_query = std::string_view(m_urlstr).substr(m_path_begin_pos);
+        // クエリ部分を探索
+        const auto query_begin = path_and_query.find_first_of('?');
 
-      return std::string_view(m_urlstr).substr(m_path_begin_pos);
+        // '?'より前の部分を返す
+        return path_and_query.substr(0, query_begin);
+      } else {
+        // パス部分の最初が'?'の場合パスはなくクエリ文字列が始まる
+        assert(m_urlstr[m_path_begin_pos] == '?');
+        return "/";
+      }
+    }
+
+    [[nodiscard]]
+    auto request_query() const & -> std::string_view {
+      if (not is_valid()) {
+        // パースエラーが起きている場合
+        return {};
+      }
+
+      // パス文字列以降を取得
+      const auto path_and_query = std::string_view(m_urlstr).substr(m_path_begin_pos);
+      // クエリ部分を探索
+      const auto query_begin = path_and_query.find_first_of('?');
+
+      if (query_begin != std::string_view::npos) {
+        // '?'の後ろを返す
+        return path_and_query.substr(query_begin + 1);
+      } else {
+        // クエリ文字列なし
+        return {};
+      }
+    }
+
+    [[nodiscard]]
+    auto full_url() const noexcept -> std::string_view {
+      // 必然的に、戻り値はnull終端が保証される
+      return m_urlstr;
     }
 
     [[nodiscard]]
@@ -552,7 +590,7 @@ namespace chttpp::detail {
           : str{urlstr}
           , pos{org_len}
         {
-          assert(pos <= str.length());
+          assert(pos <= str.length() or pos == string_t::npos);
         }
 
         raii(const raii&) = delete;
@@ -575,8 +613,8 @@ namespace chttpp::detail {
       // 元の長さ
       const auto org_len = m_urlstr.length();
 
-      // クエリ('?')やアンカー（'#'）は除く
-      path = path.substr(0, path.find_first_of("#?"));
+      // アンカー（'#'）は除く
+      path = path.substr(0, path.find_first_of('#'));
 
       if (m_urlstr.back() == '/' and path.front() == '/') {
         // '/'が重複する場合は取り除いておく

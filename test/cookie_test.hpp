@@ -491,7 +491,7 @@ void cookie_test() {
       ut::expect(cookies.size() == 8u);
 
       std::vector<cookie_ref> for_sort;
-      url_info ui{"http://example.com/abc/def"};
+      url_info ui{"http://example.com/abc/def?query=test"};
       cookies.create_cookie_list_to(for_sort, add_cookie, ui);
 
       ut::expect(for_sort.size() == 4u) << for_sort.size();
@@ -540,7 +540,8 @@ void cookie_test() {
       url_info ui3{"example.com"};
       url_info ui4{"https://example.com/"};
       url_info ui5{"http://example.com#fragment"};
-      url_info ui6{"example.com?query"};
+      url_info ui6{"example.com?que=ry"};
+      url_info ui7{"http://example.com/?query=1&query=2"};
 
       ut::expect(ui1.is_valid());
       ut::expect(ui2.is_valid());
@@ -548,6 +549,7 @@ void cookie_test() {
       ut::expect(ui4.is_valid());
       ut::expect(ui5.is_valid());
       ut::expect(ui6.is_valid());
+      ut::expect(ui7.is_valid());
 
       ut::expect(ui1.secure());
       ut::expect(not ui2.secure());
@@ -555,6 +557,7 @@ void cookie_test() {
       ut::expect(ui4.secure());
       ut::expect(not ui5.secure());
       ut::expect(ui6.secure());
+      ut::expect(not ui7.secure());
 
       ut::expect(not ui1.is_ip_host());
       ut::expect(not ui2.is_ip_host());
@@ -562,6 +565,7 @@ void cookie_test() {
       ut::expect(not ui4.is_ip_host());
       ut::expect(not ui5.is_ip_host());
       ut::expect(not ui6.is_ip_host());
+      ut::expect(not ui7.is_ip_host());
 
       ut::expect(ui1.host() == "example.com");
       ut::expect(ui2.host() == "example.com");
@@ -569,6 +573,7 @@ void cookie_test() {
       ut::expect(ui4.host() == "example.com");
       ut::expect(ui5.host() == "example.com");
       ut::expect(ui6.host() == "example.com");
+      ut::expect(ui7.host() == "example.com");
 
       ut::expect(ui1.request_path() == "/");
       ut::expect(ui2.request_path() == "/");
@@ -576,6 +581,15 @@ void cookie_test() {
       ut::expect(ui4.request_path() == "/");
       ut::expect(ui5.request_path() == "/");
       ut::expect(ui6.request_path() == "/");
+      ut::expect(ui7.request_path() == "/");
+
+      ut::expect(ui1.request_query() == "");
+      ut::expect(ui2.request_query() == "");
+      ut::expect(ui3.request_query() == "");
+      ut::expect(ui4.request_query() == "");
+      ut::expect(ui5.request_query() == "");
+      ut::expect(ui6.request_query() == "que=ry");
+      ut::expect(ui7.request_query() == "query=1&query=2");
     }
 
     // パス部分のテスト
@@ -583,26 +597,37 @@ void cookie_test() {
       url_info ui1{"https://example.com/path/path/path"};
       url_info ui2{"http://example.com/path/path/path"};
       url_info ui3{"example.com/path/path/path"};
+      url_info ui4{"http://example.com/path/path/path?que=ry"};
 
       ut::expect(ui1.is_valid());
       ut::expect(ui2.is_valid());
       ut::expect(ui3.is_valid());
+      ut::expect(ui4.is_valid());
 
       ut::expect(ui1.secure());
       ut::expect(not ui2.secure());
       ut::expect(ui3.secure());
+      ut::expect(not ui4.secure());
 
       ut::expect(not ui1.is_ip_host());
       ut::expect(not ui2.is_ip_host());
       ut::expect(not ui3.is_ip_host());
+      ut::expect(not ui4.is_ip_host());
 
       ut::expect(ui1.host() == "example.com");
       ut::expect(ui2.host() == "example.com");
       ut::expect(ui3.host() == "example.com");
+      ut::expect(ui4.host() == "example.com");
 
       ut::expect(ui1.request_path() == "/path/path/path");
       ut::expect(ui2.request_path() == "/path/path/path");
       ut::expect(ui3.request_path() == "/path/path/path");
+      ut::expect(ui4.request_path() == "/path/path/path");
+
+      ut::expect(ui1.request_query() == "");
+      ut::expect(ui2.request_query() == "");
+      ut::expect(ui3.request_query() == "");
+      ut::expect(ui4.request_query() == "que=ry");
     }
 
     // IPアドレスによるホスト構成のテスト
@@ -719,6 +744,7 @@ void cookie_test() {
       auto path = ui1.request_path();
 
       ut::expect(path == "/append/path/path");
+      ut::expect(ui1.full_url() == "https://example.com/append/path/path");
     }
     ut::expect(ui1.request_path() == "/");
     {
@@ -728,6 +754,7 @@ void cookie_test() {
       auto path = ui1.request_path();
 
       ut::expect(path == "/another/path");
+      ut::expect(ui1.full_url() == "https://example.com/another/path");
     }
     ut::expect(ui1.request_path() == "/");
 
@@ -740,26 +767,32 @@ void cookie_test() {
       [[maybe_unused]]
       auto token = ui2.append_path("/addpath/path");
       ut::expect(ui2.request_path() == "/base/path/addpath/path");
+      ut::expect(ui2.full_url() == "https://example.com/base/path/addpath/path");
     }
     ut::expect(ui2.request_path() == "/base/path");
     {
       [[maybe_unused]]
       auto token = ui2.append_path("continue/path");
       ut::expect(ui2.request_path() == "/base/pathcontinue/path");
+      ut::expect(ui2.full_url() == "https://example.com/base/pathcontinue/path");
     }
     ut::expect(ui2.request_path() == "/base/path");
     {
-      // クエリ文字列は無視される
+      // クエリを削除しない
       [[maybe_unused]]
       auto token = ui2.append_path("/query?param=value");
+
       ut::expect(ui2.request_path() == "/base/path/query");
+      ut::expect(ui2.request_query() == "param=value");
+      ut::expect(ui2.full_url() == "https://example.com/base/path/query?param=value");
     }
     ut::expect(ui2.request_path() == "/base/path");
     {
-      // アンカーも無視される
+      // アンカーは無視される
       [[maybe_unused]]
       auto token = ui2.append_path("/anchor#abcdefg");
       ut::expect(ui2.request_path() == "/base/path/anchor");
+      ut::expect(ui2.full_url() == "https://example.com/base/path/anchor");
     }
     ut::expect(ui2.request_path() == "/base/path");
 
@@ -768,11 +801,13 @@ void cookie_test() {
     url_info ui3{"https://httpbin.org/"};
     ut::expect(ui3.request_path() == "/");
     {
-      [[maybe_unused]] auto token = ui3.append_path("/redirect-to");
+      [[maybe_unused]]
+      auto token = ui3.append_path("/redirect-to");
 
       auto path = ui3.request_path();
 
       ut::expect(path == "/redirect-to");
+      ut::expect(ui3.full_url() == "https://httpbin.org/redirect-to");
     }
     ut::expect(ui3.request_path() == "/");
 
