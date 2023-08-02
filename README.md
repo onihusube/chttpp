@@ -92,6 +92,24 @@ int main() {
 
 In these cases, the request can still be made through a consistent interface.
 
+### Query parameter
+
+```cpp
+#include "chttpp.hpp"
+
+int main() {
+  // Embedding in URL
+  chttpp::get("https://example.com/?param1=value1&param2=value2");
+
+  // Or specify in config
+  chttpp::get("https://example.com/", { .params = {
+                                          {"param1", "value1"},
+                                          {"param2", "value2"}
+                                        }
+                                      });
+}
+```
+
 ### Request body
 
 The request body can be any value that can be serialized into a byte array.
@@ -449,7 +467,7 @@ You can use `operator bool()` to determine success or failure and `.value()` to 
 int main() {
   using namespace chttpp::mime_types;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain });
 
   if (res) {
     // success
@@ -476,7 +494,7 @@ int main() {
   using namespace chttpp::mime_types;
   using namespace chttpp::headers;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain });
 
   // Get HTTP status code
   std::cout << res.status_code().value() << '\n';
@@ -502,7 +520,7 @@ These functions return an empty string or error value (`.status_code()`) or an e
 
 |function|return type|on success|on failure|
 |---|---|---|---|
-|`.status_code()`|`chttpp::detail::http_status_code`|http status code of response|`std::uint16_t(-1)`|
+|`.status_code()`|`chttpp::detail::http_status_code`|http status code of response|`0`|
 |`.response_body()`|`std::string_view`|response body string|empty string|
 |`.response_data()`|`std::span<char>`|response body bytes|empty span|
 |`.response_header()`|`std::stirng_view`|value of specified header name|empty string|
@@ -519,7 +537,7 @@ int main() {
   using namespace chttpp::mime_types;
   using namespace chttpp::headers;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain });
 
   // Refer to the response body as a UTF-8 string.
   std::u8string_view u8str = res.response_body<char8_t>();
@@ -544,13 +562,14 @@ int main() {
   using namespace chttpp::mime_types;
   using namespace chttpp::headers;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain });
 
   // Outputs a uniform status message regardless of success or failure.
   std::cout << res.status_message() << '\n';
   // On success : "HTTP/1.1 200 OK", etc
   // On failure : underlying library error messages
   // On exception : After "Exception : ", print it if the exception is a string, or print .what() if the exception is a std::exception.
+  //                Otherwise print "Unstringable exception".
 }
 ```
 
@@ -577,7 +596,7 @@ int main() {
   using namespace chttpp::mime_types;
   using namespace chttpp::headers;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain });
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain });
 
   // For example, parse the response as json
   auto json = res | to_json;
@@ -607,7 +626,7 @@ If `http_result` object is not in a successful state, an empty `std::string_view
 int main() {
   using namespace chttpp::mime_types;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/mp4 })
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/mp4 })
               .then([](auto&& http_res) { 
                 auto&& [body, headers, status] = std::move(http_res);
                 // status is std::uint16_t
@@ -639,7 +658,7 @@ Errors in the underlying library can be handled by `.catch_error()`.
 int main() {
   using namespace chttpp::mime_types;
 
-  auto res = chttpp::post("https://example.com", "field1=value1&field2=value2", { .content_type = text/plain })
+  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain })
               .then([](auto&& http_res) { 
                 // Not called on errors in the underlying library.
               })

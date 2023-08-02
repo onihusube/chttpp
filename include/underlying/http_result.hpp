@@ -666,7 +666,7 @@ namespace chttpp::detail {
         const auto &response = std::get<0>(m_outcome);
         return response.status_code;
       } else {
-        return http_status_code{-1};
+        return http_status_code{0};
       }
     }
 
