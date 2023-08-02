@@ -629,22 +629,16 @@ namespace chttpp::underlying::agent_impl {
       curl_easy_setopt(session.get(), CURLOPT_PASSWORD, const_cast<char *>(req_cfg.auth.password.data()));
     }
 
-    // クエリが事前に存在する場合などのハンドルが面倒なので、再構成する
-    // resourceのhurlを上書きして使いまわせばメモリ確保を回避できる？
-    // url_pathが空ならそもそも丸ごと使いまわせるのでは・・・？
-    unique_curlurl hurl{curl_url()};
-
-    if (hurl == nullptr) {
-      // out of memory
-      return http_result{CURLcode::CURLE_OUT_OF_MEMORY};
-    }
-
     // URL末尾に追加部分を付加
     // この関数の実行中はURLを維持する
     [[maybe_unused]]
     auto pinning_fullurl = resource.request_url.append_path(url_path);
 
+    // 同じcurluステートを使い回してメモリ確保回避を期待（なってるんかな
+    auto &hurl = state.hurl;
+
     // URLの読み込み
+    // クエリが事前に存在する場合などのハンドルが面倒なので、毎回URLをセットし直す
     if (auto ec = curl_url_set(hurl.get(), CURLUPART_URL, resource.request_url.full_url().data(), 0); ec != CURLUE_OK) {
       // エラーコード要検討
       return http_result{CURLcode::CURLE_URL_MALFORMAT};
