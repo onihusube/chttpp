@@ -86,7 +86,10 @@ namespace chttpp::detail {
           unsigned short,
           signed char,
           unsigned char,
-          bool
+          bool,
+          long double,
+          double,
+          float
         >::call_handler(handler, m_exptr);
       } catch(...) {
         // なんもしない（でいい？
@@ -153,7 +156,10 @@ namespace chttpp::detail {
           unsigned short,
           signed char,
           unsigned char,
-          bool
+          bool,
+          long double,
+          double,
+          float
         >::call_handler(handler, self.m_exptr);
       } catch(...) {
         // なんもしない（でいい？
@@ -252,7 +258,7 @@ namespace chttpp::detail {
         try {
           // 左辺値で呼び出し
           std::visit(overloaded{
-              [&](T& value) {
+              [&](const T& value) {
                 std::invoke(std::forward<F>(func), value);
               },
               [](auto&&) noexcept {}
@@ -299,7 +305,7 @@ namespace chttpp::detail {
 * std::invocable<F, const T&>のチェックを必要になるギリギリまで遅延させるため
 * オーバーロードで分けてそれをチェックするとhttp_responseを受けてそのまま返すような関数を渡したときにエラーになる
 chttpp::get(...).then([](auto&& hr) {
-  ut::expect(true);
+  ...
   return hr;  // コピーが発生しエラー
 });
 * この場合、std::invocable<F, const T&>のチェックでauto&& -> const http_response&となり、returnでhrがconstのためコピーされるがコピー禁止のためエラーになる
@@ -816,4 +822,6 @@ namespace chttpp::detail {
 namespace chttpp {
   using chttpp::detail::http_result;
   using chttpp::detail::http_response;
+  using chttpp::detail::error_code;
+  using chttpp::detail::exptr_wrapper;
 }

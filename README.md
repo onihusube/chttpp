@@ -269,11 +269,11 @@ This uses POST(`chttpp::post`), but the same is true for other methods.
 
 #### Predefined header name object
 
-`http_deaders.hpp` has a predefined header name object. This can be used to avoid header name errors.
+`http_headers.hpp` has a predefined header name object. This can be used to avoid header name errors.
 
 ```cpp
 #include "chttpp.hpp"
-#include "http_deaders.hpp" // opt-in
+#include "http_headers.hpp" // opt-in
 
 int main() {
   using namespace chttpp::headers;   // using
@@ -305,7 +305,7 @@ In addition, when setting request headers, values can also be specified by `=`.
 ```cpp
 #include "chttpp.hpp"
 #include "mime_types.hpp"
-#include "http_deaders.hpp"
+#include "http_headers.hpp"
 
 int main() {
   using namespace chttpp::mime_types;
@@ -458,7 +458,7 @@ chttpp::post("url", data, { .version = 1.0 });
 
 The result of the request is returned as an object of type `http_result`. This is a monadic type object that holds either success or failure (and exception) status.
 
-You can use `operator bool()` to determine success or failure and `.value()` to get the response.
+You can use `operator bool()` (or `.has_value()`) to determine success or failure and `.value()` to get the response.
 
 ```cpp
 #include "chttpp.hpp"
@@ -488,7 +488,7 @@ This interface follows `std::optional` and `std::expected` and is not very user-
 ```cpp
 #include "chttpp.hpp"
 #include "mime_types.hpp"
-#include "http_deaders.hpp"
+#include "http_headers.hpp"
 
 int main() {
   using namespace chttpp::mime_types;
@@ -531,7 +531,7 @@ These functions return an empty string or error value (`.status_code()`) or an e
 ```cpp
 #include "chttpp.hpp"
 #include "mime_types.hpp"
-#include "http_deaders.hpp"
+#include "http_headers.hpp"
 
 int main() {
   using namespace chttpp::mime_types;
@@ -556,7 +556,7 @@ There is also a function that outputs the status of `http_result`.
 ```cpp
 #include "chttpp.hpp"
 #include "mime_types.hpp"
-#include "http_deaders.hpp"
+#include "http_headers.hpp"
 
 int main() {
   using namespace chttpp::mime_types;
@@ -580,7 +580,7 @@ You can chain any process by pipe operators (`operator|`) with the result as `st
 ```cpp
 #include "chttpp.hpp"
 #include "mime_types.hpp"
-#include "http_deaders.hpp"
+#include "http_headers.hpp"
 
 // Convert to json type by an arbitrary library
 auto to_json(std::string_view response) -> json_type {
@@ -617,59 +617,174 @@ If `http_result` object is not in a successful state, an empty `std::string_view
 
 #### Monadic operation
 
-`.then()` is available for continuation processing after a successful request.
+Three monadic interfaces are available for simple response handling.
 
 ```cpp
 #include "chttpp.hpp"
+#include "http_headers.hpp"
 #include "mime_types.hpp"
 
 int main() {
   using namespace chttpp::mime_types;
+  using namespace chttpp::headers;
 
-  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/mp4 })
-              .then([](auto&& http_res) { 
-                auto&& [body, headers, status] = std::move(http_res);
-                // status is std::uint16_t
-                if (status == 200) {
+  chttpp::post("https://example.com", "request body", { .content_type = text/plain })
+    .then([](chttpp::http_response&& response) {
+      // On success
 
-                  // body is std::vector<char>
-                  std::cout << std::string_view(body.data(), body.size()) << '\n';
+      auto&& [body, headers, status] = std::move(response);
+      // body : std::vector<char>
+      // headers : std::unordered_map<std::string, std::string>
+      // status : chttpp::http_status_code
 
-                  // headers is std::unordered_map<std::string, std::string>
-                  for (const auto& [name, value] : headers) {
-                    std::cout << name << " : " << value << '\n';
-                  }
+      std::cout << headers[http_status] << '\n';  // For example, "HTTP/1.1 200 OK" etc.
 
-                  return body;
-                }
-              })
-              .then([](auto&& body) {
-                // It can be further continued while changing the type.
-              });
+      std::string_view str{body};
+      std::cout << str << '\n';   // Output of response body
+
+      if (status.OK()) {
+        // Processing at 200 responses
+        ...
+      }
+    })
+    .catch_error([](chttpp::error_code error_code) {
+      // On failure
+
+      std::cout << error_code.value() << " : ";
+      std::cout << error_code.message() << '\n';
+    })
+    .catch_exception([](chttpp::exptr_wrapper&& exptr) {
+      // On exception
+
+      std::cout << exptr << '\n';
+    });
 }
 ```
 
-Errors in the underlying library can be handled by `.catch_error()`.
+In this case, only one of these three functions will be called depending on the status of `http_result`.
+
+##### `then()`
+
+`then()` is a function that specifies callback processing to be called if the request is successful.
+
+Since *rvalue* of `chttpp::http_response` is passed to the callback function, it must be an argument type that can accept this value.
 
 ```cpp
-#include "chttpp.hpp"
-#include "mime_types.hpp"
+// Examples of valid callback argument types
+chttpp::post(...)
+  .then([](chttpp::http_response&& response) {...});
 
-int main() {
-  using namespace chttpp::mime_types;
+chttpp::post(...)
+  .then([](chttpp::http_response response) {...});
 
-  auto res = chttpp::post("https://example.com", "request body", { .content_type = text/plain })
-              .then([](auto&& http_res) { 
-                // Not called on errors in the underlying library.
-              })
-              .catch_error([](auto ec) {
-                // ec is error code (integer type)
-                std::cout << ec << '\n';
-                // 
-              });
-}
+chttpp::post(...)
+  .then([](auto&& response) {...});
+
+chttpp::post(...)
+  .then([](const auto& response) {...});
 ```
 
-### Another http clietn - agent
+コールバックの戻り値型が`void`の場合、コールバック関数には`const chttpp::http_response&`が渡されます。
+
+A callback function can return any return value and does not have to return. 
+
+If the return type of the callback is `void`, the callback function is passed `const chttpp::http_response&`.
+
+```cpp
+chttpp::post(...)
+  .then([](auto&& response) {
+    ...
+
+    return /*anything*/;
+  });
+
+chttpp::post(...)
+  .then([](auto&& response) {
+    // response : const chttpp::http_response&
+
+    ...
+    // Nothing is returned
+  });
+```
+
+Note that the return type of the callback is `std::remove_cvref`, so if a reference is returned, it is copied.
+
+Therefore, if you receive an argument as `const &`, you cannot return its `http_response` object (because the `http_response` object is not copyable).
+
+```cpp
+chttpp::post(...)
+  .then([](auto&& response) {
+    ...
+
+    return response;  // ok (implicit move)
+  });
+
+chttpp::post(...)
+  .then([](const auto& response) {
+    ...
+
+    return response;  // ng (attempting to copy)
+  });
+```
+
+The value returned by the callback can be used to chain `then()`.
+
+```cpp
+chttpp::post(...)
+  .then([](auto&& response) {
+    std::cout << response.status_code.value() << '\n';
+
+    return std::make_pair(std::move(response.body), std::move(response.headers));
+  })
+  .then([](auto&& pair) {
+    for (const auto [name, value] : pair) {
+      std::cout << name << " : " << value << '\n';
+    }
+
+    return std::move(pair.first);
+  })
+  .then([](auto&& body) {
+    std::cout << std::string_view{body} << '\n';
+
+    return "complete!"sv;
+  })
+  .then([](auto str) {
+    std::cout << str << '\n';
+  });
+```
+
+Subsequent `then()`s can be treated in the same way as the first `then()` (which passes `http_response`) (same constraints, etc.).
+
+If the return type is `void` and the callback does not take ownership of the previous value (i.e., if it receives an argument with `const&`), the value is unchanged and the same object is passed to the subsequent `then()`.
+
+```cpp
+chttpp::post(...)
+  .then([](const auto& response) {
+    std::cout << response.status_code.value() << '\n';
+  })
+  .then([](auto&& response) {
+    for (const auto [name, value] : response.headers) {
+      std::cout << name << " : " << value << '\n';
+    }
+    // Since nothing is returned, response is const http_response&.
+  })
+  .then([](const chttpp::http_response& response) {
+    std::cout << std::string_view{response.body} << '\n';
+
+    return "complete!"sv;
+  })
+  .then([](auto str) {
+    std::cout << str << '\n';
+  });
+```
+
+Everything you receive as `response` in this example points to the same object (not even moved).
+
+##### `catch_error()`
+##### `catch_exception()`
+
+##### `match()`
+
+### Another http client - agent
 
 ## API

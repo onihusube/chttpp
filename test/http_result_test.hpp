@@ -77,6 +77,20 @@ void http_result_test() {
         ut::expect(true);
         return hr;
       });
+
+      hr_ok().then([](const auto&) {
+        ut::expect(true);
+      }).then([]([[maybe_unused]] auto&& hr) {
+        // ここのhrはconst http_response&
+        ut::expect(true);
+      });
+
+      hr_ok().then([](const auto&) {
+        ut::expect(true);
+        return "complete"sv;
+      }).then([](auto str) {
+        ut::expect(str == "complete"sv);
+      });
   };
 
   "then void"_test = []
