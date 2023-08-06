@@ -50,7 +50,7 @@ void underlying_test() {
     ut::expect(headers.size() == 12_ull);
 
     constexpr std::string_view names[] = {
-      "HTTP Ver",
+      "http-status-line",
       "cache-control",
       "date",
       "content-length",
@@ -75,15 +75,15 @@ void underlying_test() {
       auto result = chttpp::get(L"https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200) << result.error_message();
+      ut::expect(result.status_code() == 200) << result.status_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
-      const auto& headers = result.response_header();
+      const auto& headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
 
       {
-        const auto httpver = result.response_header("HTTP Ver");
-        ut::expect(httpver == "HTTP/1.1 200 OK"sv) << httpver;
+        const auto httpver = result.response_header("http-status-line");
+        ut::expect(httpver == "HTTP/1.1 200"sv) << httpver;
       }
       {
         const auto clen = result.response_header("content-type");
@@ -94,20 +94,20 @@ void underlying_test() {
       auto result = chttpp::get(L"http://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200) << result.error_message();
+      ut::expect(result.status_code() == 200) << result.status_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
-      const auto& headers = result.response_header();
+      const auto& headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
     {
       auto result = chttpp::get("https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200) << result.error_message();
+      ut::expect(result.status_code() == 200) << result.status_message();
       ut::expect(result.response_body().length() >= 1256_ull);
 
-      const auto& headers = result.response_header();
+      const auto& headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
     }
   };
@@ -117,15 +117,15 @@ void underlying_test() {
       auto result = chttpp::head(L"https://example.com");
 
       ut::expect(bool(result));
-      ut::expect(result.status_code() == 200) << result.error_message();
+      ut::expect(result.status_code() == 200) << result.status_message();
       ut::expect(result.response_body().length() == 0_ull);
 
-      const auto& headers = result.response_header();
+      const auto& headers = result.response_headers();
       ut::expect(headers.size() >= 11_ull);
 
       {
-        const auto httpver = result.response_header("HTTP Ver");
-        ut::expect(httpver == "HTTP/1.1 200 OK"sv) << httpver;
+        const auto httpver = result.response_header("http-status-line");
+        ut::expect(httpver == "HTTP/1.1 200"sv) << httpver;
       }
       {
         const auto clen = result.response_header("content-type");

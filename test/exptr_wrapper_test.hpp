@@ -68,7 +68,8 @@ void exptr_wrapper_test() {
       }, exptr_str)
     );
 
-    ut::expect(
+    // 文字列の場合はstring_viewへの暗黙変換のみが許可されている
+    ut::expect(not
       visit([](std::string str) {
         ut::expect(str == "test char*"sv);
       }, exptr_str)
@@ -82,7 +83,8 @@ void exptr_wrapper_test() {
       }, exptr_int)
     );
 
-    ut::expect(
+    // int -> unsigned int の変換は許可されていない（厳しいか・・・？
+    ut::expect(not
       visit([](unsigned int n) {
         ut::expect(n == 12345);
       }, exptr_int)
@@ -138,7 +140,8 @@ void exptr_wrapper_test() {
 
     ut::expect(exptr_str.visit([](const char *str){ ut::expect(str == "test char*"sv); }));
 
-    ut::expect(exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
+    // 文字列の場合はstring_viewへの暗黙変換のみが許可されている
+    ut::expect(not exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
   };
 
   "exptr_wrapper stream output"_test = [] {

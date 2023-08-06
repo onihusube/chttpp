@@ -804,20 +804,10 @@ namespace chttpp::underlying::agent_impl {
     // ホスト名がきちんとしていないとWinHttpCrackUrl()は分解してくれない（エラーコード 12006 で失敗する）
     hinet request{state.buffer.use([&](wstring_t& request_path) -> ::HINTERNET {
       
+      // ベースURLとパスの結合はこの関数呼び出しの前に完了している
       // リクエストパス全体の取得と文字コード変換
-      const auto req_path = resource.request_url.request_path();
-
-      if (char_to_wchar(req_path, request_path)) {
+      if (char_to_wchar(resource.request_url.full_url(), request_path)) {
         return nullptr;
-      }
-
-      {
-        // ここでは先頭は何でもいいのでなんかでっちあげる
-        constexpr std::wstring_view url_head = L"http://example.com";
-
-        // なんかうまい事メモリ確保回避したい
-        request_path.reserve(request_path.length() + url_head.length());
-        request_path.insert(0, url_head);
       }
 
       // pathの解析

@@ -32,6 +32,32 @@ namespace chttpp::detail {
 
 namespace chttpp::detail {
 
+  template<typename V>
+  struct prevent_implicit_convertion {
+    V& value;
+
+    template<typename T>
+      requires requires { requires std::is_same_v<T, V>; }
+    constexpr operator T&() const noexcept {
+      return value;
+    }
+
+    template<typename T>
+      requires requires { requires not std::is_same_v<T, V>; } and
+      requires { requires std::is_same_v<T, std::string_view>; } and
+      std::convertible_to<V&, T>
+    constexpr operator T() const noexcept {
+      return T{ value };
+    }
+  };
+
+  template<typename F, typename Arg>
+  concept invocable_without_implicit_conversion =
+    std::invocable<F&, Arg&> and
+    requires(F& f, Arg& arg) {
+      std::invoke(f, prevent_implicit_convertion{ arg });
+    };
+
   template<typename...>
   struct check_handler_impl;
 
@@ -47,12 +73,13 @@ namespace chttpp::detail {
 
     template<typename F>
     static void call_handler(F& handler, const std::exception_ptr& exptr) {
-      if constexpr (std::invocable<F&, Head>) {
+      // 暗黙変換による呼び出しが行われてしまう（特に数値型）ので、それを防ぐ
+      if constexpr (invocable_without_implicit_conversion<F&, Head>) {
         try {
           check_handler_impl<Args...>::call_handler(handler, exptr);
         } catch(Head ex) {
           // Headを受けられるならば、catchを追加
-          std::invoke(handler, ex);
+          std::invoke(handler, prevent_implicit_convertion{ex});
         }
       } else {
         check_handler_impl<Args...>::call_handler(handler, exptr);

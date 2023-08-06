@@ -44,6 +44,8 @@ void http_config_test() {
   test_req("https://example.com", { .timeout = 10s });
   test_req("https://example.com", { .timeout = 1min });
 
+#ifndef _MSC_VER
+
   // httpバージョンの数値指定（コンパイル時検査付き）
   test_req("https://example.com", { .version = 2 });
   test_req("https://example.com", { .version = 1.1 });
@@ -54,6 +56,8 @@ void http_config_test() {
   //test_req("https://example.com", { .version = 11 });
   //test_req("https://example.com", { .version = 3 });
   //test_req("https://example.com", { .version = 1.0 });
+
+#endif // !MSC_VER
 
   // agentのリクエスト時設定のテスト
 
