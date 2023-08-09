@@ -16,11 +16,11 @@ namespace ut = boost::ut;
 
 #ifdef _MSC_VER
 
-#include "winhttp_test.hpp"
+#include "underlying/winhttp_test.hpp"
 
 #else
 
-#include "libcurl_test.hpp"
+#include "underlying/libcurl_test.hpp"
 
 #endif
 
