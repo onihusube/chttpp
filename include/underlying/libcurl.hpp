@@ -109,7 +109,7 @@ namespace chttpp {
 
 namespace chttpp::detail {
 
-  void parse_response_header_on_curl(header_t& headers, const char *data_ptr, std::size_t data_len) {
+  inline void parse_response_header_on_curl(header_t& headers, const char *data_ptr, std::size_t data_len) {
     // curlのヘッダコールバックは、行毎=ヘッダ要素毎に呼んでくれる
 
     using namespace std::literals;

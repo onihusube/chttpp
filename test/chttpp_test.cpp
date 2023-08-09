@@ -24,11 +24,7 @@ namespace ut = boost::ut;
 
 #endif
 
-#include "http_result_test.hpp"
-#include "http_config_test.hpp"
-#include "status_code_test.hpp"
-#include "cookie_test.hpp"
-#include "exptr_wrapper_test.hpp"
+#include "locally_completed_test.hpp"
 
 namespace chttpp_test {
 

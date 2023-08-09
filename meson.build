@@ -35,8 +35,13 @@ picojson_dep = dependency('picojson')
 
 dep_libs += [boostut_dep, picojson_dep]
 
-exe = executable('chttpp_test', 'test/chttpp_test.cpp', include_directories : include_dir, extra_files : vs_files, cpp_args : options, dependencies : dep_libs)
-test('chttpp test', exe)
+test1 = executable('chttpp_test', ['test/chttpp_test.cpp', 'test/locally_completed_test.cpp'], include_directories : include_dir, extra_files : vs_files, cpp_args : options, dependencies : dep_libs)
+test('chttpp test', test1)
+
+locally_completed_test_obj = test1.extract_objects('test/locally_completed_test.cpp')
+
+test2 = executable('chttpp_non_communication_test', 'test/chttpp_non_communication_test.cpp', objects : locally_completed_test_obj, include_directories : include_dir, cpp_args : options, dependencies : dep_libs)
+test('chttpp non communication test', test2)
 
 else
 

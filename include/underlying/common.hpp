@@ -241,7 +241,7 @@ namespace chttpp::detail {
    * @param headers 保存するmap<string, string>オブジェクの参照
    * @param header_str 1行分のヘッダ要素文字列
    */
-  auto parse_response_header_oneline(header_t& headers, std::string_view header_str) {
+  inline auto parse_response_header_oneline(header_t& headers, std::string_view header_str) {
     using namespace std::string_view_literals;
     // \r\nは含まないとする
     assert(header_str.ends_with("\r\n") == false);
