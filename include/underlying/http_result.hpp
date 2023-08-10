@@ -32,30 +32,44 @@ namespace chttpp::detail {
 
 namespace chttpp::detail {
 
+  template<typename From, typename To>
+  concept without_narrowing_convertible_to =
+    std::convertible_to<From, To> and
+    requires {
+      requires requires(From&& x) {
+                   { std::type_identity_t<To[]>{std::forward<From>(x)} } -> std::same_as<To[1]>;
+               } or
+               std::is_same_v<From, To>;
+    };
+
+  template<typename D, typename B>
+  concept conversion_to_base =
+      std::convertible_to<D, B> and
+      std::derived_from<std::remove_cvref_t<D>, std::remove_cvref_t<B>>;
+
   template<typename V>
-  struct prevent_implicit_convertion {
+  struct prevent_narrowing_convertion {
     V& value;
 
     template<typename T>
-      requires requires { requires std::is_same_v<T, V>; }
+      requires requires { requires std::is_same_v<T, V>; } or 
+               conversion_to_base<V&, T&>
     constexpr operator T&() const noexcept {
       return value;
     }
 
     template<typename T>
-      requires requires { requires not std::is_same_v<T, V>; } and
-      requires { requires std::is_same_v<T, std::string_view>; } and
-      std::convertible_to<V&, T>
+      requires requires { requires not std::is_same_v<T, V>; } and  // この制約いらないんだけど、あった方がコンパイルが速い（気がする（多分orのせい
+               without_narrowing_convertible_to<const V&, T>
     constexpr operator T() const noexcept {
       return T{ value };
     }
   };
 
   template<typename F, typename Arg>
-  concept invocable_without_implicit_conversion =
-    std::invocable<F&, Arg&> and
+  concept invocable_without_narrowing_conversion =
     requires(F& f, Arg& arg) {
-      std::invoke(f, prevent_implicit_convertion{ arg });
+      std::invoke(f, prevent_narrowing_convertion{ arg });
     };
 
   template<typename...>
@@ -73,13 +87,13 @@ namespace chttpp::detail {
 
     template<typename F>
     static void call_handler(F& handler, const std::exception_ptr& exptr) {
-      // 暗黙変換による呼び出しが行われてしまう（特に数値型）ので、それを防ぐ
-      if constexpr (invocable_without_implicit_conversion<F&, Head>) {
+      // 縮小変換による呼び出しが行われてしまう（特に数値型）ので、それを防ぐ
+      if constexpr (invocable_without_narrowing_conversion<F&, Head>) {
         try {
           check_handler_impl<Args...>::call_handler(handler, exptr);
         } catch(Head ex) {
           // Headを受けられるならば、catchを追加
-          std::invoke(handler, prevent_implicit_convertion{ex});
+          std::invoke(handler, prevent_narrowing_convertion{ex});
         }
       } else {
         check_handler_impl<Args...>::call_handler(handler, exptr);
@@ -165,7 +179,7 @@ namespace chttpp::detail {
       auto handler = overloaded{
         [&os](std::basic_string_view<CharT> str) { os << str; },
         [&os](const std::exception& ex) requires (std::is_same_v<char, CharT>) { os << ex.what(); },
-        [&os](auto err) requires requires { {os << err} -> std::same_as<std::basic_ostream<CharT, Traits>&>; } { os << err; }
+        [&os]<typename V>(prevent_narrowing_convertion<V>&& pnc) requires requires { {os << pnc.value} -> std::same_as<std::basic_ostream<CharT, Traits>&>; } { os << pnc.value; }
       };
 
       try {

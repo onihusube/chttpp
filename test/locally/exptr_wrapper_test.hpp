@@ -68,8 +68,7 @@ void exptr_wrapper_test() {
       }, exptr_str)
     );
 
-    // 文字列の場合はstring_viewへの暗黙変換のみが許可されている
-    ut::expect(not
+    ut::expect(
       visit([](std::string str) {
         ut::expect(str == "test char*"sv);
       }, exptr_str)
@@ -94,7 +93,7 @@ void exptr_wrapper_test() {
 
     ut::expect(
       visit([](const std::exception& ex) {
-        ut::expect(ex.what() == "test runtime_error"sv);
+        ut::expect(ex.what() == "test runtime_error"sv) << ex.what();
       }, exptr_runtimerr)
     );
 
@@ -140,8 +139,7 @@ void exptr_wrapper_test() {
 
     ut::expect(exptr_str.visit([](const char *str){ ut::expect(str == "test char*"sv); }));
 
-    // 文字列の場合はstring_viewへの暗黙変換のみが許可されている
-    ut::expect(not exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
+    ut::expect(exptr_str.visit([](std::string str){ ut::expect(str == "test char*"sv); }));
   };
 
   "exptr_wrapper stream output"_test = [] {
@@ -159,7 +157,7 @@ void exptr_wrapper_test() {
 
       ss << exptr_runtimerr;
 
-      ut::expect(ss.view() == "test runtime_error"sv);
+      ut::expect(ss.view() == "test runtime_error"sv) << ss.view();
     }
     {
       auto exptr_int = throw_int<12345>();
@@ -167,7 +165,7 @@ void exptr_wrapper_test() {
 
       ss << exptr_int;
 
-      ut::expect(ss.view() == "12345"sv);
+      ut::expect(ss.view() == "12345"sv) << ss.view();
     }
   };
 }
