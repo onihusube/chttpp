@@ -684,8 +684,6 @@ chttpp::post(...)
   .then([](const auto& response) {...});
 ```
 
-コールバックの戻り値型が`void`の場合、コールバック関数には`const chttpp::http_response&`が渡されます。
-
 A callback function can return any return value and does not have to return. 
 
 If the return type of the callback is `void`, the callback function is passed `const chttpp::http_response&`.
@@ -781,6 +779,74 @@ chttpp::post(...)
 Everything you receive as `response` in this example points to the same object (not even moved).
 
 ##### `catch_error()`
+
+`catch_error()` is a function that specifies the callback process to be called if the request fails.
+
+The callback is passed the *rvalue* of `chttpp::error_code`, so the callback must be able to accept this value.
+
+```cpp
+// Examples of valid callback argument types
+chttpp::post(...)
+  .catch_error([](chttpp::error_code&& ec) {...});
+
+chttpp::post(...)
+  .catch_error([](chttpp::error_code ec) {...});
+
+chttpp::post(...)
+  .catch_error([](auto&& ec) {...});
+
+chttpp::post(...)
+  .catch_error([](auto ec) {...});
+
+chttpp::post(...)
+  .catch_error([](const auto& ec) {...});
+```
+
+A callback function can return any return value and does not have to return.
+
+If the callback function returns nothing (return type `void`), subsequent calls to `catch_error()` will not be allowed.
+
+If any value is returned, it is passed (with ownership) to the next `catch_error()` callback.
+
+```cpp
+chttpp::post(...)
+  .catch_error([](auto ec) {
+    return ec.message();
+  })
+  .catch_error([](auto&& str) {
+    std::cout << str;
+  });
+
+chttpp::post(...)
+  .catch_error([](auto ec) {
+    // Nothing is returned
+  })
+  .catch_error([](auto&&) {});  // error!
+```
+
+Note that the return type of the callback is `std::remove_cvref`, so if a reference is returned, it is copied.
+
+
+`chttpp::error_code` is a type that holds the error code of the underlying library with type erasure.
+
+This error condition is not an HTTP error (i.e., a response in the 400s), but rather an error in the communication itself or in the OS/library.
+
+`chttpp::error_code` provides a simple interface for retrieving error information.
+
+```cpp
+chttpp::post(...)
+  .catch_error([](chttpp::error_code ec) {
+    // Get error message
+    std::pmr::string err_msg = ec.message();
+
+    // Get raw error code (type is the type of the underlying library error code)
+    auto err_val = ec.value();
+
+    // Get error codition (true on error)
+    bool is_err = bool(ec);
+  })
+```
+
 ##### `catch_exception()`
 
 ##### `match()`
