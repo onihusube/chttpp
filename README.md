@@ -940,12 +940,30 @@ chttpp::post(...)
 
     // Almost equivalent to this
     exptr.visit(overloaded{
-      [](std::basic_string_view<CharT> str) { std::cout << str << '\n'; },
+      [](std::string_view str) { std::cout << str << '\n'; },
       [](const std::exception& ex)  { std::cout << ex.what() << '\n'; },
       [](auto&& v) { std::cout << v << '\n'; }
     });
 
   });
+```
+
+`chttpp::exception_handler`を使用すると、`catch_exception()`から`visit()`を直接呼び出すことができます。
+
+```cpp
+// This is
+chttpp::post(...)
+  .catch_exception([](const chttpp::exptr_wrapper& exptr) {
+    exptr.visit([](const std::exception& ex) {
+      ...
+    });
+  });
+
+// equivalent to this
+chttpp::post(...)
+  .catch_exception(chttpp::exception_handler{[](const std::exception& ex) {
+    ...
+  }});
 ```
 
 ##### `match()`
