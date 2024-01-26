@@ -849,6 +849,105 @@ chttpp::post(...)
 
 ##### `catch_exception()`
 
+`catch_exception()` is a function that specifies a callback to be called if any exception occurs during the request.
+
+The callback is passed the *lvalue* of `chttpp::exptr_wrapper`, so the callback must be able to accept this value.
+
+```cpp
+// Examples of valid callback argument types
+chttpp::post(...)
+  .catch_exception([](chttpp::exptr_wrapper& exptr) {...});
+
+chttpp::post(...)
+  .catch_exception([](const chttpp::exptr_wrapper& exptr) {...});
+
+chttpp::post(...)
+  .catch_exception([](auto&& exptr) {...});
+
+chttpp::post(...)
+  .catch_exception([](const auto& exptr) {...});
+```
+
+Callbacks cannot return a return value (the only return type is `void`).
+
+If the callback specified for this function is called, the request is aborted at the time the exception occurs.
+
+
+The `exptr_wrapper` wraps `std::exception_ptr` for easier handling.
+
+```cpp
+chttpp::post(...)
+  .catch_exception([](const chttpp::exptr_wrapper& exptr) {
+    // Output exception as string
+    std::cout << exptr << '\n';
+
+    // Visitor interface
+    bool visited = exptr.visit([](const std::exception& ex) {
+      ...
+    });
+
+    // true if the function specified in visit() is called
+    assert(visited);
+
+    // Non-member visit()
+    bool visited2 = visit([](const std::exception& ex) {
+      ...
+    }, exptr);
+
+    // Rethrow exception
+    exptr.rethrow();
+  });
+```
+
+By default, `visit()` can only handle the following types:
+
+- `const std::exception&`
+- `const std::basic_string<CharT>&`
+    - `CharT` is character type
+- `const CharT*`
+    - `CharT` is character type
+- builtin integer types
+- builtin floating point types
+- `bool`
+
+The current exception is converted to one of these types and passed to the `visit()` callback. If the current exception is something other than one of these, the callback is not called and `visit()` returns `false`.
+
+Methods for calling other types are also available
+
+```cpp
+chttpp::post(...)
+  .catch_exception([](const chttpp::exptr_wrapper& exptr) {
+
+    // Example of handling std::optional<int> thrown as exception
+    bool visited = visit(std::in_place_type<const std::optional<int>&>, [](const std::optional<int>& opt) {
+      ...
+    }, exptr);
+
+  });
+```
+
+Specify the type `T` you want to handle as `std::in_place_type<T>` in the first argument of `visit()` and a callback for `T` in the second argument.
+
+`visit(std::in_place_type<T>, [](U) {...}, exptr)`, then `T` and `U` must be of the same type or `T -> U` convertible.
+
+The `<<` in `exptr_wrapper` uses `visit()` internally and outputs error messages as is for strings, `.what()` for `std::exception` derivatives, and `<<` for all other cases.
+
+```cpp
+chttpp::post(...)
+  .catch_exception([](const chttpp::exptr_wrapper& exptr) {
+    // This is
+    std::cout << exptr << '\n';
+
+    // Almost equivalent to this
+    exptr.visit(overloaded{
+      [](std::basic_string_view<CharT> str) { std::cout << str << '\n'; },
+      [](const std::exception& ex)  { std::cout << ex.what() << '\n'; },
+      [](auto&& v) { std::cout << v << '\n'; }
+    });
+
+  });
+```
+
 ##### `match()`
 
 ### Another http client - agent
